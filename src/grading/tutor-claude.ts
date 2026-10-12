@@ -20,6 +20,17 @@ export async function tutorReply(apiKey: string, model: string, system: string, 
     .trim();
 }
 
+/** The real reason a call failed, for the teacher (status code and Anthropic's own message). */
+export function errorDetail(e: unknown): string {
+  if (e instanceof Anthropic.APIConnectionError) return "Couldn't connect to api.anthropic.com (offline, or blocked by a network filter or browser extension).";
+  if (e instanceof Anthropic.APIError) {
+    const body = e.error as { error?: { type?: string; message?: string } } | undefined;
+    const msg = body?.error?.message ?? e.message;
+    return `Anthropic API error ${e.status ?? ""}${body?.error?.type ? ` (${body.error.type})` : ""}: ${msg}`;
+  }
+  return e instanceof Error ? e.message : String(e);
+}
+
 /** Kid-friendly error text for the chat panel. */
 export function describeTutorError(e: unknown): string {
   if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) {

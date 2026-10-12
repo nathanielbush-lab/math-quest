@@ -1,5 +1,7 @@
 import { WeeklyReport } from "../components/WeeklyReport";
 import { SyncSettings } from "../sync/SyncSettings";
+import { askTutor } from "../grading/tutor";
+import { makeRng } from "../lib/rng";
 import { useRef, useState } from "react";
 import { ORDERED, SKILL_BY_ID, SKILLS, TOPICS, skillsInTopic } from "../content";
 import { grade as gradeIt, reviewPrompt } from "../grading/types";
@@ -288,6 +290,13 @@ function SettingsTab({ state, mutate, replace }: { state: AppState; mutate: (fn:
     const out = await gradeIt(keyDraft.trim(), st.model, { skillTitle: "Test", prompt: "Why is 1/2 equal to 2/4?", keyIdeas: ["same amount", "multiply top and bottom by 2"], exemplar: "Cutting each half into two pieces gives 2 of 4 pieces, the same amount.", response: "if you cut each half in half you get 4 pieces and 2 of them are the same amount as one half" });
     setTest(out.grade ? `✓ Works! Test grade: ${out.grade.verdict.replace("_", " ")}` : out.error ?? "Didn't work.");
   };
+  const [tutorTest, setTutorTest] = useState<string | null>(null);
+  const testTutor = async () => {
+    setTutorTest("Asking the tutor…");
+    const problem = SKILL_BY_ID["g5.equiv"].generate(makeRng(7), 1);
+    const reply = await askTutor({ apiKey: (keyDraft.trim() || st.apiKey) ?? "", model: st.model, problem, wrongAnswers: [], hintsShown: 0, turns: [{ role: "student", text: "I don't know how to start" }] });
+    setTutorTest(reply.error ? `✗ ${reply.detail ?? reply.error}` : `✓ The tutor works. It said: “${reply.text}”`);
+  };
   return (
     <div>
       <div className="card">
@@ -323,10 +332,12 @@ function SettingsTab({ state, mutate, replace }: { state: AppState; mutate: (fn:
         <div className="row">
           <button className="btn primary" onClick={() => set("apiKey", keyDraft.trim() || undefined)}>Save key</button>
           <button className="btn" disabled={!keyDraft.trim()} onClick={testKey}>Test it</button>
+          <button className="btn" disabled={!keyDraft.trim() && !st.apiKey} onClick={testTutor}>Test the tutor</button>
           {st.apiKey && <button className="btn ghost" onClick={() => { setKeyDraft(""); set("apiKey", undefined); }}>Remove key</button>}
           {st.apiKey && <span className="small muted">✓ key saved</span>}
         </div>
         {test && <div className="feedback info">{test}</div>}
+        {tutorTest && <div className="feedback info">{tutorTest}</div>}
         <label className="row" style={{ marginTop: 12 }}><input type="checkbox" checked={st.tutorEnabled} onChange={(e) => set("tutorEnabled", e.target.checked)} /> Show the “I'm stuck” button (a Claude tutor that asks guiding questions and never gives the answer)</label>
         <div className="field" style={{ marginTop: 8 }}><label htmlFor="tl">Tutor messages per day (keeps cost predictable; about 0.1¢ each with Haiku)</label>
           <input id="tl" type="number" min={0} max={100} value={st.tutorDailyLimit} onChange={(e) => set("tutorDailyLimit", Math.max(0, Math.min(100, Number(e.target.value) || 0)))} />

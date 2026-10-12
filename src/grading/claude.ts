@@ -75,6 +75,9 @@ export function describeError(e: unknown): string {
   if (e instanceof Anthropic.PermissionDeniedError) return "This API key isn't allowed to use that model.";
   if (e instanceof Anthropic.RateLimitError) return "Claude is busy right now (rate limit). It'll be saved for later.";
   if (e instanceof Anthropic.APIConnectionError) return "Couldn't reach Claude (no internet?). It'll be saved for later.";
-  if (e instanceof Anthropic.APIError) return `Claude returned an error (${e.status}). It'll be saved for later.`;
+  if (e instanceof Anthropic.APIError) {
+    const body = e.error as { error?: { message?: string } } | undefined;
+    return `Claude returned an error (${e.status}${body?.error?.message ? `: ${body.error.message}` : ""}). It'll be saved for later.`;
+  }
   return "Couldn't grade it right now. It'll be saved for later.";
 }

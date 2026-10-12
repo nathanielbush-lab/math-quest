@@ -317,6 +317,8 @@ export interface TutorReply {
   /** How many drafts were thrown away for giving the answer away (0–2). */
   leaks: number;
   error?: string;
+  /** The underlying reason, shown to grown-ups under "Details". */
+  detail?: string;
 }
 
 /** Gets the tutor's next reply, re-asking once if it gives the answer away. Loads the SDK on first use; never throws. */
@@ -325,7 +327,7 @@ export async function askTutor(req: TutorRequest): Promise<TutorReply> {
   try {
     mod = await import("./tutor-claude");
   } catch {
-    return { text: "", leaks: 0, error: ERROR_TEXT };
+    return { text: "", leaks: 0, error: ERROR_TEXT, detail: "The tutor's code couldn't load (offline, or the app was just updated: reload the page)." };
   }
   const messages = buildMessages(tutorContext(req.problem, req.wrongAnswers, req.hintsShown), req.turns);
   const lastStudent = [...req.turns].reverse().find((t) => t.role === "student")?.text ?? "";
@@ -335,7 +337,9 @@ export async function askTutor(req: TutorRequest): Promise<TutorReply> {
     try {
       text = (await mod.tutorReply(req.apiKey, req.model, attempt ? TUTOR_SYSTEM + RETRY_NOTE : TUTOR_SYSTEM, messages)).trim();
     } catch (e) {
-      return { text: "", leaks, error: mod.describeTutorError(e) };
+      const detail = mod.errorDetail(e);
+      console.error("Tutor call failed:", detail);
+      return { text: "", leaks, error: mod.describeTutorError(e), detail };
     }
     if (text && !revealsAnswer(text, req.problem, lastStudent)) return { text, leaks };
     leaks++;

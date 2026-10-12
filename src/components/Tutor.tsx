@@ -50,6 +50,7 @@ function TutorChatBox({ problem, wrongAnswers, hintsShown, onUsed, skillId, ctx 
   const [turns, setTurns] = useState<TutorTurn[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [detail, setDetail] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const chatId = useRef<string | null>(null);
   const usedOnce = useRef(false);
@@ -92,6 +93,7 @@ function TutorChatBox({ problem, wrongAnswers, hintsShown, onUsed, skillId, ctx 
       setTurns(turns);
       setInput(text);
       setError(reply.error || ERROR_TEXT);
+      setDetail(reply.detail ?? null);
       return;
     }
     setTurns([...history, { role: "tutor", text: reply.text }]);
@@ -156,7 +158,12 @@ function TutorChatBox({ problem, wrongAnswers, hintsShown, onUsed, skillId, ctx 
               </div>
             )}
           </div>
-          {error && <div className="feedback warn tutor-error" role="alert">{error}</div>}
+          {error && (
+            <div className="feedback warn tutor-error" role="alert">
+              {error}
+              {detail && <details className="small" style={{ marginTop: 4 }}><summary>Details for a grown-up</summary>{detail}</details>}
+            </div>
+          )}
           {capped && !busy && <div className="feedback info tutor-cap">💪 {CAP_TEXT}</div>}
           {resting && !capped && !busy && <div className="feedback info tutor-cap">😴 {RESTING}</div>}
           {canSend && turns.length === 0 && (
