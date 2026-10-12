@@ -42,6 +42,8 @@ export interface SessionCtx {
   forcedSkill?: string;
   /** Messages waiting to be shown before the next item. */
   queue: Item[];
+  /** How each answered question went, for the progress dots (ok = right first time without help). */
+  marks?: ("ok" | "help" | "miss")[];
   /** Last challenge id used, so the next session picks a different one. */
   lastChallenge?: string;
 }

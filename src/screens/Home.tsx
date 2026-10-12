@@ -1,6 +1,10 @@
 import { useRef } from "react";
 import { MISSIONS } from "../content/challenges";
 import { SKILLS, SKILL_BY_ID, TOPICS } from "../content";
+import { familyOf, type TopicFamily } from "../content/topics";
+import { FamilyIcon, Icon } from "../components/Icon";
+import { Owl } from "../components/Owl";
+import { useSkin } from "../skin";
 import { previewToday } from "../engine/session";
 import { daysBetween, today, type AppState } from "../engine/state";
 import { BADGES, monthFocus } from "../store";
@@ -34,12 +38,12 @@ export function lastTimeLine(state: AppState): string | null {
   return `${when} ${what}, and got ${last.correct} of ${last.answered} right.`;
 }
 
-const TABS: { id: HomeTab; label: string }[] = [
-  { id: "today", label: "🏠 Today" },
-  { id: "map", label: "🗺️ My Map" },
-  { id: "trophies", label: "🏆 Trophies" },
-  { id: "missions", label: "🚩 Missions" },
-  { id: "shop", label: "🛍️ Shop" },
+const TABS: { id: HomeTab; label: string; icon: "home" | "map" | "trophy" | "flag" | "bag" }[] = [
+  { id: "today", label: "Today", icon: "home" },
+  { id: "map", label: "My Map", icon: "map" },
+  { id: "trophies", label: "Trophies", icon: "trophy" },
+  { id: "missions", label: "Missions", icon: "flag" },
+  { id: "shop", label: "Shop", icon: "bag" },
 ];
 
 export function Home({ state, go, tab = "today", mutate }: { state: AppState; go: (r: Route) => void; tab?: HomeTab; mutate: (fn: (s: AppState) => void) => void }) {
@@ -67,6 +71,7 @@ export function Home({ state, go, tab = "today", mutate }: { state: AppState; go
             onClick={() => setTab(t.id)}
             onKeyDown={(e) => onTabKey(e, i)}
           >
+            <Icon name={t.icon} size={19} />
             {t.label}
             {t.id === "trophies" && state.badges.length > 0 && <span className="tab-count">{state.badges.length}</span>}
             {t.id === "missions" && openMissions > 0 && <span className="tab-dot" title={`${openMissions} ready to play`} />}
@@ -83,16 +88,18 @@ export function Home({ state, go, tab = "today", mutate }: { state: AppState; go
 }
 
 const QUEST_STEPS = [
-  { icon: "🔥", name: "Warm-up", time: "~5 min" },
-  { icon: "📘", name: "Learn", time: "15–20 min" },
-  { icon: "🧩", name: "Challenge", time: "~10 min" },
-];
+  { icon: "bolt", name: "Warm-up", time: "~5 min" },
+  { icon: "book", name: "Learn", time: "15–20 min" },
+  { icon: "flag", name: "Challenge", time: "~10 min" },
+] as const;
 
 function Today({ state, go, setTab, mutate }: { state: AppState; go: (r: Route) => void; setTab: (t: HomeTab) => void; mutate: (fn: (s: AppState) => void) => void }) {
   const preview = previewToday(state);
   const week = questDaysThisWeek(state);
   const goal = state.settings.weeklyGoal;
   const doneToday = state.sessions.some((s) => s.kind === "daily" && s.date === today());
+  const skin = useSkin();
+  const stepFamilies: TopicFamily[] = ["data", preview.focus[0] ? familyOf(preview.focus[0].topic) : "fractions", "ratios"];
   const openMistakes = state.mistakes.filter((m) => !m.resolved).length;
   const placementDone = Object.keys(state.placement).length;
   const showPlacement = placementDone < TOPICS.length && !state.settings.placementHidden;
@@ -104,35 +111,45 @@ function Today({ state, go, setTab, mutate }: { state: AppState; go: (r: Route) 
   ];
   return (
     <div>
-      <div className="card hero" data-tour="quest">
-        <div className="row" style={{ marginBottom: 4 }}>
-          <Avatar state={state} size="lg" />
-          <h1 style={{ margin: 0 }}>Hi {state.settings.studentName || "there"}! 👋</h1>
-        </div>
-        <p className="muted" style={{ marginTop: 0 }}>
-          {last ?? "Your first quest starts with a quick warm-up. Ready?"}
-          {last && preview.dueTotal > 0 && ` ${preview.dueTotal} skill${preview.dueTotal === 1 ? " is" : "s are"} ready for a quick review today.`}
-        </p>
-        <div className="quest-path">
-          {QUEST_STEPS.map((q, i) => (
-            <div key={q.name} className={`quest-step ${doneToday ? "done" : ""}`}>
-              <div className="quest-icon">{doneToday ? "✅" : q.icon}</div>
-              <div>
-                <div className="quest-name">{i + 1}. {q.name} <span className="quest-time">{q.time}</span></div>
-                <div className="quest-detail">{details[i]}</div>
-              </div>
+      <div className="card quest-hero" data-tour="quest">
+        <div className="hero-top">
+          <svg className="hero-scene" viewBox="0 0 1000 70" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M0 45 C 150 5 300 15 420 42 S 700 12 820 34 S 950 38 1000 22 V 70 H 0 Z" fill="#9cc0a2" />
+            <path d="M0 62 C 200 34 380 58 560 48 S 860 54 1000 44 V 70 H 0 Z" fill="#7fa886" />
+          </svg>
+          <Owl size={skin === "storybook" ? 104 : 96} className="bob" />
+          <div className="hero-text">
+            <div className="row" style={{ gap: 10 }}>
+              <h1>{skin === "storybook" ? "Welcome back" : "Hi"}, {state.settings.studentName || "there"}!</h1>
+              <Avatar state={state} size="lg" />
             </div>
-          ))}
+            <div className="bubble">
+              {last ?? (skin === "storybook" ? "Your story starts with a quick warm-up. Shall we begin?" : "Your first quest starts with a quick warm-up. Ready?")}
+              {last && preview.dueTotal > 0 && ` ${preview.dueTotal} skill${preview.dueTotal === 1 ? " is" : "s are"} ready for a quick review today.`}
+            </div>
+          </div>
         </div>
-        {doneToday && <p style={{ margin: "12px 0 0", fontWeight: 700 }}>🎉 Today's quest is complete! Come back tomorrow, or do a bonus round now.</p>}
-        <div className="row" style={{ marginTop: 16 }}>
-          <button className="btn primary big" onClick={() => go({ name: "session", type: "daily" })} autoFocus>
-            {doneToday ? "Bonus round →" : "Start today's quest →"}
-          </button>
-          <span className="week-goal" title="Weekly goal (Monday–Sunday)">
-            🎯 {Array.from({ length: goal }, (_, i) => <span key={i} className={`goal-dot ${i < week ? "on" : ""}`} />)}
-            <span className="small">{week >= goal ? "Weekly goal done! 🎉" : `${week} of ${goal} quests this week`}</span>
-          </span>
+        <div className="hero-body">
+          <div className="quest-path">
+            {QUEST_STEPS.map((q, i) => (
+              <div key={q.name} className={`quest-step fam-${stepFamilies[i]} ${doneToday ? "done" : ""}`}>
+                <span className="quest-icon"><Icon name={doneToday ? "check" : q.icon} size={26} /></span>
+                <span className="quest-chapter">Chapter {i + 1}{doneToday ? " · done" : ""}</span>
+                <span className="quest-name">{skin === "storybook" ? q.name : `${i + 1} · ${q.name}`} <span className="quest-time">{q.time}</span></span>
+                <span className="quest-detail">{details[i]}</span>
+              </div>
+            ))}
+          </div>
+          {doneToday && <p style={{ margin: "14px 0 0", fontWeight: 800 }}>Today's {skin === "storybook" ? "chapters are" : "quest is"} complete! Come back tomorrow, or do a bonus round now.</p>}
+          <div className="hero-actions">
+            <button className="btn primary big" onClick={() => go({ name: "session", type: "daily" })} autoFocus>
+              {doneToday ? "Bonus round" : skin === "storybook" ? "Begin today's chapter" : "Start today's quest"} <Icon name="arrow" />
+            </button>
+            <span className="week-goal" title="Weekly goal (Monday–Sunday)">
+              {Array.from({ length: goal }, (_, i) => <span key={i} className={`goal-dot ${i < week ? "on" : ""}`} />)}
+              <span className="small" style={{ fontWeight: 800 }}>{week >= goal ? "Weekly goal done!" : `${week} of ${goal} quests this week`}</span>
+            </span>
+          </div>
         </div>
       </div>
 
@@ -143,7 +160,7 @@ function Today({ state, go, setTab, mutate }: { state: AppState; go: (r: Route) 
       {showPlacement && (
         <div className="card row">
           <div className="grow">
-            <h3>🧭 Find your starting point</h3>
+            <h3><Icon name="compass" /> Find your starting point</h3>
             <p className="muted small" style={{ margin: 0 }}>Short checks for each topic so you can skip what you already know. {placementDone} of {TOPICS.length} topics checked.</p>
           </div>
           {placementDone > 0 && <button className="btn ghost" onClick={() => mutate((s) => { s.settings.placementHidden = true; })}>Not now</button>}
@@ -154,7 +171,7 @@ function Today({ state, go, setTab, mutate }: { state: AppState; go: (r: Route) 
       {openMistakes > 0 && (
         <div className="card row">
           <div className="grow">
-            <h3>🛠️ Mistake journal</h3>
+            <h3><Icon name="target" /> Mistake journal</h3>
             <p className="muted small" style={{ margin: 0 }}>{openMistakes} question{openMistakes === 1 ? "" : "s"} to try again with fresh numbers. Mistakes are how we learn!</p>
           </div>
           <button className="btn" onClick={() => go({ name: "session", type: "mistakes" })}>Revisit</button>
@@ -172,12 +189,12 @@ function MapTab({ state, go }: { state: AppState; go: (r: Route) => void }) {
   return (
     <div>
       <div className="row" style={{ marginBottom: 4 }}>
-        <h2 className="grow" style={{ margin: 0 }}>🗺️ Your math map</h2>
+        <h2 className="grow" style={{ margin: 0 }}>Your math map</h2>
         <span className="small muted">{ready} of {SKILLS.length} skills unlocked</span>
       </div>
       <div className="row" style={{ alignItems: "flex-start" }}>
         <div className="grow"><LevelLegend /><LevelGuide /></div>
-        {placementDone < TOPICS.length && <button className="btn" onClick={() => go({ name: "placement" })}>🧭 Check what I already know ({placementDone}/{TOPICS.length})</button>}
+        {placementDone < TOPICS.length && <button className="btn" onClick={() => go({ name: "placement" })}><Icon name="compass" /> Check what I already know ({placementDone}/{TOPICS.length})</button>}
       </div>
       {grades.map((g) => (
         <div key={g}>
@@ -186,11 +203,11 @@ function MapTab({ state, go }: { state: AppState; go: (r: Route) => void }) {
             {TOPICS.filter((t) => t.grade === g).map((t) => {
               const c = topicCounts(state, t.id);
               return (
-                <div key={t.id} className="card tight topic-tile" onClick={() => go({ name: "topic", topicId: t.id })} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && go({ name: "topic", topicId: t.id })}>
+                <div key={t.id} className={`card tight topic-tile fam-${familyOf(t.id)}`} onClick={() => go({ name: "topic", topicId: t.id })} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && go({ name: "topic", topicId: t.id })}>
                   <div className="row" style={{ marginBottom: 8 }}>
-                    <span className="icon">{t.icon}</span>
+                    <span className="fam-badge"><FamilyIcon family={familyOf(t.id)} size={22} /></span>
                     <strong className="grow">{t.title}</strong>
-                    {c.ready === c.total && <span title="every skill unlocked">⭐</span>}
+                    {c.ready === c.total && <span title="every skill unlocked"><Icon name="star" /></span>}
                   </div>
                   <LevelBar counts={c.counts} total={c.total} />
                   <div style={{ marginTop: 6 }}><LevelSummary counts={c.counts} total={c.total} /></div>
@@ -213,7 +230,7 @@ function MissionsTab({ state, go }: { state: AppState; go: (r: Route) => void })
   const missionBadges = BADGES.filter((b) => b.id.startsWith("mission-"));
   return (
     <div>
-      <h2 style={{ marginTop: 0 }}>🚩 Stage challenges</h2>
+      <h2 style={{ marginTop: 0 }}>Stage challenges</h2>
       <p className="muted small">Bigger, real-world projects that mix lots of skills together. Each one unlocks when you're practicing the skills it needs, and finishing it earns a badge ({missionBadges.filter((b) => state.badges.includes(b.id)).length} of {missionBadges.length} so far).</p>
       <div className="grid2">
         {MISSIONS.map((m) => {

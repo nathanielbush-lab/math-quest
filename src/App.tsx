@@ -8,6 +8,8 @@ import { Home, type HomeTab } from "./screens/Home";
 import { Assessment, type AssessKind } from "./screens/Assessment";
 import { Avatar } from "./components/Shop";
 import { TutorProvider } from "./components/Tutor";
+import { Icon } from "./components/Icon";
+import { SkinContext } from "./skin";
 import { SyncProvider } from "./sync/useSync";
 import { currentStreak } from "./engine/mastery";
 import { starBalance } from "./engine/state";
@@ -53,6 +55,10 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.mqTheme = state.equipped.theme ?? "";
   }, [state.equipped.theme]);
+  const skin = state.settings.skin ?? "playful";
+  useEffect(() => {
+    document.documentElement.dataset.skin = skin;
+  }, [skin]);
 
   const onHome = route.name === "home" && !!state.settings.studentName;
   // First visit to the home page: walk her through it once.
@@ -97,30 +103,32 @@ export default function App() {
   }
 
   return (
+    <SkinContext.Provider value={skin}>
     <SyncProvider state={state} replace={replace} busy={inActivity}>
     <TutorProvider state={state} mutate={mutate}>
     <div className="app">
       {!inActivity && (
         <div className="topbar">
-          <div className="brand" onClick={home} role="link">🧭 Math Quest</div>
+          <div className="brand" onClick={home} role="link"><Icon name="compass" size={30} /> Math Quest</div>
           <Avatar state={state} size="sm" />
           <span className="spacer" />
           <span className="row" style={{ gap: 8 }} data-tour="stats">
-            {streakNow > 0 && <span className="chip" title="days in a row">🔥 {streakNow}</span>}
-            {(state.streak.freezes ?? 0) > 0 && <span className="chip" title="streak freezes: each one covers a missed day">🧊 {state.streak.freezes}</span>}
-            <span className="chip" title={`stars to spend (${state.xp} earned in all)`}>⭐ {starBalance(state)}</span>
+            {streakNow > 0 && <span className="chip" title="days in a row"><Icon name="flame" /> {streakNow}</span>}
+            {(state.streak.freezes ?? 0) > 0 && <span className="chip" title="streak freezes: each one covers a missed day"><Icon name="snow" className="icon-snow" /> {state.streak.freezes}</span>}
+            <span className="chip star-counter" title={`stars to spend (${state.xp} earned in all)`}><Icon name="star" /> {starBalance(state)}</span>
           </span>
-          {onHome && <button className="btn ghost" title="Show me around" aria-label="Show me around" onClick={() => { go({ name: "home", tab: "today" }); setTouring(true); }}>❓</button>}
-          {route.name !== "parent" && <button className="btn ghost" data-tour="parent" onClick={() => go({ name: "parent" })}>🍎 Teacher</button>}
+          {onHome && <button className="btn ghost" title="Show me around" aria-label="Show me around" onClick={() => { go({ name: "home", tab: "today" }); setTouring(true); }}><Icon name="help" /></button>}
+          {route.name !== "parent" && <button className="btn ghost" data-tour="parent" onClick={() => go({ name: "parent" })}><Icon name="apple" /> Teacher</button>}
         </div>
       )}
       {saveFailed && <div className="feedback warn">Progress couldn't be saved in this browser (private window or storage blocked?). Use Teacher corner → Settings → Download progress file to keep it.</div>}
-      {body}
+      <div key={JSON.stringify(route)} className="screen-in">{body}</div>
       {toastText && !celebrating && <div className="toast" role="status">{toastText}</div>}
       {showTour && (route.tab ?? "today") === "today" && <Tour steps={HOME_TOUR} onDone={endTour} />}
       {celebrating && <BadgeCelebration badge={celebrating} more={newBadges.length - 1} onClose={popBadge} />}
     </div>
     </TutorProvider>
     </SyncProvider>
+    </SkinContext.Provider>
   );
 }

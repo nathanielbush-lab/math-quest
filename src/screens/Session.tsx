@@ -5,6 +5,8 @@ import { ExplainCard, LessonCard, MultiPart, WhyCard, WorkedExample } from "../c
 import { Calculator } from "../components/Calculator";
 import { MathText } from "../components/MathText";
 import { ProblemCard } from "../components/ProblemCard";
+import { Icon } from "../components/Icon";
+import { familyOf } from "../content/topics";
 import { makeRng } from "../lib/rng";
 import { WEEK_BONUS, bumpStreak, checkWeeklyGoal, recordWhyChoice, setWrittenStatus } from "../engine/mastery";
 import { afterAnswer, nextItem, startSession, type Item, type SessionCtx, type SessionType } from "../engine/session";
@@ -13,13 +15,13 @@ import type { WhyWritten } from "../content/types";
 import { LevelBadge } from "../ui";
 
 const MODE_LABEL: Record<string, string> = {
-  review: "🔁 Warm-up review",
-  mistake: "🛠️ Try again with new numbers",
-  free: "🎯 Practice",
-  learn: "🎯 Practice",
-  probe: "🔍 Building-block check",
-  challenge: "🧩 Stretch problem",
-  placement: "🧭 Starting-point check",
+  review: "Warm-up review",
+  mistake: "Try again with new numbers",
+  free: "Practice",
+  learn: "Practice",
+  probe: "Building-block check",
+  challenge: "Stretch problem",
+  placement: "Starting-point check",
 };
 
 let lastChallenge: string | undefined;
@@ -82,19 +84,24 @@ export function Session({ state, mutate, type, skillId, onExit, toast }: {
 
   return (
     <div>
-      <div className="row" style={{ marginBottom: 12 }}>
-        <div className="stage grow" style={{ margin: 0 }}>
+      <div className="session-head">
+        <div className="stage" style={{ margin: 0 }}>
           {phases.map((p, i) => {
             const cur = ctx.phase === "done" ? phases.length : (phases as readonly string[]).indexOf(ctx.phase);
             return <span key={p} className={i === cur ? "on" : i < cur ? "past" : ""}>{i < cur ? "✓ " : ""}{phaseName[p]}</span>;
           })}
         </div>
-        <span className="chip">✅ {ctx.correct}/{ctx.answered}</span>
-        {state.settings.calculator && <button className="btn ghost" onClick={() => setCalc((c) => !c)} aria-label="calculator">🧮</button>}
-        <button className="btn ghost" onClick={() => (item.kind === "done" || confirm("Stop for now? Your progress so far is saved.") ? onExit() : null)}>✕</button>
+        <div className="session-dots" role="img" aria-label={`${ctx.correct} of ${ctx.answered} right without help`}>
+          {(ctx.marks ?? []).slice(-14).map((m, i) => <span key={i} className={m} />)}
+          {item.kind !== "done" && <span className="cur" />}
+        </div>
+        {state.settings.calculator && <button className="btn ghost" onClick={() => setCalc((c) => !c)} aria-label="calculator"><Icon name="calc" /></button>}
+        <button className="btn ghost" aria-label="Stop for now" onClick={() => (item.kind === "done" || confirm("Stop for now? Your progress so far is saved.") ? onExit() : null)}><Icon name="x" /></button>
       </div>
       {calc && <Calculator onClose={() => setCalc(false)} />}
-      <ItemView key={keyOf(item)} item={item} state={state} mutate={mutate} ctx={ctx} advance={advance} toast={toast} onExit={onExit} xpGained={state.xp - xpStart} startLevels={startLevels.current} />
+      <div className="focus screen-in" key={keyOf(item)}>
+        <ItemView item={item} state={state} mutate={mutate} ctx={ctx} advance={advance} toast={toast} onExit={onExit} xpGained={state.xp - xpStart} startLevels={startLevels.current} />
+      </div>
     </div>
   );
 }
@@ -143,9 +150,10 @@ function ItemView({ item, state, mutate, ctx, advance, toast, onExit, xpGained, 
           skillId={item.skillId}
           guided={item.guided}
           readAloud={readAloud}
-          header={<div className="row small muted" style={{ marginBottom: 6 }}><span>{MODE_LABEL[item.mode]}</span><span>·</span><span>{skill.title}</span></div>}
+          banner={{ family: familyOf(skill.topic), title: skill.title, mode: item.guided ? "Let's do it together" : MODE_LABEL[item.mode] }}
           onFinish={(r) => {
             let msg = "";
+            (ctx.marks ??= []).push(r.ok && !r.assisted ? "ok" : r.ok ? "help" : "miss");
             mutate((s) => {
               const out = afterAnswer(s, ctx, item, { ok: r.ok, assisted: r.assisted, given: r.given, correct: r.correct, prompt: problem!.prompt });
               logEvent(s, { skill: item.skillId, level: item.level, mode: item.guided ? "guided" : item.mode, ok: r.ok, assisted: r.assisted, tries: r.tries, hints: r.hints, secs: r.secs, tutor: r.tutor || undefined });

@@ -25,3 +25,29 @@ export const TOPICS: Topic[] = [
 ];
 
 export const TOPIC_BY_ID = Object.fromEntries(TOPICS.map((t) => [t.id, t]));
+
+/** Six color families so every topic has a consistent color (and icon) across the app. */
+export type TopicFamily = "fractions" | "ratios" | "algebra" | "number" | "geometry" | "data";
+
+export const TOPIC_FAMILY: Record<string, TopicFamily> = {
+  g5: "fractions",
+  "g6-ns": "fractions",
+  "g6-rp": "ratios",
+  "g7-rp": "ratios",
+  "g6-ee": "algebra",
+  "g7-ee": "algebra",
+  "g8-eq": "algebra",
+  "g8-f": "algebra",
+  "g7-ns": "number",
+  "g8-pr": "number",
+  "g6-g": "geometry",
+  "g7-g": "geometry",
+  "g8-g": "geometry",
+  "g6-sp": "data",
+  "g7-sp": "data",
+  "g8-sp": "data",
+};
+
+export function familyOf(topicId: string): TopicFamily {
+  return TOPIC_FAMILY[topicId] ?? "fractions";
+}

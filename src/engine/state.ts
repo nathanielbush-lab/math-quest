@@ -100,6 +100,8 @@ export interface Settings {
   tutorEnabled: boolean;
   /** Most tutor messages she can send per day, to keep cost predictable. */
   tutorDailyLimit: number;
+  /** The app's look: bright and game-like, or warm and illustrated. */
+  skin: "playful" | "storybook" | "classic";
 }
 
 /** One answered question, kept for the parent report and for reviewing how the app is working. */
@@ -230,7 +232,7 @@ export function newState(): AppState {
     version: 1,
     createdAt: now,
     updatedAt: now,
-    settings: { studentName: "", calculator: false, sessionLength: "standard", readAloud: false, model: DEFAULT_MODEL, targetDate: "2027-01-15", weeklyGoal: 4, tutorEnabled: true, tutorDailyLimit: 20 },
+    settings: { studentName: "", calculator: false, sessionLength: "standard", readAloud: false, model: DEFAULT_MODEL, targetDate: "2027-01-15", weeklyGoal: 4, tutorEnabled: true, tutorDailyLimit: 20, skin: "playful" },
     skills: {},
     xp: 0,
     starsSpent: 0,

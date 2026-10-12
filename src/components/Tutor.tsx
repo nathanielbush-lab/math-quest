@@ -4,6 +4,8 @@ import { today, type AppState } from "../engine/state";
 import { askTutor, ERROR_TEXT, MAX_CHATS, MAX_PER_PROBLEM, tutorUsedToday, type TutorTurn } from "../grading/tutor";
 import { MathText } from "./MathText";
 import "./tutor.css";
+import { Icon } from "./Icon";
+import { Owl } from "./Owl";
 
 interface TutorCtx {
   state: AppState;
@@ -119,7 +121,7 @@ function TutorChatBox({ problem, wrongAnswers, hintsShown, onUsed, skillId, ctx 
     return (
       <>
         <button className="btn ghost tutor-btn tutor-resting" aria-disabled="true" title={RESTING} onClick={() => setRestNote((v) => !v)}>
-          🙋 I'm stuck
+          <Icon name="chat" /> I'm stuck
         </button>
         {restNote && <div className="tutor-note small muted" role="status">😴 {RESTING}</div>}
       </>
@@ -131,12 +133,12 @@ function TutorChatBox({ problem, wrongAnswers, hintsShown, onUsed, skillId, ctx 
   return (
     <>
       <button ref={toggleRef} className={`btn ghost tutor-btn${open ? " on" : ""}`} aria-expanded={open} aria-controls="tutor-panel" onClick={() => (open ? close() : setOpen(true))}>
-        🙋 I'm stuck
+        <Icon name="chat" /> I'm stuck
       </button>
       {open && (
         <section id="tutor-panel" className="tutor-panel" aria-label="Math tutor chat" onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } }}>
           <header className="tutor-head">
-            <span className="tutor-avatar" aria-hidden="true">🦉</span>
+            <span className="tutor-avatar" aria-hidden="true"><Owl size={34} /></span>
             <strong className="grow">Tutor</strong>
             {!capped && <span className="small muted">{MAX_PER_PROBLEM - sent} question{MAX_PER_PROBLEM - sent === 1 ? "" : "s"} left here</span>}
             <button className="btn ghost tutor-close" aria-label="Close the tutor" title="Close" onClick={close}>✕</button>

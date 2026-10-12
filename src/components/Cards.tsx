@@ -9,6 +9,8 @@ import { MathText, speak } from "./MathText";
 import { ProblemCard, type ProblemResult } from "./ProblemCard";
 import { cleanSteps } from "./SolutionSteps";
 import { Grid, Visual } from "./Visual";
+import { Icon } from "./Icon";
+import { Owl } from "./Owl";
 
 function useEnterToContinue(fn: () => void, enabled = true) {
   const ref = useRef<HTMLButtonElement>(null);
@@ -24,7 +26,7 @@ export function LessonCard({ skill, recap, readAloud, onDone }: { skill: Skill; 
   return (
     <div className="card">
       <div className="row">
-        <span className="chip">📘 {recap ? "Quick recap" : "New idea"}</span>
+        <span className="chip"><Icon name="book" /> {recap ? "Quick recap" : "New idea"}</span>
         <span className="muted small grow">{skill.title}</span>
         {readAloud && <button className="btn ghost" aria-label="read aloud" onClick={() => speak([lesson.bigIdea, ...lesson.explain].join(" "))}>🔊</button>}
       </div>
@@ -45,7 +47,7 @@ export function WorkedExample({ skill, seed, level, onDone }: { skill: Skill; se
   const btn = useEnterToContinue(all ? onDone : () => setShown((n) => n + 1));
   return (
     <div className="card">
-      <span className="chip">👀 Watch me solve one</span>
+      <span className="chip"><Owl size={26} /> Watch me solve one</span>
       <MathText text={problem.prompt} as="div" className="prompt" />
       {problem.visual && problem.answer.kind !== "point" && <Visual v={problem.visual} />}
       {problem.answer.kind === "point" && (
@@ -73,7 +75,7 @@ export function WhyCard({ skill, onDone }: { skill: Skill; onDone: (ok: boolean)
   const btn = useEnterToContinue(() => onDone(ok), pick !== null);
   return (
     <div className="card">
-      <span className="chip">🧠 Why does it work?</span>
+      <span className="chip"><Icon name="bulb" /> Why does it work?</span>
       <MathText text={why.prompt} as="div" className="prompt" />
       {why.visual && <Visual v={why.visual} />}
       <div className="choices">
@@ -162,7 +164,7 @@ export function ExplainCard({
   return (
     <div className="card">
       <div className="row">
-        <span className="chip">✍️ Explain it in your own words</span>
+        <span className="chip"><Icon name="chat" /> Explain it in your own words</span>
         <span className="grow" />
         {apiKey && rounds.length > 0 && <span className="small muted">Round {Math.min(rounds.length + (finished ? 0 : 1), MAX_ROUNDS)} of up to {MAX_ROUNDS}</span>}
       </div>
@@ -203,10 +205,10 @@ export function ExplainCard({
       {wrap && (
         <div className="wrapup">
           {wrap.howToImprove && <p><strong>💡 To make it even stronger:</strong> <MathText text={wrap.howToImprove} /></p>}
-          {model_ && <p><strong>📝 Here's one way to say it:</strong> <MathText text={model_} /></p>}
+          {model_ && <p><strong>Here's one way to say it:</strong> <MathText text={model_} /></p>}
         </div>
       )}
-      {!wrap && stopped && model_ && <div className="wrapup"><p><strong>📝 Here's one way to say it:</strong> <MathText text={model_} /></p></div>}
+      {!wrap && stopped && model_ && <div className="wrapup"><p><strong>Here's one way to say it:</strong> <MathText text={model_} /></p></div>}
       {saved && <div className="feedback info">{error ? error + " " : ""}Saved! A grown-up will read it and give you feedback.</div>}
       {finished && (
         <div className="row"><span className="grow" /><button className="btn primary" onClick={saved ? () => onDone({ response: text, grade: null, error: error ?? undefined, rounds: [] }) : finish} autoFocus>Continue →</button></div>

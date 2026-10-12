@@ -5,6 +5,10 @@ import { AnswerInput } from "./AnswerInput";
 import { MathText, speak } from "./MathText";
 import { SolutionSteps, scaffoldSteps } from "./SolutionSteps";
 import { StuckButton } from "./Tutor";
+import { FamilyIcon, Icon } from "./Icon";
+import { OwlSays } from "./Owl";
+import { useSkin } from "../skin";
+import type { TopicFamily } from "../content/topics";
 import { Visual } from "./Visual";
 
 export interface ProblemResult {
@@ -45,6 +49,7 @@ export function ProblemCard({
   onFinish,
   header,
   skillId,
+  banner,
 }: {
   problem: Problem;
   guided?: boolean;
@@ -54,6 +59,8 @@ export function ProblemCard({
   header?: React.ReactNode;
   /** For labelling tutor chats. */
   skillId?: string;
+  /** Topic-colored strip across the top of the card (the focused practice screen). */
+  banner?: { family: TopicFamily; title: string; mode?: string };
 }) {
   const [tries, setTries] = useState(0);
   const [hints, setHints] = useState(0);
@@ -64,6 +71,7 @@ export function ProblemCard({
   const [stepsDone, setStepsDone] = useState(false);
   const [mark, setMark] = useState<{ x: number; y: number; ok: boolean } | null>(null);
   const [tutorUsed, setTutorUsed] = useState(false);
+  const skin = useSkin();
   const [wrongs, setWrongs] = useState<string[]>([]);
   const shownAt = useRef(Date.now());
   const contRef = useRef<HTMLButtonElement>(null);
@@ -110,11 +118,19 @@ export function ProblemCard({
 
   const done = !!result;
   return (
-    <div className="card" data-test-answer={import.meta.env.DEV ? JSON.stringify(canonicalResponse(problem.answer)) : undefined} data-range={import.meta.env.DEV && problem.answer.kind === "point" ? JSON.stringify({ min: problem.answer.min, max: problem.answer.max }) : undefined}>
+    <div className={`card ${banner ? `q-card fam-${banner.family}` : ""}`} data-test-answer={import.meta.env.DEV ? JSON.stringify(canonicalResponse(problem.answer)) : undefined} data-range={import.meta.env.DEV && problem.answer.kind === "point" ? JSON.stringify({ min: problem.answer.min, max: problem.answer.max }) : undefined}>
+      {banner && (
+        <div className="q-banner">
+          <FamilyIcon family={banner.family} />
+          <span>{banner.title}</span>
+          {banner.mode && <span className="mode">{banner.mode}</span>}
+        </div>
+      )}
+      <div className={banner ? "q-body" : undefined}>
       {header}
       <div className="row" style={{ alignItems: "flex-start" }}>
         <MathText text={problem.prompt} as="div" className="prompt grow" />
-        {readAloud && <button className="btn ghost" aria-label="read aloud" onClick={() => speak(problem.prompt)}>🔊</button>}
+        {readAloud && <button className="btn ghost" aria-label="read aloud" onClick={() => speak(problem.prompt)}><Icon name="speaker" /></button>}
       </div>
       {problem.estimate && !done && <div className="estimate">🤔 <strong>Estimate first:</strong> <MathText text={problem.estimate} /></div>}
       {problem.visual && <Visual v={problem.visual} />}
@@ -126,22 +142,57 @@ export function ProblemCard({
         </div>
       )}
       <AnswerInput key={tries} answer={problem.answer} disabled={done} struck={struck} reveal={done} onSubmit={submit} pointMark={mark} />
-      {problem.hints.slice(0, hints).map((h, i) => (
-        <div className="hintbox" key={i}>💡 <MathText text={h} /></div>
-      ))}
-      {feedback && <div className={`feedback ${feedback.tone} ${feedback.tone === "good" ? "celebrate" : ""}`}><MathText text={feedback.text} /></div>}
+      {hints > 0 && (
+        <OwlSays className="hint" size={58}>
+          {problem.hints.slice(0, hints).map((h, i) => (
+            <div key={i} className={i < hints - 1 ? "muted" : undefined} style={{ marginTop: i ? 6 : 0 }}>
+              {i === hints - 1 && <strong>{skin === "classic" ? "Hint: " : hints === 1 ? "Hoo! A hint: " : "Another hint: "}</strong>}
+              <MathText text={h} />
+            </div>
+          ))}
+        </OwlSays>
+      )}
+      {feedback && (
+        <div className={`feedback ${feedback.tone} ${feedback.tone === "good" ? "celebrate" : ""}`} style={{ position: "relative" }}>
+          <MathText text={feedback.text} />
+          {feedback.tone === "good" && !placement && <StarBurst />}
+        </div>
+      )}
       <div className="row">
         {!done && !placement && hints < problem.hints.length && (
-          <button className="btn ghost" onClick={() => setHints((h) => h + 1)}>💡 {hints ? "Another hint" : "Hint"}</button>
+          <button className="btn ghost" onClick={() => setHints((h) => h + 1)}><Icon name="bulb" /> {hints ? "Another hint" : "Hint"}</button>
         )}
         {done && !placement && !showSteps && <button className="btn ghost" onClick={() => setShowSteps(true)}>See the solution</button>}
         {!done && !placement && <StuckButton problem={problem} skillId={skillId} wrongAnswers={wrongs} hintsShown={hints} onUsed={() => setTutorUsed(true)} />}
         <span className="grow" />
         {done && (
-          <button ref={contRef} className="btn primary" onClick={() => onFinish(result!)}>Continue →</button>
+          <button ref={contRef} className="btn primary" onClick={() => onFinish(result!)}>Continue <Icon name="arrow" /></button>
         )}
       </div>
       {showSteps && <SolutionSteps steps={problem.steps} onAllShown={() => setStepsDone(true)} />}
+      </div>
     </div>
+  );
+}
+
+/** A little shower of stars when an answer is right. */
+function StarBurst() {
+  const stars = useMemo(
+    () =>
+      Array.from({ length: 9 }, (_, i) => {
+        const angle = -Math.PI / 2 + ((i - 4) / 4) * 1.1 + (Math.random() - 0.5) * 0.3;
+        const dist = 70 + Math.random() * 60;
+        return { dx: Math.cos(angle) * dist, dy: Math.sin(angle) * dist, delay: Math.random() * 0.15, size: 16 + Math.random() * 12 };
+      }),
+    [],
+  );
+  return (
+    <span className="star-burst" aria-hidden="true" style={{ position: "absolute", left: "50%", top: 10 }}>
+      {stars.map((st, i) => (
+        <span key={i} style={{ position: "absolute", ["--dx" as string]: `${st.dx}px`, ["--dy" as string]: `${st.dy}px` }}>
+          <Icon name="star" size={st.size} className="burst" />
+        </span>
+      ))}
+    </span>
   );
 }

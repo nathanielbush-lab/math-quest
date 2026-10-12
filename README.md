@@ -64,7 +64,7 @@ The three stage challenges from the roadmap unlock as the student reaches the re
 - **Tracker:** the roadmap's progress tracker filled in with dates for each level and the next recheck. Printable.
 - **Explanations:** written explanations, with Claude's feedback if grading is on. Mark them *Got it* or *Needs revision* yourself, or **Copy pending for a Claude chat** to paste them into claude.ai.
 - **Mistakes:** what was missed, the student's answer and the right answer, grouped by skill.
-- **Settings:** session length, weekly goal, an on-screen calculator on/off switch (set it to match the screener once you know the rules), read-aloud, target date, the Claude API key, the tutor switch and daily limit, sync, and backup.
+- **Settings:** the app's **Look** (three skins: *Playful & bright* with a purple owl, *Storybook* with warm paper and an owl in a scarf, or *Classic*, the original look; each has a dark mode, and shop color themes work in all of them), session length, weekly goal, an on-screen calculator on/off switch (set it to match the screener once you know the rules), read-aloud, target date, the Claude API key, the tutor switch and daily limit, sync, and backup.
 
 ### Claude features (optional)
 Paste an Anthropic API key (from platform.claude.com) in **Settings**. Written explanations are then graded by **Claude Haiku 5.5** (well under a cent each), and the **I'm stuck** tutor is turned on (about a tenth of a cent per message, with a daily limit). Use **Test it** to confirm the key works.

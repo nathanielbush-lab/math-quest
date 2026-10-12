@@ -4,6 +4,7 @@ import { LessonCard } from "../components/Cards";
 import { skillState, type AppState } from "../engine/state";
 import { LevelBadge, fmtDate } from "../ui";
 import type { Route } from "../App";
+import { Icon } from "../components/Icon";
 
 export function Topic({ state, topicId, go }: { state: AppState; topicId: string; go: (r: Route) => void }) {
   const topic = TOPIC_BY_ID[topicId];
@@ -42,7 +43,7 @@ export function Topic({ state, topicId, go }: { state: AppState; topicId: string
             {open ? (
               <div className="row">
                 <button className="btn primary" onClick={() => go({ name: "session", type: "topic", skillId: s.id })}>{ss.attempts ? "Practice" : "Start"}</button>
-                <button className="btn ghost" onClick={() => setLesson(s.id)}>📘 Lesson</button>
+                <button className="btn ghost" onClick={() => setLesson(s.id)}><Icon name="book" /> Lesson</button>
               </div>
             ) : (
               <div className="small">🔒 First: {missing.map((m) => SKILL_BY_ID[m].title).join(", ")}</div>

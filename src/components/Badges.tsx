@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { AppState } from "../engine/state";
 import { BADGES, nextBadge, type Badge } from "../store";
+import { Icon } from "./Icon";
 
 const COLORS = ["#5b4bd6", "#f0715b", "#1f9d68", "#f6b35b", "#8b7cf6", "#3aa0e8"];
 
@@ -90,7 +91,7 @@ export function TrophyPeek({ state, onOpen }: { state: AppState; onOpen: () => v
   return (
     <div className="card trophy" data-tour="nextbadge">
       <div className="row">
-        <h3 className="grow" style={{ margin: 0 }}>🏆 Badges</h3>
+        <h3 className="grow" style={{ margin: 0 }}><Icon name="trophy" /> Badges</h3>
         <span className="shelf mini">{earned.slice(-6).map((b) => <span key={b.id} className="shelf-badge sm" title={b.name}>{b.icon}</span>)}</span>
         <button className="btn ghost" onClick={onOpen}>{earned.length ? `All ${earned.length} →` : "See them →"}</button>
       </div>
@@ -106,7 +107,7 @@ export function TrophyRoom({ state }: { state: AppState }) {
     <div>
       <div className="card trophy">
         <div className="row">
-          <h2 className="grow" style={{ margin: 0 }}>🏆 Trophy shelf</h2>
+          <h2 className="grow" style={{ margin: 0 }}><Icon name="trophy" /> Trophy shelf</h2>
           <span className="small muted">{earned.length} of {BADGES.length} badges</span>
         </div>
         <div className="shelf">

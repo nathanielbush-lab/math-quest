@@ -35,6 +35,7 @@ import { daysBetween, today, type AppState, type AssessmentResult } from "../eng
 import { randomSeed } from "../lib/rng";
 import { fmtDate } from "../ui";
 import "./assess.css";
+import { Icon } from "../components/Icon";
 
 export type { AssessKind };
 
@@ -76,7 +77,7 @@ function Hub({ state, go, onExit }: { state: AppState; go: (k?: AssessKind) => v
         <button className="btn ghost" onClick={onExit}>← Home</button>
       </div>
       <div className="card">
-        <h1>📝 Test practice</h1>
+        <h1><Icon name="clipboard" /> Test practice</h1>
         <p>Practice the kind of test that checks you're ready for Grade 6–8 math. No hints, no "right" or "wrong" until the end, just like a real test.</p>
         <p className="feedback info small" style={{ margin: 0 }}>ℹ️ {HONEST}</p>
         {daysToGo !== undefined && daysToGo > 0 && <p className="muted small" style={{ margin: "10px 0 0" }}>🎯 Goal date: {fmtDate(target)} ({daysToGo} days to go)</p>}
@@ -90,7 +91,7 @@ function Hub({ state, go, onExit }: { state: AppState; go: (k?: AssessKind) => v
           <button className="btn primary" onClick={() => go("screener-quick")} autoFocus={!due}>Start quick practice</button>
         </div>
         <div className="card assess-option">
-          <h2>📝 Full practice</h2>
+          <h2><Icon name="clipboard" /> Full practice</h2>
           <p className="muted">30 questions · 45 minutes</p>
           <p className="small">Every Grade 6–8 topic at least once. Like the real thing, from start to end.</p>
           <button className="btn" onClick={() => go("screener-full")}>Start full practice</button>
@@ -110,7 +111,7 @@ function Hub({ state, go, onExit }: { state: AppState; go: (k?: AssessKind) => v
       </div>
 
       <div className={`card ${due ? "assess-due" : ""}`}>
-        <h2>📅 Monthly checkpoint</h2>
+        <h2><Icon name="calendar" /> Monthly checkpoint</h2>
         <p className="small">One question from each of the 16 topics on your map, no timer. Once a month, so you can see how much you've grown.</p>
         {due ? (
           <div className="row">
@@ -664,7 +665,7 @@ function Results({ kind, done, timed, go, onExit, openTopic }: {
       <div className={`card assess-score ${kind === "checkpoint" ? "" : band.id}`}>
         <div className="row" style={{ alignItems: "flex-start" }}>
           <div className="grow">
-            <h1 style={{ marginBottom: 4 }}>{kind === "checkpoint" ? "📅 Checkpoint done!" : "📝 Practice test done!"}</h1>
+            <h1 style={{ marginBottom: 4 }}><Icon name={kind === "checkpoint" ? "calendar" : "clipboard"} size={30} /> {kind === "checkpoint" ? "Checkpoint done!" : "Practice test done!"}</h1>
             {kind === "checkpoint" ? (
               cmp?.before !== undefined ? (
                 <p className="assess-compare">Last time {cmp.before}/{total} → now <strong>{cmp.after}/{total}</strong>{cmp.after > cmp.before ? " 🎉" : ""}</p>
@@ -768,7 +769,7 @@ function Results({ kind, done, timed, go, onExit, openTopic }: {
       )}
 
       <div className="row">
-        <button className="btn ghost" onClick={() => go()}>📝 Test practice</button>
+        <button className="btn ghost" onClick={() => go()}><Icon name="clipboard" /> Test practice</button>
         <span className="grow" />
         <button className="btn primary big" autoFocus onClick={onExit}>Back home</button>
       </div>

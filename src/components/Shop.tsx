@@ -263,7 +263,7 @@ function ItemCard({
         <div className="actions">
           {!owned && onPreview && (
             <button className={`btn ${previewing ? "primary" : "ghost"}`} aria-pressed={previewing} aria-label={previewing ? `Stop trying ${item.name}` : `Try the ${item.name} colors`} onClick={() => onPreview(item.id)}>
-              {previewing ? "Stop trying" : "👀 Try it"}
+              {previewing ? "Stop trying" : "Try it"}
             </button>
           )}
           {action}

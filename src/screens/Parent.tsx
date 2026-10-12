@@ -1,5 +1,6 @@
 import { WeeklyReport } from "../components/WeeklyReport";
 import { SyncSettings } from "../sync/SyncSettings";
+import { Icon } from "../components/Icon";
 import { askTutor } from "../grading/tutor";
 import { makeRng } from "../lib/rng";
 import { useRef, useState } from "react";
@@ -20,7 +21,7 @@ export function Parent({ state, mutate, replace, onExit }: { state: AppState; mu
   if (!unlocked) {
     return (
       <div className="card" style={{ maxWidth: 380, margin: "40px auto" }}>
-        <h2>🍎 Teacher corner</h2>
+        <h2><Icon name="apple" size={26} /> Teacher corner</h2>
         <form onSubmit={(e) => { e.preventDefault(); if (pin === state.settings.parentPin) setUnlocked(true); else setPin(""); }}>
           <div className="field">
             <label htmlFor="pin">PIN</label>
@@ -35,7 +36,7 @@ export function Parent({ state, mutate, replace, onExit }: { state: AppState; mu
   return (
     <div>
       <div className="row" style={{ marginBottom: 12 }}>
-        <h1 className="grow" style={{ margin: 0 }}>🍎 Teacher corner</h1>
+        <h1 className="grow" style={{ margin: 0 }}><Icon name="apple" size={30} /> Teacher corner</h1>
         <button className="btn" onClick={onExit}>← Back</button>
       </div>
       <div className="tabs">
@@ -299,6 +300,26 @@ function SettingsTab({ state, mutate, replace }: { state: AppState; mutate: (fn:
   };
   return (
     <div>
+      <div className="card">
+        <h3>Look</h3>
+        <p className="small muted" style={{ margin: 0 }}>Three skins for the whole app. Same screens, different style. Color themes from the shop still apply.</p>
+        <div className="skin-pick" role="radiogroup" aria-label="Look">
+          {([
+            ["playful", "Playful & bright", "Bold colors, chunky buttons, a purple owl."],
+            ["storybook", "Storybook", "Warm paper, ink outlines, an owl in a scarf."],
+            ["classic", "Classic", "The original look: calm cream, purple banner, no mascot."],
+          ] as const).map(([id, name, blurb]) => (
+            <button key={id} type="button" role="radio" aria-checked={(st.skin ?? "playful") === id} className={`skin-option ${(st.skin ?? "playful") === id ? "on" : ""}`} onClick={() => set("skin", id)}>
+              <div className={`sample sample-${id}`}>
+                <span style={{ fontSize: "1.3rem", fontWeight: 700 }}>Aa</span>
+                <span className="fake-btn">Start</span>
+              </div>
+              <div className="label">{name}{(st.skin ?? "playful") === id ? " ✓" : ""}<div className="small muted" style={{ fontWeight: 500 }}>{blurb}</div></div>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="card">
         <h3>Learner</h3>
         <div className="field"><label htmlFor="n">Name</label><input id="n" type="text" value={st.studentName} onChange={(e) => set("studentName", e.target.value)} /></div>
