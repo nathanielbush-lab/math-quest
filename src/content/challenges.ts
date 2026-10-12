@@ -1,7 +1,29 @@
-import { frac, fromDecimal } from "../lib/rational";
+import { fmtNum, frac, fromDecimal, type Frac } from "../lib/rational";
 import type { Rng } from "../lib/rng";
-import { F, NAMES, choice, fr, money, num, round, trap, traps } from "./helpers";
+import { F, NAMES, choice, fr, linear, mixed, money, ms, num, round, sn, term, trap, traps } from "./helpers";
+import { finishSteps, fracDivide, fracTimes, multiplySteps, piTimes, places, raw, simplifySteps, st } from "./steps";
 import type { Problem } from "./types";
+
+/** "1 bag", "3 bags". */
+const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/** Dollars with as many decimals as needed (e.g. $0.365), so exact in-between values can be shown before rounding. */
+const cash = (x: number) => {
+  const v = Number(x.toFixed(4));
+  return places(v) <= 2 ? money(v) : `$${v}`;
+};
+
+/** " (= 0.75)" after a fraction that has a short decimal; empty for whole numbers and repeating decimals. */
+const decNote = (f: Frac) => {
+  if (f.d === 1) return "";
+  let d = f.d;
+  while (d % 2 === 0) d /= 2;
+  while (d % 5 === 0) d /= 5;
+  return d === 1 ? ` (= ${fmtNum(f.n / f.d)})` : "";
+};
+
+/** "cup" for amounts up to 1, "cups" above. */
+const cupWord = (f: Frac) => (f.n <= f.d ? "cup" : "cups");
 
 /**
  * "Unfamiliar problems" for the end of each session (the roadmap's APPLY habits):
@@ -26,35 +48,72 @@ export const CHALLENGES: Challenge[] = [
       const p1 = round(n1 * c1, 2), p2 = round(n2 * c2, 2);
       const off = r.pick([10, 20, 25]);
       const better = c1 < c2 ? 1 : 2;
+      const cheap = better === 1 ? "A" : "B";
       const bestPrice = better === 1 ? p1 : p2;
-      const sale = round(bestPrice * (1 - off / 100), 2);
+      // Work in whole cents so a half cent always rounds up (3.285 → 3.29).
+      const cents = Math.round(bestPrice * 100);
+      const sale = Math.round((cents * (100 - off)) / 100) / 100;
+      const disc = (cents * off) / 10000;
+      const exactSale = (cents * (100 - off)) / 10000;
+      const est = Math.round(c1 * 10) / 10;
+      const [lo, hi] = c1 < c2 ? [c1, c2] : [c2, c1];
+      const discWork =
+        off === 10
+          ? `10% is one tenth: ${money(bestPrice)} ÷ 10 = ${cash(disc)}.`
+          : off === 20
+            ? `10% is ${money(bestPrice)} ÷ 10 = ${cash(cents / 1000)}, so 20% is 2 × ${cash(cents / 1000)} = ${cash(disc)}.`
+            : `25% is one quarter: ${money(bestPrice)} ÷ 4 = ${cash(disc)}.`;
       return {
         intro: `Your class is buying juice boxes. Pack A has ${n1} for ${money(p1)}. Pack B has ${n2} for ${money(p2)}. The store also has a ${off}% off coupon for one pack.`,
         parts: [
           {
             prompt: "Estimate first: about how much does ONE juice box cost in Pack A?",
-            answer: choice(r, `About ${money(Math.round(c1 * 10) / 10)}`, [`About ${money(Math.round(c1 * 10) / 10 + 1)}`, `About ${money(p1)}`]),
+            answer: choice(r, `About ${money(est)}`, [`About ${money(est + 1)}`, `About ${money(p1)}`]),
             hints: [`${money(p1)} split among ${n1} boxes.`],
-            steps: [`${money(p1)} ÷ ${n1} ≈ ${money(c1)}`],
+            steps: [
+              st("We want the price of ONE box.", `Split the price of Pack A among its boxes: ${money(p1)} ÷ ${n1}.`),
+              st("Divide.", `${money(p1)} ÷ ${n1} = ${money(c1)} per box`),
+              st("Round to the nearest 10 cents.", `${money(c1)} is closest to ${money(est)}.`),
+              st("Check the estimate.", `${n1} × ${money(est)} = ${money(n1 * est)}, which is not far from ${money(p1)} ✔`),
+              st("Answer.", `About ${money(est)} per box`),
+            ],
           },
           {
             prompt: "Which pack has the lower price per juice box?",
             answer: choice(r, better === 1 ? "Pack A" : "Pack B", [better === 1 ? "Pack B" : "Pack A"], true),
             hints: ["Find the unit price of each pack.", `${money(p1)} ÷ ${n1} and ${money(p2)} ÷ ${n2}`],
-            steps: [`A: ${money(c1)} each`, `B: ${money(c2)} each`],
+            steps: [
+              st("Compare the price of ONE box.", "The packs have different numbers of boxes, so comparing the pack prices isn't fair. Divide each price by its number of boxes."),
+              st("Pack A.", `${money(p1)} ÷ ${n1} = ${money(c1)} per box`),
+              st("Pack B.", `${money(p2)} ÷ ${n2} = ${money(c2)} per box`),
+              st("Compare.", `${money(lo)} is less than ${money(hi)}, so Pack ${cheap} is cheaper per box.`),
+              st("Check another way.", `Pack B has twice as many boxes as Pack A. Two Pack A's would cost 2 × ${money(p1)} = ${money(2 * p1)}, which is ${better === 1 ? "less" : "more"} than Pack B's ${money(p2)} ✔`),
+              st("Answer.", `Pack ${cheap}`),
+            ],
           },
           {
             prompt: `You buy the better pack and use the ${off}% coupon. What do you pay?`,
             answer: num(fromDecimal(sale), { pre: "$", tolerance: 0.011 }),
             hints: [`Find ${off}% of ${money(bestPrice)} and subtract.`, `Or pay ${100 - off}%: ${(100 - off) / 100} × ${money(bestPrice)}.`],
-            steps: [`${(100 - off) / 100} × ${money(bestPrice)} = ${money(sale)}`],
+            steps: [
+              st("Start with the better pack.", `Pack ${cheap} costs ${money(bestPrice)}.`),
+              st(`Find ${off}% of ${money(bestPrice)}.`, discWork),
+              st("Subtract the discount.", `${money(bestPrice)} − ${cash(disc)} = ${cash(exactSale)}`),
+              ...(places(exactSale) > 2 ? [st("Round to the nearest cent.", `${cash(exactSale)} rounds to ${money(sale)}.`)] : []),
+              st("Check another way.", `${off}% off means you pay ${100 - off}% of the price: ${(100 - off) / 100} × ${money(bestPrice)} = ${cash(exactSale)} ✔`),
+              st("Answer.", money(sale)),
+            ],
             traps: traps(fromDecimal(sale), [trap(fromDecimal(round((bestPrice * off) / 100, 2)), "That's the discount. Subtract it from the price.")]),
           },
           {
             prompt: "Check: does your answer make sense?",
             answer: choice(r, `Yes, it's a bit less than ${money(bestPrice)}, which is what a coupon should do`, ["No, a coupon should make the price higher", "Yes, because it's close to the number of juice boxes"]),
             hints: ["Should a coupon make the price go up or down?"],
-            steps: ["A discount lowers the price a little."],
+            steps: [
+              st("A coupon takes money off.", `So you should pay LESS than the regular ${money(bestPrice)}, but only ${off}% less, so not a lot less.`),
+              st("Compare.", `${money(sale)} is a little less than ${money(bestPrice)}. You save about ${money((cents - Math.round(sale * 100)) / 100)} ✔`),
+              st("Answer.", "Yes, it makes sense."),
+            ],
           },
         ],
       };
@@ -70,27 +129,42 @@ export const CHALLENGES: Challenge[] = [
       const flour = frac(r.int(3, 9), 4);
       const k = frac(to, from);
       const newFlour = frac(flour.n * k.n, flour.d * k.d);
+      const more = to > from;
       return {
-        intro: `A pancake recipe for ${from} people uses ${fr(flour)} cups of flour. You're cooking for ${to} people.`,
+        intro: `A pancake recipe for ${from} people uses ${fr(flour)} ${cupWord(flour)} of flour. You're cooking for ${to} people.`,
         parts: [
           {
-            prompt: `Estimate: will you need more or less flour than ${fr(flour)} cups?`,
-            answer: choice(r, to > from ? "More" : "Less", [to > from ? "Less" : "More", "The same"], true),
+            prompt: `Estimate: will you need more or less flour than ${fr(flour)} ${cupWord(flour)}?`,
+            answer: choice(r, more ? "More" : "Less", [more ? "Less" : "More", "The same"], true),
             hints: [`Is ${to} more or fewer people than ${from}?`],
-            steps: [to > from ? "More people → more flour" : "Fewer people → less flour"],
+            steps: [
+              st("Compare the number of people.", `${to} people is ${more ? "more" : "fewer"} than ${from} people.`),
+              st("Think it through.", more ? "More people eat more pancakes, so you need more flour." : "Fewer people eat fewer pancakes, so you need less flour."),
+              st("Answer.", `${more ? "More" : "Less"} than ${fr(flour)} ${cupWord(flour)}`),
+            ],
           },
           {
             prompt: `By what number should you multiply every ingredient? (A fraction is fine.)`,
             answer: num(k),
             hints: [`New amount ÷ old amount of people: ${to} ÷ ${from}.`],
-            steps: [`${to} ÷ ${from} = ${fr(k)}`],
+            steps: [
+              st("Scale factor = new ÷ old.", `You're going from ${from} people to ${to} people, so divide the new number by the old one: ${to} ÷ ${from} = ${raw(to, from)}.`),
+              ...simplifySteps(to, from),
+              st("Check.", `${from} × ${fr(k)} = ${to} ✔ ${more ? "It's bigger than 1 because the recipe grows." : "It's less than 1 because the recipe shrinks."}`),
+              st("Answer.", `Multiply every ingredient by ${fr(k)}.`),
+            ],
             traps: traps(k, [trap(frac(from, to), "Divide the NEW number of people by the OLD number.")]),
           },
           {
             prompt: "How many cups of flour do you need?",
             answer: num(newFlour),
             hints: [`${fr(flour)} × ${fr(k)}`],
-            steps: [`${fr(flour)} × ${fr(k)} = ${fr(newFlour)} cups`],
+            steps: [
+              st("Multiply the old amount by the scale factor.", `${fr(flour)} × ${fr(k)}`),
+              st(flour.d === 1 && k.d === 1 ? "Multiply." : "Multiply the tops and multiply the bottoms.", fracTimes(flour, k)),
+              st("Does it make sense?", `${more ? "More" : "Fewer"} people, and ${mixed(newFlour)} is ${more ? "more" : "less"} than ${mixed(flour)} ✔`),
+              st("Answer.", `${mixed(newFlour)} ${cupWord(newFlour)} of flour${decNote(newFlour)}`),
+            ],
             traps: traps(newFlour, [trap(frac(flour.n + (to - from) * flour.d, flour.d), "Recipes scale by multiplying, not adding.")]),
           },
         ],
@@ -107,6 +181,9 @@ export const CHALLENGES: Challenge[] = [
       const V = frac(l * w * h.n, h.d);
       const bag = r.pick([1, 2]);
       const bags = Math.ceil((l * w * h.n) / h.d / bag);
+      const A = l * w;
+      const q = frac(V.n, V.d * bag);
+      const short = Math.floor((l * w * h.n) / h.d / bag);
       return {
         intro: `A raised garden bed is a box ${l} ft long, ${w} ft wide and ${fr(h)} ft deep. Soil comes in bags of ${bag} cubic ${bag === 1 ? "foot" : "feet"}.`,
         parts: [
@@ -114,20 +191,40 @@ export const CHALLENGES: Challenge[] = [
             prompt: "How many square feet of ground does the bed cover?",
             answer: num(l * w),
             hints: ["Area of the bottom = length × width."],
-            steps: [`${l} × ${w} = ${l * w} sq ft`],
+            steps: [
+              st("The bed sits on a rectangle of ground.", "The area of a rectangle is length × width."),
+              st("Multiply.", `${l} × ${w} = ${A}`),
+              st("Answer.", `${A} square feet`),
+            ],
           },
           {
             prompt: "How many cubic feet of soil fill it?",
             answer: num(V),
             hints: ["Volume = length × width × depth."],
-            steps: [`${l} × ${w} × ${fr(h)} = ${fr(V)} cubic feet`],
+            steps: [
+              st("Volume = length × width × depth.", `Length × width is the area of the bottom, which we already found: ${A} square feet. Now multiply by the depth, ${fr(h)} ft.`),
+              h.n === 1
+                ? st("Multiply by {1/2}.", `Multiplying by {1/2} is the same as taking half: ${A} ÷ 2 = ${mixed(V)}.`)
+                : st("Multiply by {3/2}.", `{3/2} = 1{1/2}, so take all of ${A} plus half of it: ${A} + ${mixed(frac(A, 2))} = ${mixed(V)}.`),
+              st("Check with fractions.", `${fracTimes(F(A), h)} ✔`),
+              st("Answer.", `${mixed(V)} cubic feet${decNote(V)}`),
+            ],
             traps: traps(V, [trap(l * w, "That's the area. Multiply by the depth too.")]),
           },
           {
             prompt: "How many bags must you buy? (You can't buy part of a bag.)",
             answer: num(bags),
             hints: [`Volume ÷ ${bag}, then round UP.`],
-            steps: [`${fr(V)} ÷ ${bag} = ${round((l * w * h.n) / h.d / bag, 2)} → ${bags} bags`],
+            steps: [
+              bag === 1
+                ? st("Each bag holds 1 cubic foot.", `So you need one bag for every cubic foot: ${mixed(V)} bags' worth of soil.`)
+                : st("Divide the soil by the size of one bag.", fracDivide(V, F(2))),
+              q.d === 1
+                ? st("It comes out even.", `Exactly ${count(bags, "bag")} hold all the soil.`)
+                : st("Round UP.", `${mixed(q)} isn't a whole number. ${count(short, "bag")} would hold only ${short * bag} cubic feet, which isn't enough. So buy ${bags}.`),
+              st("Check.", `${count(bags, "bag")} × ${bag} = ${bags * bag} cubic feet, and that's at least ${mixed(V)} ✔`),
+              st("Answer.", count(bags, "bag")),
+            ],
             traps: traps(F(bags), [trap(Math.floor((l * w * h.n) / h.d / bag), "Rounding down would leave the bed short of soil. Round up.")]),
           },
         ],
@@ -143,6 +240,15 @@ export const CHALLENGES: Challenge[] = [
       const total = days.reduce((a, b) => a + b, 0);
       const goal = Math.ceil(total / 7 / 5) * 5 + 5;
       const need = goal * 7 - total;
+      const running: string[] = [];
+      days.reduce((acc, d) => {
+        running.push(`${acc} + ${d} = ${acc + d}`);
+        return acc + d;
+      });
+      const tens = days.map((d) => Math.round(d / 10) * 10);
+      const tensSum = tens.reduce((a, b) => a + b, 0);
+      const t = Math.floor(goal / 10) * 10, o = goal % 10;
+      const avg = total / 6;
       return {
         intro: `${r.pick(NAMES)} read ${days.join(", ")} minutes on six days. The goal is a mean of ${goal} minutes per day over 7 days.`,
         parts: [
@@ -150,25 +256,44 @@ export const CHALLENGES: Challenge[] = [
             prompt: "How many minutes in total for the six days?",
             answer: num(total),
             hints: ["Add them up."],
-            steps: [`${days.join(" + ")} = ${total}`],
+            steps: [
+              st("Add one day at a time.", `Keep a running total: ${running.join("; ")}.`),
+              st("Check with an estimate.", `Round each day to the nearest 10: ${tens.join(" + ")} = ${tensSum}, which is close to ${total} ✔`),
+              st("Answer.", `${total} minutes`),
+            ],
           },
           {
             prompt: `For a mean of ${goal} over 7 days, what total is needed?`,
             answer: num(goal * 7),
             hints: ["Mean × number of days = total."],
-            steps: [`${goal} × 7 = ${goal * 7}`],
+            steps: [
+              st("Mean = total ÷ number of days.", "Working backward, total = mean × number of days."),
+              st("Multiply.", o && t ? `${goal} × 7 = (${t} × 7) + (${o} × 7) = ${t * 7} + ${o * 7} = ${goal * 7}` : `${goal} × 7 = ${goal * 7}`),
+              st("Answer.", `${goal * 7} minutes over the 7 days`),
+            ],
           },
           {
             prompt: "How many minutes must be read on day 7?",
             answer: num(need),
             hints: ["Needed total − total so far."],
-            steps: [`${goal * 7} − ${total} = ${need}`],
+            steps: [
+              st("Find what's still missing.", "Take the total needed and subtract the minutes already read."),
+              st("Subtract.", `${goal * 7} − ${total} = ${need}`),
+              st("Check.", `${total} + ${need} = ${goal * 7}, and ${goal * 7} ÷ 7 = ${goal} ✔`),
+              st("Answer.", `${need} minutes on day 7`),
+            ],
           },
           {
             prompt: "Is that reasonable?",
             answer: choice(r, need > 60 ? "It's possible but a lot. The earlier days were below the goal." : "Yes, it's in a normal range for one day.", ["No, the answer must be wrong because it's not equal to the goal", "Means can't be used to plan ahead"]),
             hints: ["Compare it with the other days."],
-            steps: [`Day 7 needs ${need} minutes.`],
+            steps: [
+              st("Compare with the other days.", `The first six days were between ${Math.min(...days)} and ${Math.max(...days)} minutes. Day 7 needs ${need}.`),
+              need > 60
+                ? st("Why so many?", `The first six days averaged ${Number.isInteger(avg * 10) ? "" : "about "}${round(avg, 1)} minutes, which is below the goal of ${goal}. Day 7 has to make up the difference. That's possible, just a lot.`)
+                : st("Think about it.", `${need} minutes is an hour or less, a normal amount to read in one day.`),
+              st("Answer.", need > 60 ? "It's possible, but it's a lot." : "Yes, it's reasonable."),
+            ],
           },
         ],
       };
@@ -184,21 +309,56 @@ export const CHALLENGES: Challenge[] = [
       const speed = r.pick([40, 50, 60]);
       const dist = cm * scale;
       const hrs = round(dist / speed, 2);
+      const est = Math.max(1, Math.round(dist / speed));
+      const whole = Math.floor(dist / speed), rem = dist - whole * speed;
+      const part = frac(rem, speed);
+      const partDec = round(rem / speed, 2);
+      const exact = (rem * 100) % speed === 0;
       return {
         intro: `On a map, 1 cm stands for ${scale} miles. Two towns are ${cm} cm apart. The car drives ${speed} miles per hour.`,
         parts: [
-          { prompt: "How many miles apart are the towns?", answer: num(dist), hints: [`${cm} × ${scale}`], steps: [`${cm} × ${scale} = ${dist} miles`] },
+          {
+            prompt: "How many miles apart are the towns?",
+            answer: num(dist),
+            hints: [`${cm} × ${scale}`],
+            steps: [
+              st(`Each centimeter stands for ${scale} miles.`, `The towns are ${cm} cm apart, so that's ${cm} groups of ${scale} miles.`),
+              st("Multiply.", `${cm} × ${scale} = ${dist}`),
+              st("Answer.", `${dist} miles`),
+            ],
+          },
           {
             prompt: "Estimate: about how long will the drive take?",
-            answer: choice(r, `About ${Math.max(1, Math.round(dist / speed))} hour${Math.round(dist / speed) === 1 ? "" : "s"}`, [`About ${Math.round(dist / speed) + 4} hours`, `About ${dist} hours`]),
+            answer: choice(r, `About ${est} hour${Math.round(dist / speed) === 1 ? "" : "s"}`, [`About ${Math.round(dist / speed) + 4} hours`, `About ${dist} hours`]),
             hints: [`How many ${speed}-mile hours fit in ${dist} miles?`],
-            steps: [`${dist} ÷ ${speed} ≈ ${hrs}`],
+            steps: [
+              st(`The car goes ${speed} miles each hour.`, `So ask: how many ${speed}s fit into ${dist}?`),
+              dist % speed === 0
+                ? st("Try a whole number of hours.", `${count(est, "hour")} × ${speed} = ${est * speed} miles, exactly the distance.`)
+                : whole === 0
+                  ? st("Compare with one hour.", `In 1 hour the car goes ${speed} miles. ${dist} miles is less than that, but closer to 1 hour than to 0.`)
+                  : st("Try whole numbers of hours on each side.", `${count(whole, "hour")} × ${speed} = ${whole * speed} miles and ${count(whole + 1, "hour")} × ${speed} = ${(whole + 1) * speed} miles. ${dist} is ${rem * 2 === speed ? `exactly halfway, so round up to ${est}` : `closer to ${est * speed}`}.`),
+              st("Answer.", `About ${count(est, "hour")}`),
+            ],
           },
           {
             prompt: "Exactly how many hours? (Decimal is fine.)",
             answer: num(fromDecimal(hrs), { tolerance: 0.011 }),
             hints: ["Time = distance ÷ speed."],
-            steps: [`${dist} ÷ ${speed} = ${hrs} hours`],
+            steps: [
+              st("Time = distance ÷ speed.", `${dist} miles ÷ ${speed} miles per hour`),
+              whole > 0
+                ? st("Whole hours first.", `${count(whole, "hour")} × ${speed} = ${whole * speed} miles${rem ? `, leaving ${dist} − ${whole * speed} = ${rem} miles` : ". That's the whole trip"}.`)
+                : st("Less than one hour.", `${dist} is less than ${speed}, so the trip takes less than 1 hour.`),
+              ...(rem
+                ? [st(`Turn the ${whole ? "leftover " : ""}miles into part of an hour.`, `${rem} miles out of ${speed} is ${raw(rem, speed)}${part.d !== speed ? ` = ${fr(part)}` : ""} of an hour ${exact ? "=" : "≈"} ${partDec} hour.`)]
+                : []),
+              ...(rem && whole ? [st("Add the parts.", `${whole} + ${partDec} = ${hrs}`)] : []),
+              exact
+                ? st("Check.", `${hrs} × ${speed} = ${dist} ✔`)
+                : st("Round to hundredths.", `${fr(part)} doesn't come out to a short decimal, so we round. That's why the answer is “about”.`),
+              st("Answer.", `${exact ? "" : "About "}${hrs} hour${hrs === 1 ? "" : "s"}`),
+            ],
             traps: traps(fromDecimal(hrs), [trap(dist * speed, "Divide distance by speed.")]),
           },
         ],
@@ -214,16 +374,36 @@ export const CHALLENGES: Challenge[] = [
       const p1 = r.int(8, 11), p2 = r.int(12, 18);
       const a1 = round(3.14 * (d1 / 2) ** 2, 2), a2 = round(3.14 * (d2 / 2) ** 2, 2);
       const u1 = a1 / p1, u2 = a2 / p2;
+      const areaSteps = (d: number, a: number) => {
+        const rad = d / 2;
+        return [
+          st("Find the radius.", `The radius is half the diameter: ${d} ÷ 2 = ${rad} inches.`),
+          st("Square the radius.", `${rad}^2 = ${rad} × ${rad} = ${rad * rad}`),
+          st("Multiply by π ≈ 3.14.", `A = πr^2 ≈ ${piTimes(rad * rad)}`),
+          st("Answer.", `About ${a} square inches`),
+        ];
+      };
+      // Use enough decimal places that the two unit rates look different.
+      let dp = 1;
+      while (dp < 3 && round(u1, dp) === round(u2, dp)) dp++;
+      const win = u1 > u2 ? d1 : d2;
+      const [big, small] = u1 > u2 ? [u1, u2] : [u2, u1];
       return {
         intro: `A ${d1}-inch pizza costs $${p1}. A ${d2}-inch pizza costs $${p2}. (The inches are diameters. Use π ≈ 3.14.)`,
         parts: [
-          { prompt: `What is the area of the ${d1}-inch pizza in square inches?`, answer: num(fromDecimal(a1), { tolerance: 0.5 }), hints: [`Radius is ${d1 / 2}.`, "A = πr²"], steps: [`3.14 × ${d1 / 2}² = ${a1}`], traps: traps(fromDecimal(a1), [trap(fromDecimal(round(3.14 * d1 * d1, 2)), "Use the radius (half the diameter).")]) },
-          { prompt: `What is the area of the ${d2}-inch pizza?`, answer: num(fromDecimal(a2), { tolerance: 0.5 }), hints: [`Radius is ${d2 / 2}.`], steps: [`3.14 × ${d2 / 2}² = ${a2}`] },
+          { prompt: `What is the area of the ${d1}-inch pizza in square inches?`, answer: num(fromDecimal(a1), { tolerance: 0.5 }), hints: [`Radius is ${d1 / 2}.`, "A = πr²"], steps: areaSteps(d1, a1), traps: traps(fromDecimal(a1), [trap(fromDecimal(round(3.14 * d1 * d1, 2)), "Use the radius (half the diameter).")]) },
+          { prompt: `What is the area of the ${d2}-inch pizza?`, answer: num(fromDecimal(a2), { tolerance: 0.5 }), hints: [`Radius is ${d2 / 2}.`], steps: areaSteps(d2, a2) },
           {
             prompt: "Which pizza gives more pizza per dollar?",
             answer: choice(r, u1 > u2 ? `The ${d1}-inch pizza` : `The ${d2}-inch pizza`, [u1 > u2 ? `The ${d2}-inch pizza` : `The ${d1}-inch pizza`], true),
             hints: ["Square inches ÷ dollars for each."],
-            steps: [`${d1}": ${round(u1, 1)} sq in per $`, `${d2}": ${round(u2, 1)} sq in per $`],
+            steps: [
+              st("Find square inches per dollar.", "Divide each pizza's area by its price. The bigger number means more pizza for each dollar."),
+              st(`${d1}-inch pizza.`, `${a1} ÷ ${p1} ≈ ${round(u1, dp)} square inches per dollar`),
+              st(`${d2}-inch pizza.`, `${a2} ÷ ${p2} ≈ ${round(u2, dp)} square inches per dollar`),
+              st("Compare.", `${round(big, dp)} > ${round(small, dp)}, so the ${win}-inch pizza gives more pizza for each dollar.`),
+              st("Answer.", `The ${win}-inch pizza`),
+            ],
           },
         ],
       };
@@ -239,9 +419,46 @@ export const CHALLENGES: Challenge[] = [
       return {
         intro: `At sunrise it was ${lo < 0 ? "−" + -lo : lo}°F. By noon it rose ${rise}°. By midnight it dropped ${drop}° from noon.`,
         parts: [
-          { prompt: "What was the noon temperature?", answer: num(noon), hints: [`${lo} + ${rise}`], steps: [`${lo} + ${rise} = ${noon}`] },
-          { prompt: "What was the midnight temperature?", answer: num(night), hints: [`${noon} − ${drop}`], steps: [`${noon} − ${drop} = ${night}`] },
-          { prompt: "How many degrees warmer was noon than sunrise? (Check with your first answer.)", answer: num(rise), hints: [`noon − sunrise = ${noon} − (${lo})`], steps: [`${noon} − (${lo}) = ${rise}`] },
+          {
+            prompt: "What was the noon temperature?",
+            answer: num(noon),
+            hints: [`${ms(lo)} + ${rise}`],
+            steps: [
+              st("A rise means add.", `Start at ${ms(lo)}° and go up ${rise}°: ${ms(lo)} + ${rise}.`),
+              rise >= -lo
+                ? st("Count up to zero first.", `From ${ms(lo)} up to 0 is ${-lo}°. That leaves ${rise} − ${-lo} = ${noon}° more to go up, so we end at ${noon}.`)
+                : st("Count up toward zero.", `It would take ${-lo}° to get up to 0, but it only rose ${rise}°. ${-lo} − ${rise} = ${-noon}, so it's still ${-noon}° below zero: ${ms(noon)}.`),
+              st("Answer.", `${ms(noon)}°F`),
+            ],
+          },
+          {
+            prompt: "What was the midnight temperature?",
+            answer: num(night),
+            hints: [`${ms(noon)} − ${drop}`],
+            steps: [
+              st("A drop means subtract.", `${ms(noon)} − ${drop}`),
+              noon === 0
+                ? st("Go down from zero.", `Going down ${drop}° from 0 lands at ${ms(night)}.`)
+                : noon < 0
+                  ? st("Go further below zero.", `It's already ${-noon}° below zero. Going down ${drop}° more: ${-noon} + ${drop} = ${-night}° below zero, so ${ms(night)}.`)
+                  : noon >= drop
+                    ? st("Subtract.", `${noon} − ${drop} = ${night}`)
+                    : st("Count down to zero first.", `From ${noon} down to 0 is ${noon}°. That leaves ${drop} − ${noon} = ${drop - noon}° more to drop, so we end at ${ms(night)}.`),
+              st("Check.", `${ms(night)} + ${drop} = ${ms(noon)} ✔`),
+              st("Answer.", `${ms(night)}°F`),
+            ],
+          },
+          {
+            prompt: "How many degrees warmer was noon than sunrise? (Check with your first answer.)",
+            answer: num(rise),
+            hints: [`noon − sunrise = ${ms(noon)} − ${sn(lo)}`],
+            steps: [
+              st("“How much warmer” means subtract.", `noon − sunrise = ${ms(noon)} − ${sn(lo)}`),
+              st("Subtracting a negative is the same as adding.", `${ms(noon)} − ${sn(lo)} = ${ms(noon)} + ${-lo} = ${rise}`),
+              st("Check with the first answer.", `The temperature rose ${rise}° from sunrise to noon. Same number ✔`),
+              st("Answer.", `${rise}° warmer`),
+            ],
+          },
         ],
       };
     },
@@ -259,12 +476,46 @@ export const CHALLENGES: Challenge[] = [
         x = r.int(2, 6);
         f2 = f1 + m1 * x - m2 * x;
       } while (f2 <= 0);
+      const dm = m2 - m1, c = f1 + m1 * x;
+      const g = x + 3, costA = f1 + m1 * g, costB = f2 + m2 * g;
       return {
         intro: `Plan A: $${f1} plus $${m1} per GB. Plan B: $${f2} plus $${m2} per GB.`,
         parts: [
-          { prompt: `How many GB make the plans cost the same?`, answer: num(x), hints: [`${f1} + ${m1}g = ${f2} + ${m2}g`], steps: [`${f1 - f2} = ${m2 - m1}g`, `g = ${x}`] },
-          { prompt: "What do they both cost then?", answer: num(f1 + m1 * x, { pre: "$" }), hints: ["Substitute into either plan."], steps: [`${f1} + ${m1}(${x}) = ${f1 + m1 * x}`] },
-          { prompt: `Which plan is cheaper if you use ${x + 3} GB?`, answer: choice(r, "Plan A", ["Plan B"], true), hints: ["Plan B adds more per GB, so after they meet, B costs more."], steps: [`A: ${f1 + m1 * (x + 3)}; B: ${f2 + m2 * (x + 3)}`] },
+          {
+            prompt: `How many GB make the plans cost the same?`,
+            answer: num(x),
+            hints: [`${f1} + ${m1}g = ${f2} + ${m2}g`],
+            steps: [
+              st("Set the two costs equal.", `For g GB, Plan A costs ${f1} + ${m1}g and Plan B costs ${f2} + ${m2}g. They're the same when ${f1} + ${m1}g = ${f2} + ${m2}g.`),
+              st(`Subtract ${m1}g from both sides.`, `${f1} = ${f2} + ${dm}g`),
+              st(`Subtract ${f2} from both sides.`, `${f1} − ${f2} = ${dm}g, so ${f1 - f2} = ${dm}g`),
+              st(`Divide both sides by ${dm}.`, `g = ${f1 - f2} ÷ ${dm} = ${x}`),
+              st("Check.", `Plan A: ${f1} + ${m1} × ${x} = ${c}. Plan B: ${f2} + ${m2} × ${x} = ${c} ✔`),
+              st("Answer.", `${x} GB`),
+            ],
+          },
+          {
+            prompt: "What do they both cost then?",
+            answer: num(c, { pre: "$" }),
+            hints: ["Substitute into either plan."],
+            steps: [
+              st(`Put ${x} GB into Plan A.`, `${f1} + ${m1} × ${x} = ${f1} + ${m1 * x} = ${c}`),
+              st("Check with Plan B.", `${f2} + ${m2} × ${x} = ${f2} + ${m2 * x} = ${c} ✔`),
+              st("Answer.", `$${c} for either plan`),
+            ],
+          },
+          {
+            prompt: `Which plan is cheaper if you use ${g} GB?`,
+            answer: choice(r, "Plan A", ["Plan B"], true),
+            hints: ["Plan B adds more per GB, so after they meet, B costs more."],
+            steps: [
+              st(`Plan A at ${g} GB.`, `${f1} + ${m1} × ${g} = ${f1} + ${m1 * g} = $${costA}`),
+              st(`Plan B at ${g} GB.`, `${f2} + ${m2} × ${g} = ${f2} + ${m2 * g} = $${costB}`),
+              st("Compare.", `$${costA} < $${costB}, so Plan A is cheaper.`),
+              st("Why it makes sense.", `The plans cost the same at ${x} GB. After that, each extra GB adds $${m2} on Plan B but only $${m1} on Plan A, so Plan A stays cheaper.`),
+              st("Answer.", "Plan A"),
+            ],
+          },
         ],
       };
     },
@@ -276,11 +527,36 @@ export const CHALLENGES: Challenge[] = [
     build(r) {
       const [w, h, d] = r.pick([[48, 27, 55], [40, 30, 50], [32, 24, 40], [36, 27, 45]]);
       const space = w + r.pick([-4, 2, 6]);
+      const fits = space >= w;
       return {
         intro: `TVs are measured diagonally. A ${d}-inch TV screen is ${h} inches tall. A cabinet opening is ${space} inches wide.`,
         parts: [
-          { prompt: "How wide is the screen?", answer: num(w), hints: ["Width² + height² = diagonal²", `√(${d}² − ${h}²)`], steps: [`${d * d} − ${h * h} = ${w * w}`, `√${w * w} = ${w}`], traps: traps(F(w), [trap(d - h, "Use the Pythagorean theorem, not subtraction of the sides.")]) },
-          { prompt: "Will it fit in the cabinet?", answer: choice(r, space >= w ? "Yes" : "No", [space >= w ? "No" : "Yes"], true), hints: [`Compare ${w} with ${space}.`], steps: [`${w} ${space >= w ? "≤" : ">"} ${space}`] },
+          {
+            prompt: "How wide is the screen?",
+            answer: num(w),
+            hints: ["Width² + height² = diagonal²", `√(${d}² − ${h}²)`],
+            steps: [
+              st("The screen makes a right triangle.", `The width and height are the legs, and the ${d}-inch diagonal is the hypotenuse (the longest side).`),
+              st("Use the Pythagorean theorem.", `width^2 + ${h}^2 = ${d}^2`),
+              st("Square the numbers you know.", `${h}^2 = ${h} × ${h} = ${h * h} and ${d}^2 = ${d} × ${d} = ${d * d}`),
+              st("Subtract to find width^2.", `width^2 = ${d * d} − ${h * h} = ${w * w}`),
+              st("Take the square root.", `What number times itself is ${w * w}? ${w} × ${w} = ${w * w}, so width = ${w}.`),
+              st("Answer.", `${w} inches`),
+            ],
+            traps: traps(F(w), [trap(d - h, "Use the Pythagorean theorem, not subtraction of the sides.")]),
+          },
+          {
+            prompt: "Will it fit in the cabinet?",
+            answer: choice(r, fits ? "Yes" : "No", [fits ? "No" : "Yes"], true),
+            hints: [`Compare ${w} with ${space}.`],
+            steps: [
+              st("Compare the screen width with the opening.", `Screen: ${w} inches wide. Opening: ${space} inches wide.`),
+              fits
+                ? st("The opening is wider.", `${w} ≤ ${space}, with ${space - w} inches to spare.`)
+                : st("The screen is wider.", `${w} > ${space}. The screen is ${w - space} inches too wide.`),
+              st("Answer.", fits ? "Yes, it fits." : "No, it won't fit."),
+            ],
+          },
         ],
       };
     },
@@ -292,12 +568,45 @@ export const CHALLENGES: Challenge[] = [
     build(r) {
       const n = r.pick([4, 5, 6]);
       const plays = n * 2 * r.int(5, 10);
+      const all = ["H", "T"].flatMap((c) => Array.from({ length: n }, (_, i) => `${c}${i + 1}`));
+      const wins = plays / (2 * n);
       return {
         intro: `A game flips a coin and spins a spinner with ${n} equal sections. You win if you get heads AND the spinner lands on 1.`,
         parts: [
-          { prompt: "How many equally likely outcomes are there?", answer: num(2 * n), hints: ["2 coin results × spinner results"], steps: [`2 × ${n} = ${2 * n}`] },
-          { prompt: "What is P(win)?", answer: num(frac(1, 2 * n)), hints: ["One winning outcome."], steps: [`{1/${2 * n}}`] },
-          { prompt: `If you play ${plays} times, about how many wins should you expect?`, answer: num(plays / (2 * n)), hints: [`${plays} × {1/${2 * n}}`], steps: [`${plays} ÷ ${2 * n} = ${plays / (2 * n)}`] },
+          {
+            prompt: "How many equally likely outcomes are there?",
+            answer: num(2 * n),
+            hints: ["2 coin results × spinner results"],
+            steps: [
+              st("Count the results for each part.", `The coin has 2 results (heads or tails). The spinner has ${n} results.`),
+              st("Multiply.", `Each coin result can go with each spinner result: 2 × ${n} = ${2 * n}.`),
+              st("Check by listing.", `${all.join(", ")}. That's ${2 * n} ✔`),
+              st("Answer.", `${2 * n} outcomes`),
+            ],
+          },
+          {
+            prompt: "What is P(win)?",
+            answer: num(frac(1, 2 * n)),
+            hints: ["One winning outcome."],
+            steps: [
+              st("P = winning outcomes ÷ all outcomes.", `There are ${2 * n} equally likely outcomes.`),
+              st("Count the winners.", "Only heads AND 1 (H1) wins, so there is 1 winning outcome."),
+              st("Divide.", `P(win) = {1/${2 * n}}`),
+              st("Check another way.", `P(heads) × P(1) = {1/2} × {1/${n}} = {1/${2 * n}} ✔`),
+              st("Answer.", `{1/${2 * n}}`),
+            ],
+          },
+          {
+            prompt: `If you play ${plays} times, about how many wins should you expect?`,
+            answer: num(wins),
+            hints: [`${plays} × {1/${2 * n}}`],
+            steps: [
+              st("Expected wins = number of plays × P(win).", `${plays} × {1/${2 * n}}`),
+              st(`Multiplying by {1/${2 * n}} is the same as dividing by ${2 * n}.`, `${plays} ÷ ${2 * n} = ${wins}`),
+              st("Check.", `${wins} × ${2 * n} = ${plays} ✔`),
+              st("Answer.", `About ${count(wins, "win")}`),
+            ],
+          },
         ],
       };
     },
@@ -310,11 +619,37 @@ export const CHALLENGES: Challenge[] = [
       const start = r.int(10, 60), per = r.int(5, 15);
       const price = start + per * r.int(6, 15) + r.int(0, per - 1);
       const weeks = Math.ceil((price - start) / per);
+      const need = price - start, q = Math.floor(need / per), rem = need % per;
       return {
         intro: `You have $${start} and save $${per} each week. The bike costs $${price}.`,
         parts: [
-          { prompt: "Write the savings equation: y = ?x + ?", answer: { kind: "multi", fields: [{ value: F(per), pre: "y =", post: "x" }, { value: F(start), pre: "+" }] }, hints: ["Weekly amount is the slope; starting amount is b."], steps: [`y = ${per}x + ${start}`] },
-          { prompt: "After how many whole weeks can you afford the bike?", answer: num(weeks), hints: [`${per}x + ${start} ≥ ${price}`, "Round up to a whole week."], steps: [`(${price} − ${start}) ÷ ${per} = ${round((price - start) / per, 2)} → ${weeks} weeks`], traps: traps(F(weeks), [trap(Math.floor((price - start) / per), "That's not quite enough yet. Round UP.")]) },
+          {
+            prompt: "Write the savings equation: y = ?x + ?",
+            answer: { kind: "multi", fields: [{ value: F(per), pre: "y =", post: "x" }, { value: F(start), pre: "+" }] },
+            hints: ["Weekly amount is the slope; starting amount is b."],
+            steps: [
+              st("Decide what x and y mean.", "x = number of weeks, y = dollars saved so far."),
+              st("Find the starting amount.", `You have $${start} before any weeks go by. That's y when x = 0, so b = ${start}.`),
+              st("Find the rate.", `You add $${per} every week, so the slope is m = ${per}.`),
+              st("Check.", `After 2 weeks: ${per} × 2 + ${start} = $${per * 2 + start}, which is $${start} plus two weeks of $${per} ✔`),
+              st("Answer.", `y = ${per}x + ${start}`),
+            ],
+          },
+          {
+            prompt: "After how many whole weeks can you afford the bike?",
+            answer: num(weeks),
+            hints: [`${per}x + ${start} ≥ ${price}`, "Round up to a whole week."],
+            steps: [
+              st("Find how much more money you need.", `$${price} − $${start} = $${need}`),
+              st(`See how many $${per} weeks that takes.`, `${need} ÷ ${per}: ${per} × ${q} = ${per * q}${rem ? `, with ${rem} left over` : ", exactly"}.`),
+              rem
+                ? st("Round UP to a whole week.", `After ${q} weeks you'd have $${start + per * q}, still $${rem} short. One more week does it: ${weeks} weeks.`)
+                : st("No rounding needed.", `It comes out even, so ${weeks} weeks is just enough.`),
+              st("Check.", `${per} × ${weeks} + ${start} = ${per * weeks} + ${start} = $${per * weeks + start}, enough for the $${price} bike ✔`),
+              st("Answer.", `${weeks} weeks`),
+            ],
+            traps: traps(F(weeks), [trap(Math.floor((price - start) / per), "That's not quite enough yet. Round UP.")]),
+          },
         ],
       };
     },
@@ -343,26 +678,121 @@ export const MISSIONS: Mission[] = [
       const guests = r.int(8, 14);
       const cupsPer = frac(1, 2);
       const lemonCups = frac(guests * cupsPer.n, cupsPer.d);
-      const votes = [r.int(2, 6), r.int(1, 5), r.int(1, 4)];
+      const scoops = frac(lemonCups.n, lemonCups.d * 4);
+      let votes: number[];
+      // Redraw on a tie so there is exactly one mode.
+      do votes = [r.int(2, 6), r.int(1, 5), r.int(1, 4)];
+      while (votes.filter((v) => v === Math.max(...votes)).length > 1);
       const prefs = ["pizza", "tacos", "pasta"];
       const top = prefs[votes.indexOf(Math.max(...votes))];
       const l = r.int(12, 20), w = r.int(10, 15);
       const tableA = r.int(2, 4) * 2;
+      const seats = tableA / 2 + 2;
+      const tables = Math.ceil(guests / seats);
+      const tq = Math.floor(guests / seats), trem = guests % seats;
       const ages = Array.from({ length: 5 }, () => r.int(9, 12));
-      const ageMean = ages.reduce((a, b) => a + b, 0) / ages.length;
-      const plates1 = r.int(20, 30), cost1 = round(plates1 * r.int(8, 15) / 100, 2);
-      const plates2 = plates1 + 20, cost2 = round(plates2 * r.int(8, 15) / 100, 2);
+      const ageSum = ages.reduce((a, b) => a + b, 0);
+      const ageMean = ageSum / ages.length;
+      // Cents per plate; the two packs never have the same unit price, so one answer is clearly right.
+      const plates1 = r.int(20, 30), c1 = r.int(8, 15);
+      let c2 = r.int(8, 15);
+      while (c2 === c1) c2 = r.int(8, 15);
+      const plates2 = plates1 + 20;
+      const cost1 = round((plates1 * c1) / 100, 2), cost2 = round((plates2 * c2) / 100, 2);
       const u1 = cost1 / plates1, u2 = cost2 / plates2;
+      const pack1 = `${plates1} for ${money(cost1)}`, pack2 = `${plates2} for ${money(cost2)}`;
+      const bestPack = c1 < c2 ? pack1 : pack2;
       return {
         intro: `You're planning a party for ${guests} guests. Let's do the math!`,
         parts: [
-          { section: "Compare prices", prompt: `Plates: ${plates1} for ${money(cost1)} or ${plates2} for ${money(cost2)}. Which costs less per plate?`, answer: choice(r, u1 <= u2 ? `${plates1} for ${money(cost1)}` : `${plates2} for ${money(cost2)}`, [u1 <= u2 ? `${plates2} for ${money(cost2)}` : `${plates1} for ${money(cost1)}`], true), hints: ["Divide price by number of plates."], steps: [`${money(round(u1, 3))} vs ${money(round(u2, 3))} per plate`] },
-          { section: "Resize a recipe", prompt: `Each guest drinks {1/2} cup of lemonade. How many cups do you need for ${guests} guests?`, answer: num(lemonCups), hints: [`${guests} × {1/2}`], steps: [`${guests} × {1/2} = ${fr(lemonCups)}`] },
-          { section: "Resize a recipe", prompt: `A lemonade mix uses 1 scoop for every 4 cups. How many scoops for ${fr(lemonCups)} cups? (A fraction or decimal is fine.)`, answer: num(frac(lemonCups.n, lemonCups.d * 4)), hints: ["Cups ÷ 4"], steps: [`${fr(lemonCups)} ÷ 4 = ${fr(frac(lemonCups.n, lemonCups.d * 4))}`] },
-          { section: "Sketch a layout", prompt: `The party room is ${l} ft by ${w} ft. What is its area?`, answer: num(l * w), hints: ["length × width"], steps: [`${l} × ${w} = ${l * w} sq ft`] },
-          { section: "Sketch a layout", prompt: `Each table takes up 6 sq ft and seats ${tableA / 2 + 2} guests. How many tables do you need for ${guests} guests?`, answer: num(Math.ceil(guests / (tableA / 2 + 2))), hints: ["Guests ÷ seats per table, rounded up."], steps: [`${guests} ÷ ${tableA / 2 + 2} → ${Math.ceil(guests / (tableA / 2 + 2))} tables`] },
-          { section: "Guest preferences", prompt: `Guests voted: pizza ${votes[0]}, tacos ${votes[1]}, pasta ${votes[2]}. Which food is the mode?`, answer: choice(r, top, prefs.filter((p) => p !== top)), hints: ["The mode is the most common choice."], steps: [`${top} has the most votes`] },
-          { section: "Guest preferences", prompt: `Five guests' ages are ${ages.join(", ")}. What is the mean age?`, answer: num(fromDecimal(ageMean)), hints: ["Add the ages and divide by 5."], steps: [`${ages.reduce((a, b) => a + b, 0)} ÷ 5 = ${ageMean}`] },
+          {
+            section: "Compare prices",
+            prompt: `Plates: ${pack1} or ${pack2}. Which costs less per plate?`,
+            answer: choice(r, u1 <= u2 ? pack1 : pack2, [u1 <= u2 ? pack2 : pack1], true),
+            hints: ["Divide price by number of plates."],
+            steps: [
+              st("Find the price of ONE plate in each pack.", "Divide each price by its number of plates."),
+              st(`${plates1} plates.`, `${money(cost1)} ÷ ${plates1} = ${money(c1 / 100)} per plate`),
+              st(`${plates2} plates.`, `${money(cost2)} ÷ ${plates2} = ${money(c2 / 100)} per plate`),
+              st("Compare.", `${money(Math.min(c1, c2) / 100)} is less than ${money(Math.max(c1, c2) / 100)}, so ${bestPack} costs less per plate.`),
+              st("Answer.", bestPack),
+            ],
+          },
+          {
+            section: "Resize a recipe",
+            prompt: `Each guest drinks {1/2} cup of lemonade. How many cups do you need for ${guests} guests?`,
+            answer: num(lemonCups),
+            hints: [`${guests} × {1/2}`],
+            steps: [
+              st("Multiply the amount per guest by the number of guests.", `${guests} × {1/2}`),
+              st(`Find half of ${guests}.`, `Multiplying by {1/2} is the same as taking half: ${guests} ÷ 2 = ${mixed(lemonCups)}`),
+              st("Answer.", `${mixed(lemonCups)} cups${decNote(lemonCups)}`),
+            ],
+          },
+          {
+            section: "Resize a recipe",
+            prompt: `A lemonade mix uses 1 scoop for every 4 cups. How many scoops for ${fr(lemonCups)} cups? (A fraction or decimal is fine.)`,
+            answer: num(scoops),
+            hints: ["Cups ÷ 4"],
+            steps: [
+              st("Each scoop makes 4 cups.", `So divide the cups by 4: ${mixed(lemonCups)} ÷ 4.`),
+              ...(lemonCups.d === 1
+                ? lemonCups.n % 4 === 0
+                  ? [st("Divide.", `${lemonCups.n} ÷ 4 = ${lemonCups.n / 4}`)]
+                  : [st("Divide.", `${lemonCups.n} ÷ 4 = ${raw(lemonCups.n, 4)}`), ...finishSteps(lemonCups.n, 4)]
+                : [st("Keep, change, flip.", fracDivide(lemonCups, F(4)))]),
+              st("Check.", `${mixed(scoops)} × 4 = ${mixed(lemonCups)} ✔`),
+              st("Answer.", `${mixed(scoops)} ${scoops.n <= scoops.d ? "scoop" : "scoops"}${decNote(scoops)}`),
+            ],
+          },
+          {
+            section: "Sketch a layout",
+            prompt: `The party room is ${l} ft by ${w} ft. What is its area?`,
+            answer: num(l * w),
+            hints: ["length × width"],
+            steps: [
+              st("Area of a rectangle = length × width.", `${l} × ${w}`),
+              ...(Math.min(l, w) % 10 === 0 ? [st("Multiply.", `${l} × ${w} = ${l * w}`)] : multiplySteps(l, w)),
+              st("Answer.", `${l * w} square feet`),
+            ],
+          },
+          {
+            section: "Sketch a layout",
+            prompt: `Each table takes up 6 sq ft and seats ${seats} guests. How many tables do you need for ${guests} guests?`,
+            answer: num(tables),
+            hints: ["Guests ÷ seats per table, rounded up."],
+            steps: [
+              st("Divide the guests by the seats at each table.", `${guests} ÷ ${seats}: ${seats} × ${tq} = ${seats * tq}${trem ? `, with ${trem} left over` : ", exactly"}.`),
+              trem
+                ? st("Round UP.", `${count(tq, "table")} would seat only ${tq * seats} guests, so ${count(trem, "guest")} would have no seat. Add one more table: ${tables}.`)
+                : st("No rounding needed.", `${count(tq, "table")} seat everyone exactly.`),
+              st("Check.", `${tables} × ${seats} = ${tables * seats} seats, enough for ${guests} guests ✔`),
+              st("Answer.", `${count(tables, "table")}. (The 6 sq ft isn't needed for this question.)`),
+            ],
+          },
+          {
+            section: "Guest preferences",
+            prompt: `Guests voted: pizza ${votes[0]}, tacos ${votes[1]}, pasta ${votes[2]}. Which food is the mode?`,
+            answer: choice(r, top, prefs.filter((p) => p !== top)),
+            hints: ["The mode is the most common choice."],
+            steps: [
+              st("The mode is the most common choice.", "Find the food with the most votes."),
+              st("Compare the votes.", `pizza ${votes[0]}, tacos ${votes[1]}, pasta ${votes[2]}. The most is ${Math.max(...votes)}, for ${top}.`),
+              st("Answer.", top),
+            ],
+          },
+          {
+            section: "Guest preferences",
+            prompt: `Five guests' ages are ${ages.join(", ")}. What is the mean age?`,
+            answer: num(fromDecimal(ageMean)),
+            hints: ["Add the ages and divide by 5."],
+            steps: [
+              st("Add the ages.", `${ages.join(" + ")} = ${ageSum}`),
+              st("Divide by the number of guests (5).", ageSum % 5 ? `5 × ${Math.floor(ageSum / 5)} = ${5 * Math.floor(ageSum / 5)}, with ${ageSum % 5} left over. ${ageSum % 5} ÷ 5 = ${(ageSum % 5) / 5}, so ${ageSum} ÷ 5 = ${ageMean}.` : `5 × ${ageMean} = ${ageSum}, so ${ageSum} ÷ 5 = ${ageMean}.`),
+              st("Check.", `The mean should be between the youngest (${Math.min(...ages)}) and the oldest (${Math.max(...ages)}). ${ageMean} is ✔`),
+              st("Answer.", `${ageMean} years old`),
+            ],
+          },
         ],
       };
     },
@@ -377,15 +807,87 @@ export const MISSIONS: Mission[] = [
       const target = r.pick([6, 7, 8]);
       const ways = 6 - Math.abs(7 - target);
       const rolls = 120;
+      const pairs = [1, 2, 3, 4, 5, 6].filter((a) => target - a >= 1 && target - a <= 6).map((a) => [a, target - a]);
+      const P = frac(ways, 36);
+      const E = (rolls * ways) / 36;
+      const top = rolls * P.n;
+      const eq = Math.floor(top / P.d), er = top % P.d;
       return {
         intro: `In your game, a player rolls two dice. Landing a sum of ${target} lets them jump ahead. Let's see how often that happens.`,
         parts: [
-          { section: "Predict", prompt: "How many equally likely outcomes are there with two dice?", answer: num(36), hints: ["6 × 6"], steps: ["6 × 6 = 36"] },
-          { section: "Predict", prompt: `How many of those outcomes give a sum of ${target}?`, answer: num(ways), hints: ["List the pairs: (1, ?), (2, ?), …"], steps: [`${ways} ways`] },
-          { section: "Predict", prompt: `What is P(sum = ${target})?`, answer: num(frac(ways, 36)), hints: [`{${ways}/36}`], steps: [`{${ways}/36} = ${fr(frac(ways, 36))}`] },
-          { section: "Predict", prompt: `In ${rolls} rolls, about how many times should a ${target} come up?`, answer: num(fromDecimal(round((rolls * ways) / 36, 2)), { tolerance: 0.5 }), hints: [`${rolls} × {${ways}/36}`], steps: [`${rolls} × ${fr(frac(ways, 36))} ≈ ${round((rolls * ways) / 36, 1)}`] },
-          { section: "Test it", prompt: `Press “Roll ${rolls} times” to simulate. Was your result close to the prediction?`, answer: choice(r, "Probably close but not exact, because chance varies", ["It must match exactly or the math is wrong", "Simulations can't tell us anything"]), hints: ["Experiments vary from predictions, especially with fewer trials."], steps: ["Results vary; more rolls usually get closer to the prediction."], visual: { type: "dicesim", target, rolls } },
-          { section: "Make it fair", prompt: "You want a jump square to happen MORE often. Which sum should trigger it?", answer: choice(r, "7", ["2", "12", "11"]), hints: ["Which sum has the most ways?"], steps: ["7 has 6 ways, the most of any sum"] },
+          {
+            section: "Predict",
+            prompt: "How many equally likely outcomes are there with two dice?",
+            answer: num(36),
+            hints: ["6 × 6"],
+            steps: [
+              st("Each die has 6 faces.", "The first die can land 6 ways, and for EACH of those the second die can land 6 ways."),
+              st("Multiply.", "6 × 6 = 36"),
+              st("Answer.", "36 outcomes"),
+            ],
+          },
+          {
+            section: "Predict",
+            prompt: `How many of those outcomes give a sum of ${target}?`,
+            answer: num(ways),
+            hints: ["List the pairs: (1, ?), (2, ?), …"],
+            steps: [
+              st(`List the pairs that add to ${target}.`, `(first die, second die): ${pairs.map(([a, b]) => `(${a}, ${b})`).join(", ")}`),
+              st("Order matters.", `(${pairs[0][0]}, ${pairs[0][1]}) and (${pairs[0][1]}, ${pairs[0][0]}) are different outcomes, because the two dice are different.`),
+              st("Answer.", `${ways} outcomes`),
+            ],
+          },
+          {
+            section: "Predict",
+            prompt: `What is P(sum = ${target})?`,
+            answer: num(P),
+            hints: [`{${ways}/36}`],
+            steps: [
+              st("P = favorable outcomes ÷ all outcomes.", `${ways} favorable out of 36: P = {${ways}/36}`),
+              ...simplifySteps(ways, 36),
+              st("Answer.", `P(sum = ${target}) = ${fr(P)}`),
+            ],
+          },
+          {
+            section: "Predict",
+            prompt: `In ${rolls} rolls, about how many times should ${target === 8 ? "an" : "a"} ${target} come up?`,
+            answer: num(fromDecimal(round(E, 2)), { tolerance: 0.5 }),
+            hints: [`${rolls} × {${ways}/36}`],
+            steps: [
+              st("Expected count = number of rolls × probability.", `${rolls} × ${fr(P)}`),
+              ...(P.n === 1
+                ? [st(`Multiplying by {1/${P.d}} is the same as dividing by ${P.d}.`, `${rolls} ÷ ${P.d} = ${E}`)]
+                : [
+                    st("Multiply the top.", `${rolls} × ${fr(P)} = {${rolls} × ${P.n}/${P.d}} = ${raw(top, P.d)}`),
+                    st("Divide.", er ? `${top} ÷ ${P.d} = ${eq} remainder ${er}, so it's ${eq}${raw(er, P.d)}${frac(er, P.d).d !== P.d ? ` = ${mixed(frac(top, P.d))}` : ""} ≈ ${round(E, 2)}` : `${top} ÷ ${P.d} = ${E}`),
+                  ]),
+              st("Answer.", `About ${round(E, 2)} times${Number.isInteger(E) ? "" : ` (roughly ${Math.round(E)})`}`),
+            ],
+          },
+          {
+            section: "Test it",
+            prompt: `Press “Roll ${rolls} times” to simulate. Was your result close to the prediction?`,
+            answer: choice(r, "Probably close but not exact, because chance varies", ["It must match exactly or the math is wrong", "Simulations can't tell us anything"]),
+            hints: ["Experiments vary from predictions, especially with fewer trials."],
+            steps: [
+              st("A prediction is what happens “on average”.", `We predicted a sum of ${target} about ${round(E, 1)} times out of ${rolls}.`),
+              st("Real rolls are random.", "Each run of the simulation gives a slightly different count, so it's usually close but not exactly the same."),
+              st("More rolls help.", "The more times you roll, the closer the results usually get to the prediction."),
+              st("Answer.", "Probably close, but not exact."),
+            ],
+            visual: { type: "dicesim", target, rolls },
+          },
+          {
+            section: "Make it fair",
+            prompt: "You want a jump square to happen MORE often. Which sum should trigger it?",
+            answer: choice(r, "7", ["2", "12", "11"]),
+            hints: ["Which sum has the most ways?"],
+            steps: [
+              st("Count the ways to make each sum.", "2: 1 way, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 5, 9: 4, 10: 3, 11: 2, 12: 1."),
+              st("Pick the sum with the most ways.", "7 has 6 ways: (1, 6), (2, 5), (3, 4), (4, 3), (5, 2), (6, 1). More ways means it happens more often."),
+              st("Answer.", "7, with P = {6/36} = {1/6}"),
+            ],
+          },
         ],
       };
     },
@@ -404,18 +906,62 @@ export const MISSIONS: Mission[] = [
       const ok = fB >= 0;
       const [FA, MA, FB, MB, H] = ok ? [fA, mA, fB, mB, h] : [10, 2, 4, 4, 3];
       const cost = FA + MA * H;
+      const dm = MB - MA, df = FA - FB;
+      const g = H + 3, longA = FA + MA * g, longB = FB + MB * g;
+      const oneA = FA + MA, oneB = FB + MB;
+      const eqSteps = (shop: string, m: number, b: number) => [
+        st("Find the starting fee.", `Shop ${shop} charges $${b} before you ride at all. That's the cost when x = 0, so b = ${b}.`),
+        st("Find the rate.", `Each hour adds $${m}, so the slope is m = ${m}.`),
+        st("Check.", `For 2 hours: ${m} × 2 + ${b} = $${m * 2 + b}, which is the $${b} fee plus 2 hours at $${m} ✔`),
+        st("Answer.", `y = ${linear(m, b)}${m === 1 || b === 0 ? ` (the same as y = ${m}x + ${b})` : ""}`),
+      ];
       return {
         intro: `Shop A charges $${FA} plus $${MA} per hour. Shop B charges $${FB} plus $${MB} per hour.`,
         parts: [
-          { section: "Write equations", prompt: "Write Shop A's cost y for x hours: y = ?x + ?", answer: { kind: "multi", fields: [{ value: F(MA), pre: "y =", post: "x" }, { value: F(FA), pre: "+" }] }, hints: ["Rate per hour is the slope; the starting fee is b."], steps: [`y = ${MA}x + ${FA}`] },
-          { section: "Write equations", prompt: "Write Shop B's cost: y = ?x + ?", answer: { kind: "multi", fields: [{ value: F(MB), pre: "y =", post: "x" }, { value: F(FB), pre: "+" }] }, hints: ["Rate per hour is the slope; the starting fee is b."], steps: [`y = ${MB}x + ${FB}`] },
-          { section: "Graph costs", prompt: "Click where the two cost lines cross.", answer: { kind: "point", x: H, y: cost, min: 0, max: Math.max(12, cost + 2), lines: [{ m: MA, b: FA, label: "A" }, { m: MB, b: FB, label: "B" }] }, hints: ["Find where the lines meet.", `Solve ${MA}x + ${FA} = ${MB}x + ${FB}.`], steps: [`They meet at (${H}, ${cost})`] },
-          { section: "Explain", prompt: `Which shop is cheaper for a ${H + 3}-hour ride?`, answer: choice(r, "Shop A", ["Shop B", "They cost the same"]), hints: ["After the lines cross, the one with the smaller rate is cheaper."], steps: [`A: $${FA + MA * (H + 3)}, B: $${FB + MB * (H + 3)}`] },
-          { section: "Explain", prompt: `Which shop is cheaper for a 1-hour ride?`, answer: choice(r, H > 1 ? "Shop B" : "They cost the same", H > 1 ? ["Shop A", "They cost the same"] : ["Shop A", "Shop B"]), hints: ["Substitute x = 1 into both."], steps: [`A: $${FA + MA}, B: $${FB + MB}`] },
+          { section: "Write equations", prompt: "Write Shop A's cost y for x hours: y = ?x + ?", answer: { kind: "multi", fields: [{ value: F(MA), pre: "y =", post: "x" }, { value: F(FA), pre: "+" }] }, hints: ["Rate per hour is the slope; the starting fee is b."], steps: eqSteps("A", MA, FA) },
+          { section: "Write equations", prompt: "Write Shop B's cost: y = ?x + ?", answer: { kind: "multi", fields: [{ value: F(MB), pre: "y =", post: "x" }, { value: F(FB), pre: "+" }] }, hints: ["Rate per hour is the slope; the starting fee is b."], steps: eqSteps("B", MB, FB) },
+          {
+            section: "Graph costs",
+            prompt: "Click where the two cost lines cross.",
+            answer: { kind: "point", x: H, y: cost, min: 0, max: Math.max(12, cost + 2), lines: [{ m: MA, b: FA, label: "A" }, { m: MB, b: FB, label: "B" }] },
+            hints: ["Find where the lines meet.", `Solve ${MA}x + ${FA} = ${MB}x + ${FB}.`],
+            steps: [
+              st("The lines cross where the costs are equal.", `${linear(MA, FA)} = ${linear(MB, FB)}`),
+              st(`Subtract ${term(MA, "x")} from both sides.`, `${FA} = ${linear(dm, FB)}`),
+              ...(FB !== 0 ? [st(`Subtract ${FB} from both sides.`, `${FA} − ${FB} = ${term(dm, "x")}, so ${df} = ${term(dm, "x")}`)] : []),
+              ...(dm === 1 ? [] : [st(`Divide both sides by ${dm}.`, `x = ${df} ÷ ${dm} = ${H}`)]),
+              st("Find y.", `Put x = ${H} into Shop A: y = ${MA} × ${H} + ${FA} = ${cost}. Shop B gives ${MB} × ${H} + ${FB} = ${cost} too ✔`),
+              st("Answer.", `The lines cross at (${H}, ${cost}): at ${H} hours both shops cost $${cost}.`),
+            ],
+          },
+          {
+            section: "Explain",
+            prompt: `Which shop is cheaper for a ${g}-hour ride?`,
+            answer: choice(r, "Shop A", ["Shop B", "They cost the same"]),
+            hints: ["After the lines cross, the one with the smaller rate is cheaper."],
+            steps: [
+              st(`Shop A for ${g} hours.`, `${MA} × ${g} + ${FA} = ${MA * g} + ${FA} = $${longA}`),
+              st(`Shop B for ${g} hours.`, `${MB} × ${g} + ${FB} = ${MB * g} + ${FB} = $${longB}`),
+              st("Compare.", `$${longA} < $${longB}, so Shop A is cheaper.`),
+              st("Why it makes sense.", `After the lines cross at ${H} hours, Shop A's smaller hourly rate ($${MA} vs. $${MB}) keeps it cheaper.`),
+              st("Answer.", "Shop A"),
+            ],
+          },
+          {
+            section: "Explain",
+            prompt: `Which shop is cheaper for a 1-hour ride?`,
+            answer: choice(r, H > 1 ? "Shop B" : "They cost the same", H > 1 ? ["Shop A", "They cost the same"] : ["Shop A", "Shop B"]),
+            hints: ["Substitute x = 1 into both."],
+            steps: [
+              st("Shop A for 1 hour.", `${MA} × 1 + ${FA} = $${oneA}`),
+              st("Shop B for 1 hour.", `${MB} × 1 + ${FB} = $${oneB}`),
+              st("Compare.", oneB < oneA ? `$${oneB} < $${oneA}, so Shop B is cheaper.` : `Both cost $${oneA}.`),
+              ...(H > 1 ? [st("Why it makes sense.", `Before the lines cross at ${H} hours, Shop B's lower starting fee ($${FB} vs. $${FA}) keeps it cheaper.`)] : []),
+              st("Answer.", H > 1 ? "Shop B" : "They cost the same."),
+            ],
+          },
         ],
       };
     },
   },
 ];
-
-
