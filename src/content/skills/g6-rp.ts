@@ -63,7 +63,7 @@ const ratioTables: Skill = {
   },
   why: [
     { kind: "choice", prompt: "Why is 2 : 5 equivalent to 6 : 15?", choices: ["Both parts were multiplied by 3, so the mixture tastes the same.", "Because 6 − 2 = 4 and 15 − 5 = 10.", "Because 6 and 15 are both multiples of 3."], correct: 0, explain: "Equivalent ratios scale both parts by the same factor." },
-    { kind: "written", prompt: "The ratio of boys to girls is 2 : 3 and there are 25 students. Explain how a tape diagram shows there are 15 girls.", keyIdeas: ["draw 2 boxes for boys and 3 for girls (5 boxes)", "25 ÷ 5 = 5 students per box", "3 boxes × 5 = 15 girls"], exemplar: "I draw 2 boxes for boys and 3 boxes for girls, which is 5 equal boxes for 25 students. Each box is 25 ÷ 5 = 5 students. The girls have 3 boxes, so 3 × 5 = 15 girls." },
+    { kind: "written", prompt: "The ratio of boys to girls is 2 : 3 and there are 25 students. Explain how a tape diagram shows there are 15 girls.", keyIdeas: ["draw 2 boxes for boys and 3 for girls (5 boxes)", "25 ÷ 5 = 5 students per box", "3 boxes × 5 = 15 girls"], exemplar: "I draw 2 boxes for boys and 3 boxes for girls, which is 5 equal boxes for 25 students. Each box is 25 ÷ 5 = 5 students. The girls have 3 boxes, so 3 × 5 = 15 girls.", visual: { type: "tape", rows: [{ label: "Boys", segments: [{ text: "?", size: 1, shade: true }, { text: "?", size: 1, shade: true }] }, { label: "Girls", segments: [{ text: "?", size: 1 }, { text: "?", size: 1 }, { text: "?", size: 1 }] }] } },
   ],
   generate(r, lv) {
     const a = r.int(1, 6);

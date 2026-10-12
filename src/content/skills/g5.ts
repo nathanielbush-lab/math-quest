@@ -45,8 +45,8 @@ const equiv: Skill = {
     tip: "Use the greatest common factor and you simplify in one step.",
   },
   why: [
-    { kind: "choice", prompt: "Why is {6/8} equal to {3/4}?", choices: ["Dividing the top and bottom by 2 groups the pieces into pairs, so the same amount is shaded.", "Because 6 − 3 = 3 and 8 − 4 = 4.", "Because both have even numbers."], correct: 0, explain: "Dividing top and bottom by the same number regroups the pieces without changing how much is shaded." },
-    { kind: "written", prompt: "Explain why multiplying the top and bottom of a fraction by the same number doesn't change its value.", keyIdeas: ["each piece is split into the same number of smaller pieces", "the shaded amount stays the same", "it is the same as multiplying by 1 (like 3/3)"], exemplar: "If I multiply top and bottom by 3, I cut every piece into 3 smaller pieces. There are 3 times as many pieces and 3 times as many shaded ones, so the same amount is shaded. It's like multiplying by 3/3, which is 1." },
+    { kind: "choice", prompt: "Why is {6/8} equal to {3/4}?", choices: ["Dividing the top and bottom by 2 groups the pieces into pairs, so the same amount is shaded.", "Because 6 − 3 = 3 and 8 − 4 = 4.", "Because both have even numbers."], correct: 0, explain: "Dividing top and bottom by the same number regroups the pieces without changing how much is shaded.", visual: { type: "fractionbars", bars: [{ parts: 8, shaded: 6, label: "6/8" }, { parts: 4, shaded: 3, label: "3/4" }] } },
+    { kind: "written", prompt: "Explain why multiplying the top and bottom of a fraction by the same number doesn't change its value.", keyIdeas: ["each piece is split into the same number of smaller pieces", "the shaded amount stays the same", "it is the same as multiplying by 1 (like 3/3)"], exemplar: "If I multiply top and bottom by 3, I cut every piece into 3 smaller pieces. There are 3 times as many pieces and 3 times as many shaded ones, so the same amount is shaded. It's like multiplying by 3/3, which is 1.", visual: { type: "fractionbars", bars: [{ parts: 3, shaded: 2, label: "2/3" }, { parts: 9, shaded: 6, label: "6/9" }] } },
   ],
   generate(r, lv) {
     if (lv === 2) {
@@ -183,6 +183,7 @@ const multiply: Skill = {
       "{1/2} × {2/3} means half of two-thirds. Take {2/3} of a bar and shade half of it: that's {2/6} = {1/3} of the whole bar.",
       "Rule: multiply numerators, multiply denominators, then simplify. A whole number like 3 is {3/1}.",
     ],
+    visual: { type: "fractionbars", bars: [{ parts: 3, shaded: 2, label: "2/3" }, { parts: 6, shaded: 2, label: "½ of it" }] },
     tip: "Multiplying by a fraction less than 1 makes the answer smaller.",
   },
   why: [

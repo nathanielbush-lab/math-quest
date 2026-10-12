@@ -47,7 +47,7 @@ function render(v: V) {
   }
 }
 
-function NumberLine({ min, max, step, labelEvery, points = [], jumps = [] }: Extract<V, { type: "numberline" }>) {
+function NumberLine({ min, max, step, labelEvery, points = [], jumps = [], ray }: Extract<V, { type: "numberline" }>) {
   const W = 600, pad = 30, y = 60;
   const n = Math.round((max - min) / step);
   const every = labelEvery ?? (n > 14 ? 2 : 1);
@@ -66,6 +66,13 @@ function NumberLine({ min, max, step, labelEvery, points = [], jumps = [] }: Ext
           </g>
         );
       })}
+      {ray && (
+        <g>
+          <line x1={x(ray.at)} x2={ray.dir === "right" ? W - pad + 14 : pad - 14} y1={y} y2={y} stroke={C.primary} strokeWidth={7} strokeLinecap="round" />
+          <polygon points={ray.dir === "right" ? `${W - pad + 22},${y} ${W - pad + 8},${y - 9} ${W - pad + 8},${y + 9}` : `${pad - 22},${y} ${pad - 8},${y - 9} ${pad - 8},${y + 9}`} fill={C.primary} />
+          <circle cx={x(ray.at)} cy={y} r={8} fill={ray.closed ? C.primary : C.surface} stroke={C.primary} strokeWidth={3} />
+        </g>
+      )}
       {jumps.map((j, i) => {
         const x1 = x(j.from), x2 = x(j.to), mid = (x1 + x2) / 2;
         return (

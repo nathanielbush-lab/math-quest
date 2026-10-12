@@ -8,7 +8,7 @@ import { MAX_ROUNDS, grade as gradeIt, isFinalRound, type GradeResult, type Prio
 import { MathText, speak } from "./MathText";
 import { ProblemCard, type ProblemResult } from "./ProblemCard";
 import { cleanSteps } from "./SolutionSteps";
-import { Visual } from "./Visual";
+import { Grid, Visual } from "./Visual";
 
 function useEnterToContinue(fn: () => void, enabled = true) {
   const ref = useRef<HTMLButtonElement>(null);
@@ -48,6 +48,12 @@ export function WorkedExample({ skill, seed, level, onDone }: { skill: Skill; se
       <span className="chip">👀 Watch me solve one</span>
       <MathText text={problem.prompt} as="div" className="prompt" />
       {problem.visual && problem.answer.kind !== "point" && <Visual v={problem.visual} />}
+      {problem.answer.kind === "point" && (
+        // Point questions draw their grid inside the answer box, so show it here too, with the answer once it's reached.
+        <div className="visual">
+          <Grid min={problem.answer.min} max={problem.answer.max} points={problem.answer.extraPoints} polygon={problem.answer.polygon} lines={problem.answer.lines} mark={all ? { x: problem.answer.x, y: problem.answer.y, ok: true } : null} />
+        </div>
+      )}
       <ol className="steps">{steps.slice(0, shown).map((s, i) => <li key={i} className="celebrate"><MathText text={s} /></li>)}</ol>
       {all && <div className="feedback info">Answer: <MathText text={answerText(problem.answer)} /></div>}
       <div className="row">
@@ -69,6 +75,7 @@ export function WhyCard({ skill, onDone }: { skill: Skill; onDone: (ok: boolean)
     <div className="card">
       <span className="chip">🧠 Why does it work?</span>
       <MathText text={why.prompt} as="div" className="prompt" />
+      {why.visual && <Visual v={why.visual} />}
       <div className="choices">
         {why.choices.map((c, i) => (
           <button key={i} className={`choice ${pick !== null && i === why.correct ? "right" : pick === i ? "wrong" : ""}`} disabled={pick !== null} onClick={() => setPick(i)}>
@@ -161,6 +168,7 @@ export function ExplainCard({
       </div>
       <p className="muted small" style={{ marginTop: 8 }}>{skill.title}</p>
       <MathText text={why.prompt} as="div" className="prompt" />
+      {why.visual && <Visual v={why.visual} />}
 
       {rounds.map((r, i) => {
         const isLast = i === rounds.length - 1;

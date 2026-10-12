@@ -196,7 +196,7 @@ const spread: Skill = {
   },
   why: [
     { kind: "choice", prompt: "Why might the IQR describe spread better than the range?", choices: ["The IQR uses the middle half, so one extreme value doesn't change it much.", "The IQR is always bigger.", "The range can't be calculated."], correct: 0, explain: "Outliers stretch the range but barely affect the IQR." },
-    { kind: "written", prompt: "Explain what the box in a box plot shows.", keyIdeas: ["the box goes from Q1 to Q3", "it contains the middle half (50%) of the data", "the line inside is the median; the box length is the IQR"], exemplar: "The box stretches from the first quartile to the third quartile, so it holds the middle half of the data. The line inside the box is the median, and the length of the box is the IQR." },
+    { kind: "written", prompt: "Explain what the box in a box plot shows.", keyIdeas: ["the box goes from Q1 to Q3", "it contains the middle half (50%) of the data", "the line inside is the median; the box length is the IQR"], exemplar: "The box stretches from the first quartile to the third quartile, so it holds the middle half of the data. The line inside the box is the median, and the length of the box is the IQR.", visual: { type: "boxplot", min: 2, q1: 5, median: 7, q3: 10, max: 14, scaleMin: 0, scaleMax: 15 } },
   ],
   generate(r, lv) {
     const n = lv === 3 ? r.pick([8, 9, 10, 11]) : r.pick([7, 8, 9]);
@@ -228,7 +228,7 @@ const spread: Skill = {
         answer: num(ans),
         hints: [
           "A box plot shows five numbers, left to right: min (whisker end), Q1 (box's left edge), median (line inside the box), Q3 (box's right edge), max (whisker end).",
-          ask === "IQR" ? "IQR = Q3 − Q1, the length of the box. Read both edges of the box and subtract." : ask === "median" ? "The median is the line inside the box. Read where it sits on the number line." : "Range = max − min. Read both whisker ends and subtract.",
+          ask === "IQR" ? "IQR = Q3 − Q1, the length of the box. Read both edges of the box and subtract." : ask === "median" ? "The median is the line inside the box. Read its value on the scale under the box plot." : "Range = max − min. Read both whisker ends and subtract.",
         ],
         steps: [
           st("Read the five numbers from the box plot.", `Left whisker end (min) ${b.min}, left edge of the box (Q1) ${b.q1}, line in the box (median) ${b.median}, right edge of the box (Q3) ${b.q3}, right whisker end (max) ${b.max}.`),
@@ -372,15 +372,21 @@ const chooseMeasure: Skill = {
       };
     }
     const sym = r.chance(0.5);
+    // Draw the dot plot the question is about: a balanced pile of scores, or prices with a few far-out expensive houses.
+    const c = r.int(74, 84);
+    const symValues = [-3, -2, -2, -1, -1, -1, 0, 0, 0, 0, 1, 1, 1, 2, 2, 3].map((d) => c + d);
+    const lo = r.int(2, 3);
+    const skewValues = [lo, lo, lo + 1, lo + 1, lo + 1, lo + 1, lo + 2, lo + 2, lo + 2, lo + 3, lo + 3, lo + 4, lo + 9, lo + 11];
     return {
-      prompt: sym ? "A dot plot of test scores is roughly symmetric with no outliers. Which pair of measures best describes it?" : "A dot plot of house prices has a few very expensive houses far to the right. Which pair of measures best describes it?",
+      prompt: sym ? "The dot plot shows the class's test scores. Which pair of measures best describes the data?" : "The dot plot shows the prices of houses sold on one street, in hundreds of thousands of dollars. Which pair of measures best describes the data?",
+      visual: sym ? { type: "dotplot", values: symValues, min: c - 5, max: c + 5, label: "test score" } : { type: "dotplot", values: skewValues, min: 0, max: lo + 12, label: "price ($100,000s)" },
       answer: choice(r, sym ? "Mean and MAD" : "Median and IQR", [[sym ? "Median and IQR" : "Mean and MAD", sym ? "That works, but mean and MAD are the usual choice for symmetric data." : "The expensive outliers would pull the mean and MAD up."], "Mode and range"]),
       hints: [
-        "Picture the dot plot. Is it balanced on both sides (symmetric), or does it have a few values far out on one side?",
+        "Look at the dot plot. Is it balanced on both sides (symmetric), or does it have a few values far out on one side?",
         "Far-out values pull the mean and MAD, because they use every value's size. The median and IQR only use the middle, so outliers barely move them.",
       ],
       steps: [
-        st("Is the data symmetric or lopsided?", sym ? "Roughly symmetric with no outliers." : "Lopsided (skewed) with a few very large values."),
+        st("Is the data symmetric or lopsided?", sym ? "The dots pile up in the middle and fall off evenly on both sides: roughly symmetric, with no outliers." : `Most prices are between ${lo} and ${lo + 4}, but a couple of houses are far out to the right (${lo + 9} and ${lo + 11}): lopsided (skewed) with outliers.`),
         st("Choose the matching summary.", sym ? "For symmetric data, the mean and MAD describe it well." : "Outliers pull the mean and MAD, so use the median and IQR, which barely change."),
       ],
     };

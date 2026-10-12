@@ -5,7 +5,7 @@ export type Level = 1 | 2 | 3;
 
 // ---------- Visual models shown with a problem or lesson ----------
 export type Visual =
-  | { type: "numberline"; min: number; max: number; step: number; /** Label every Nth tick, counting from min. */ labelEvery?: number; points?: { v: number; label?: string }[]; jumps?: { from: number; to: number; label?: string }[] }
+  | { type: "numberline"; min: number; max: number; step: number; /** Label every Nth tick, counting from min. */ labelEvery?: number; points?: { v: number; label?: string }[]; jumps?: { from: number; to: number; label?: string }[]; /** An inequality graph: a circle (filled = included) and a shaded ray. */ ray?: { at: number; dir: "left" | "right"; closed: boolean } }
   | { type: "fractionbars"; bars: { parts: number; shaded: number; label?: string }[] }
   | { type: "grid"; min: number; max: number; points?: { x: number; y: number; label?: string }[]; polygon?: { x: number; y: number }[]; lines?: { m: number; b: number; label?: string }[] }
   | { type: "table"; headers: string[]; rows: (string | number)[][]; caption?: string }
@@ -57,6 +57,8 @@ export interface WhyChoice {
   choices: string[];
   correct: number;
   explain: string;
+  /** Picture the question refers to ("Why is the shaded part the same?"). */
+  visual?: Visual;
 }
 
 export interface WhyWritten {
@@ -65,6 +67,7 @@ export interface WhyWritten {
   /** What a complete explanation should mention (used by the grader and the parent). */
   keyIdeas: string[];
   exemplar: string;
+  visual?: Visual;
 }
 
 export type Why = WhyChoice | WhyWritten;

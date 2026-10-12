@@ -53,7 +53,7 @@ const addInt: Skill = {
   },
   why: [
     { kind: "choice", prompt: "Why does 4 − (−2) = 6?", choices: ["Subtracting means adding the opposite: 4 + 2 = 6. (Removing a $2 debt leaves you $2 better off.)", "Because two minus signs always make a plus no matter what.", "It equals 2."], correct: 0, explain: "a − b = a + (−b)." },
-    { kind: "written", prompt: "The temperature is −3° and then rises 7°. Explain how to find the new temperature with a number line.", keyIdeas: ["start at −3", "rising means move right 7", "3 steps reach 0, 4 more reach 4"], exemplar: "I start at −3 on the number line. Rising 7 degrees means moving 7 to the right. 3 steps gets me to 0 and 4 more steps gets to 4, so the new temperature is 4 degrees." },
+    { kind: "written", prompt: "The temperature is −3° and then rises 7°. Explain how to find the new temperature with a number line.", keyIdeas: ["start at −3", "rising means move right 7", "3 steps reach 0, 4 more reach 4"], exemplar: "I start at −3 on the number line. Rising 7 degrees means moving 7 to the right. 3 steps gets me to 0 and 4 more steps gets to 4, so the new temperature is 4 degrees.", visual: { type: "numberline", min: -5, max: 5, step: 1 } },
   ],
   generate(r, lv) {
     let a = r.int(-15, 15);
@@ -66,9 +66,9 @@ const addInt: Skill = {
         prompt: `${ms(a)} + ${sn(b)} = ?`,
         visual: Math.abs(a) <= 10 && Math.abs(ans) <= 10 ? { type: "numberline", min: -12, max: 12, step: 1, labelEvery: 2, points: [{ v: a }] } : undefined,
         answer: num(ans),
-        hints: [`Start at ${ms(a)} on the number line. Adding ${ms(b)} means moving ${b > 0 ? "right" : "left"} ${Math.abs(b)}.`, addHint(a, b)],
+        hints: [`Picture a number line and start at ${ms(a)}. Adding ${ms(b)} means moving ${b > 0 ? "right" : "left"} ${Math.abs(b)}.`, addHint(a, b)],
         steps: [
-          st("Start at the first number.", `Put your finger on ${ms(a)} on the number line.`),
+          st("Start at the first number.", `Picture a number line and put your finger on ${ms(a)}.`),
           st("Move by the second number.", `Adding ${ms(b)} means moving ${b > 0 ? "right" : "left"} ${Math.abs(b)}.`),
           st("See where you land.", `You end at ${ms(ans)}.`),
           addRule(a, b),
@@ -82,7 +82,7 @@ const addInt: Skill = {
       const ctx = r.pick([
         [`At 6 a.m. it was ${ms(a)}°F. By noon the temperature ${b > 0 ? "rose" : "fell"} ${Math.abs(b)}°. What was the noon temperature?`, a + b, `${ms(a)} + ${sn(b)} = ${ms(a + b)}`, [`Rising is +, falling is −. Start at ${ms(a)} and ${b > 0 ? "add" : "add the negative"}: ${ms(a)} + ${sn(b)}.`, addHint(a, b)]],
         [`A submarine is at ${ms(depth)} meters. It ${b > 0 ? "rises" : "dives"} ${Math.abs(b)} meters. What is its new elevation?`, depth + b, `${ms(depth)} + ${sn(b)} = ${ms(depth + b)}`, [`Up is +, down is −. Start at ${ms(depth)} and ${b > 0 ? "add" : "add the negative"}: ${ms(depth)} + ${sn(b)}.`, addHint(depth, b)]],
-        [`The high was ${ms(a)}° and the low was ${ms(low)}°. How many degrees apart were the high and low?`, Math.abs(b), `${ms(a)} − ${sn(low)} = ${Math.abs(b)}`, [`“How far apart” means subtract: high − low = ${ms(a)} − ${sn(low)}.`, `Subtracting means adding the opposite: ${ms(a)} + ${sn(-low)}. Or count the steps on a number line from ${ms(low)} up to ${ms(a)}.`]],
+        [`The high was ${ms(a)}° and the low was ${ms(low)}°. How many degrees apart were the high and low?`, Math.abs(b), `${ms(a)} − ${sn(low)} = ${Math.abs(b)}`, [`“How far apart” means subtract: high − low = ${ms(a)} − ${sn(low)}.`, `Subtracting means adding the opposite: ${ms(a)} + ${sn(-low)}. Or picture a number line and count the steps from ${ms(low)} up to ${ms(a)}.`]],
       ] as [string, number, string, string[]][]);
       return {
         prompt: ctx[0],
@@ -101,7 +101,7 @@ const addInt: Skill = {
       answer: num(ans),
       hints: subtract
         ? [`Subtracting means adding the opposite: ${ms(a)} − ${sn(b)} = ${ms(a)} + ${sn(-b)}.`, addHint(a, -b)]
-        : [`Start at ${ms(a)} on the number line. Adding ${ms(b)} means moving ${b > 0 ? "right" : "left"} ${Math.abs(b)}.`, addHint(a, b)],
+        : [`Picture a number line and start at ${ms(a)}. Adding ${ms(b)} means moving ${b > 0 ? "right" : "left"} ${Math.abs(b)}.`, addHint(a, b)],
       steps: [
         ...(subtract ? [st("Subtracting means adding the opposite.", `${ms(a)} − ${sn(b)} = ${ms(a)} + ${sn(-b)}`)] : []),
         addRule(a, subtract ? -b : b),

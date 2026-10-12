@@ -435,18 +435,24 @@ const inequalities: Skill = {
     const sym = r.pick([">", "<", "≥", "≤"]);
     const open = sym === ">" || sym === "<";
     const dir = sym === ">" || sym === "≥" ? "right" : "left";
-    const desc = (o: boolean, d: string) => `${o ? "Open" : "Closed"} circle at ${c}, shaded to the ${d}`;
+    const other = (x: string) => `${v} ${x} ${c}`;
+    const wrong: [string, string][] = [
+      [other(open ? (dir === "right" ? "≥" : "≤") : dir === "right" ? ">" : "<"), open ? "The circle is open (empty), so the number itself is NOT included: no “or equal” line." : "The circle is filled in, so the number itself IS included: use ≥ or ≤."],
+      [other(open ? (dir === "right" ? "<" : ">") : dir === "right" ? "≤" : "≥"), "Check which way the shading goes: right means greater, left means less."],
+      [other(open ? (dir === "right" ? "≤" : "≥") : dir === "right" ? "<" : ">"), "Check both the circle and the direction of the shading."],
+    ];
     return {
-      prompt: `Which number-line graph shows ${v} ${sym} ${c}?`,
-      answer: choice(r, desc(open, dir), [[desc(!open, dir), open ? "Strict inequalities (> or <) use an open circle." : "≥ and ≤ include the number, so use a closed circle."], [desc(open, dir === "right" ? "left" : "right"), "Check the direction of the symbol."], desc(!open, dir === "right" ? "left" : "right")]),
+      prompt: `Which inequality does this number-line graph show?`,
+      visual: { type: "numberline", min: c - 5, max: c + 5, step: 1, ray: { at: c, dir: dir as "left" | "right", closed: !open } },
+      answer: choice(r, `${v} ${sym} ${c}`, wrong),
       hints: [
-        `Circle first: does ${sym} include ${c} itself? If ${c} counts, use a filled-in (closed) circle; if not, an open circle.`,
-        `Then direction: ${v} must be ${dir === "right" ? "greater" : "less"} than ${c}. Which side of the number line has the ${dir === "right" ? "bigger" : "smaller"} numbers?`,
+        `Look at the circle at ${c}. Filled in (closed) means ${c} itself is included, so the symbol has the “or equal” line (≥ or ≤). Empty (open) means it isn't (> or <).`,
+        `Now look at the shading. Going right means the numbers are greater than ${c}; going left means less than ${c}.`,
       ],
       steps: [
-        st("Open or closed circle?", open ? `${sym} does NOT include ${c} itself, so draw an open circle at ${c}.` : `${sym} includes ${c} (“or equal to”), so draw a closed (filled-in) circle at ${c}.`),
-        st("Which way to shade?", dir === "right" ? `${v} must be greater than ${c}, and greater numbers are to the right.` : `${v} must be less than ${c}, and smaller numbers are to the left.`),
-        st("Answer.", desc(open, dir)),
+        st("Look at the circle.", open ? `The circle at ${c} is open (empty), so ${c} itself is NOT included: use > or <.` : `The circle at ${c} is filled in, so ${c} itself IS included: use ≥ or ≤.`),
+        st("Look at the shading.", dir === "right" ? `It's shaded to the right, toward the greater numbers, so ${v} is greater than ${c}.` : `It's shaded to the left, toward the smaller numbers, so ${v} is less than ${c}.`),
+        st("Answer.", `${v} ${sym} ${c}`),
       ],
     };
   },
@@ -468,7 +474,7 @@ const twoVariables: Skill = {
   },
   why: [
     { kind: "choice", prompt: "In c = 4t for ticket cost, why is c the dependent variable?", choices: ["The cost depends on how many tickets you buy.", "Because c comes first in the alphabet.", "Because 4 is a constant."], correct: 0, explain: "You choose t; c follows from it." },
-    { kind: "written", prompt: "A table shows x = 1, 2, 3, 4 and y = 7, 14, 21, 28. Explain how to find the equation.", keyIdeas: ["each y is 7 times x", "y = 7x", "check with a row, e.g. 7 × 3 = 21"], exemplar: "Each y value is 7 times the x value: 7 × 1 = 7, 7 × 2 = 14 and so on. So y = 7x. Checking: 7 × 4 = 28 ✔." },
+    { kind: "written", prompt: "The table shows x = 1, 2, 3, 4 and y = 7, 14, 21, 28. Explain how to find the equation.", keyIdeas: ["each y is 7 times x", "y = 7x", "check with a row, e.g. 7 × 3 = 21"], exemplar: "Each y value is 7 times the x value: 7 × 1 = 7, 7 × 2 = 14 and so on. So y = 7x. Checking: 7 × 4 = 28 ✔.", visual: { type: "table", headers: ["x", "y"], rows: [[1, 7], [2, 14], [3, 21], [4, 28]] } },
   ],
   generate(r, lv) {
     const m = r.int(2, 12);

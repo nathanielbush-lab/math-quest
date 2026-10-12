@@ -220,7 +220,7 @@ const compareFunctions: Skill = {
   },
   why: [
     { kind: "choice", prompt: "Why is y = x² not linear?", choices: ["Its change isn't constant: from 0 to 1 it rises 1, from 1 to 2 it rises 3.", "Because it has an exponent of 2, which is even.", "It is linear."], correct: 0, explain: "Unequal steps → curved graph." },
-    { kind: "written", prompt: "Function A is y = 4x + 2. Function B has a table x: 0, 1, 2 and y: 5, 8, 11. Explain which grows faster.", keyIdeas: ["A's rate of change is 4", "B's rate of change is 3 (y goes up 3 per step)", "A grows faster even though B starts higher"], exemplar: "A goes up 4 for each 1 increase in x. B's table goes up by 3 each time (5, 8, 11). So A grows faster, even though B starts higher (5 vs 2)." },
+    { kind: "written", prompt: "Function A is y = 4x + 2. Function B is shown in the table (x = 0, 1, 2 gives y = 5, 8, 11). Explain which grows faster.", visual: { type: "table", headers: ["x", "y (B)"], rows: [[0, 5], [1, 8], [2, 11]] }, keyIdeas: ["A's rate of change is 4", "B's rate of change is 3 (y goes up 3 per step)", "A grows faster even though B starts higher"], exemplar: "A goes up 4 for each 1 increase in x. B's table goes up by 3 each time (5, 8, 11). So A grows faster, even though B starts higher (5 vs 2)." },
   ],
   generate(r, lv) {
     if (lv <= 2) {
@@ -229,7 +229,7 @@ const compareFunctions: Skill = {
       const lin = [0, 1, 2, 3].map((x) => m * x + b);
       const nonlins = [[0, 1, 4, 9].map((y) => y + b), [1, 2, 4, 8].map((y) => y * m), [0, 2, 6, 12].map((y) => y + b)];
       const non = r.pick(nonlins);
-      const ask = lv === 1 ? "Which equation is linear?" : "Which table shows a LINEAR function (x = 0, 1, 2, 3)?";
+      const ask = lv === 1 ? "Which equation is linear?" : "For x = 0, 1, 2, 3, which list of y-values shows a LINEAR function?";
       if (lv === 1) {
         const eqs: [string, boolean][] = [[`y = ${m}x + ${b}`, true], ["y = x²", false], [`y = ${m}/x`, false], ["y = 2^x", false], [`y = −${m}x`, true]];
         const right = r.pick(eqs.filter((e) => e[1]));
@@ -246,10 +246,10 @@ const compareFunctions: Skill = {
       return {
         prompt: ask,
         answer: choice(r, `y: ${lin.join(", ")}`, [[`y: ${non.join(", ")}`, "Find the differences between y-values. Are they all the same?"], [`y: ${[b, b + 1, b + 3, b + 6].join(", ")}`, "The differences are 1, 2, 3, not constant."]]),
-        hints: ["Linear means y changes by the SAME amount every time x goes up by 1.", "For each table, subtract neighboring y-values (2nd − 1st, 3rd − 2nd, 4th − 3rd). Pick the table where all the differences match."],
+        hints: ["Linear means y changes by the SAME amount every time x goes up by 1.", "For each list, subtract neighboring y-values (2nd − 1st, 3rd − 2nd, 4th − 3rd). Pick the list where all the differences match."],
         steps: [
           st("Linear means y changes by the SAME amount each time x goes up by 1.", "Find the differences between y-values."),
-          st("Check the linear table.", `${lin.join(", ")}: differences ${lin.slice(1).map((v, i) => v - lin[i]).join(", ")}, all the same ✔`),
+          st("Check the linear list.", `${lin.join(", ")}: differences ${lin.slice(1).map((v, i) => v - lin[i]).join(", ")}, all the same ✔`),
           st("Check the others.", `${non.join(", ")}: differences ${non.slice(1).map((v, i) => v - non[i]).join(", ")}, not the same, so not linear.`),
         ],
       };
