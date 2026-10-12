@@ -5,6 +5,10 @@ import type { SessionType } from "./engine/session";
 import { BadgeCelebration } from "./components/Badges";
 import { BADGE_BY_ID, useAppState } from "./store";
 import { Home, type HomeTab } from "./screens/Home";
+import { Assessment, type AssessKind } from "./screens/Assessment";
+import { Avatar } from "./components/Shop";
+import { currentStreak } from "./engine/mastery";
+import { starBalance } from "./engine/state";
 import { MissionScreen } from "./screens/Mission";
 import { Parent } from "./screens/Parent";
 import { Placement } from "./screens/Placement";
@@ -18,7 +22,8 @@ export type Route =
   | { name: "placement"; topicId?: string }
   | { name: "topic"; topicId: string }
   | { name: "mission"; id: string }
-  | { name: "parent" };
+  | { name: "parent" }
+  | { name: "assess"; kind?: AssessKind };
 
 export default function App() {
   const { state, mutate, replace, saveFailed, newBadges, popBadge } = useAppState();
@@ -33,7 +38,7 @@ export default function App() {
 
   useEffect(() => {
     if (!toastText) return;
-    const id = setTimeout(() => setToastText(null), 2800);
+    const id = setTimeout(() => setToastText(null), 2800 + toastText.length * 25);
     return () => clearTimeout(id);
   }, [toastText]);
 
@@ -41,6 +46,11 @@ export default function App() {
   useEffect(() => {
     if (newBadges.length && !BADGE_BY_ID[newBadges[0]]) popBadge();
   }, [newBadges, popBadge]);
+
+  const streakNow = currentStreak(state);
+  useEffect(() => {
+    document.documentElement.dataset.mqTheme = state.equipped.theme ?? "";
+  }, [state.equipped.theme]);
 
   const onHome = route.name === "home" && !!state.settings.studentName;
   // First visit to the home page: walk her through it once.
@@ -52,7 +62,7 @@ export default function App() {
     });
   }, [mutate]);
 
-  const inActivity = route.name === "session" || route.name === "mission" || (route.name === "placement" && !!route.topicId);
+  const inActivity = (route.name === "assess" && !!route.kind) || route.name === "session" || route.name === "mission" || (route.name === "placement" && !!route.topicId);
   const home = () => go({ name: "home" });
 
   let body;
@@ -75,6 +85,9 @@ export default function App() {
       case "mission":
         body = <MissionScreen state={state} mutate={mutate} id={route.id} onExit={() => go({ name: "home", tab: "missions" })} />;
         break;
+      case "assess":
+        body = <Assessment key={route.kind ?? "hub"} state={state} mutate={mutate} kind={route.kind} onExit={home} go={(kind) => go({ name: "assess", kind })} />;
+        break;
       case "parent":
         body = <Parent state={state} mutate={mutate} replace={replace} onExit={home} />;
         break;
@@ -86,10 +99,12 @@ export default function App() {
       {!inActivity && (
         <div className="topbar">
           <div className="brand" onClick={home} role="link">🧭 Math Quest</div>
+          <Avatar state={state} size="sm" />
           <span className="spacer" />
           <span className="row" style={{ gap: 8 }} data-tour="stats">
-            {state.streak.count > 0 && <span className="chip" title="days in a row">🔥 {state.streak.count}</span>}
-            <span className="chip" title="stars">⭐ {state.xp}</span>
+            {streakNow > 0 && <span className="chip" title="days in a row">🔥 {streakNow}</span>}
+            {(state.streak.freezes ?? 0) > 0 && <span className="chip" title="streak freezes: each one covers a missed day">🧊 {state.streak.freezes}</span>}
+            <span className="chip" title={`stars to spend (${state.xp} earned in all)`}>⭐ {starBalance(state)}</span>
           </span>
           {onHome && <button className="btn ghost" title="Show me around" aria-label="Show me around" onClick={() => { go({ name: "home", tab: "today" }); setTouring(true); }}>❓</button>}
           {route.name !== "parent" && <button className="btn ghost" data-tour="parent" onClick={() => go({ name: "parent" })}>👪 Parent</button>}

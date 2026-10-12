@@ -1,3 +1,4 @@
+import { WeeklyReport } from "../components/WeeklyReport";
 import { useRef, useState } from "react";
 import { ORDERED, SKILL_BY_ID, SKILLS, TOPICS, skillsInTopic } from "../content";
 import { grade as gradeIt, reviewPrompt } from "../grading/types";
@@ -7,7 +8,7 @@ import { monthFocus } from "../store";
 import { LevelBadge, LevelBar, LevelLegend, fmtDate } from "../ui";
 import { topicCounts } from "./Home";
 
-type Tab = "overview" | "tracker" | "explanations" | "mistakes" | "settings";
+type Tab = "overview" | "report" | "tracker" | "explanations" | "mistakes" | "settings";
 
 export function Parent({ state, mutate, replace, onExit }: { state: AppState; mutate: (fn: (s: AppState) => void) => void; replace: (s: AppState) => void; onExit: () => void }) {
   const [unlocked, setUnlocked] = useState(!state.settings.parentPin);
@@ -35,7 +36,7 @@ export function Parent({ state, mutate, replace, onExit }: { state: AppState; mu
         <button className="btn" onClick={onExit}>← Back</button>
       </div>
       <div className="tabs">
-        {(["overview", "tracker", "explanations", "mistakes", "settings"] as Tab[]).map((t) => (
+        {(["overview", "report", "tracker", "explanations", "mistakes", "settings"] as Tab[]).map((t) => (
           <button key={t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>
             {t === "explanations" && pending ? `Explanations (${pending})` : t[0].toUpperCase() + t.slice(1)}
           </button>
@@ -45,6 +46,7 @@ export function Parent({ state, mutate, replace, onExit }: { state: AppState; mu
       {tab === "tracker" && <Tracker state={state} />}
       {tab === "explanations" && <Explanations state={state} mutate={mutate} />}
       {tab === "mistakes" && <Mistakes state={state} />}
+      {tab === "report" && <WeeklyReport state={state} mutate={mutate} />}
       {tab === "settings" && <SettingsTab state={state} mutate={mutate} replace={replace} />}
     </div>
   );
@@ -299,11 +301,16 @@ function SettingsTab({ state, mutate, replace }: { state: AppState; mutate: (fn:
         </div>
         <label className="row"><input type="checkbox" checked={st.calculator} onChange={(e) => set("calculator", e.target.checked)} /> Allow an on-screen calculator (turn off to match a no-calculator test)</label>
         <label className="row" style={{ marginTop: 8 }}><input type="checkbox" checked={st.readAloud} onChange={(e) => set("readAloud", e.target.checked)} /> Show “read aloud” buttons</label>
+        <div className="field" style={{ marginTop: 12 }}><label htmlFor="goal">Weekly goal (daily quests per week, Monday–Sunday)</label>
+          <select id="goal" value={st.weeklyGoal} onChange={(e) => set("weeklyGoal", Number(e.target.value))}>
+            {[2, 3, 4, 5, 6, 7].map((n) => <option key={n} value={n}>{n} quests a week{n === 4 ? " (the roadmap's suggestion)" : ""}</option>)}
+          </select>
+        </div>
         <div className="field" style={{ marginTop: 12 }}><label htmlFor="pin2">Parent PIN (optional, keeps this corner private)</label><input id="pin2" type="password" inputMode="numeric" value={st.parentPin ?? ""} onChange={(e) => set("parentPin", e.target.value || undefined)} /></div>
       </div>
 
       <div className="card">
-        <h3>Claude grading for written explanations</h3>
+        <h3>Claude: explanation grading and the “I'm stuck” tutor</h3>
         <p className="small muted">Uses your Anthropic API key from <strong>platform.claude.com</strong>. It's stored only in this browser and only sent to Anthropic. Each grade costs a tiny fraction of a cent with Haiku. Tip: create a separate key with a low monthly spend limit, since anyone using this browser could find it.</p>
         <div className="field"><label htmlFor="k">API key</label><input id="k" type="password" value={keyDraft} onChange={(e) => setKeyDraft(e.target.value)} placeholder="sk-ant-…" autoComplete="off" /></div>
         <div className="field"><label htmlFor="m">Model</label>
@@ -319,6 +326,10 @@ function SettingsTab({ state, mutate, replace }: { state: AppState; mutate: (fn:
           {st.apiKey && <span className="small muted">✓ key saved</span>}
         </div>
         {test && <div className="feedback info">{test}</div>}
+        <label className="row" style={{ marginTop: 12 }}><input type="checkbox" checked={st.tutorEnabled} onChange={(e) => set("tutorEnabled", e.target.checked)} /> Show the “I'm stuck” button (a Claude tutor that asks guiding questions and never gives the answer)</label>
+        <div className="field" style={{ marginTop: 8 }}><label htmlFor="tl">Tutor messages per day (keeps cost predictable; about 0.1¢ each with Haiku)</label>
+          <input id="tl" type="number" min={0} max={100} value={st.tutorDailyLimit} onChange={(e) => set("tutorDailyLimit", Math.max(0, Math.min(100, Number(e.target.value) || 0)))} />
+        </div>
       </div>
 
       <div className="card">

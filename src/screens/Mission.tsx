@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { MISSIONS } from "../content/challenges";
 import { MultiPart } from "../components/Cards";
 import { makeRng, randomSeed } from "../lib/rng";
-import { today, type AppState } from "../engine/state";
+import { logEvent, today, type AppState } from "../engine/state";
 
 export function MissionScreen({ state, mutate, id, onExit }: { state: AppState; mutate: (fn: (s: AppState) => void) => void; id: string; onExit: () => void }) {
   const m = MISSIONS.find((x) => x.id === id)!;
@@ -36,6 +36,7 @@ export function MissionScreen({ state, mutate, id, onExit }: { state: AppState; 
           mutate((s) => {
             s.missions[m.id] = { done: true, date: today(), score: Math.max(right, s.missions[m.id]?.score ?? 0) };
             s.xp += right * 10 + 25;
+            for (const x of results) logEvent(s, { skill: m.id, level: undefined, mode: "mission", ok: x.ok, assisted: x.assisted, tries: x.tries, hints: x.hints, secs: x.secs, tutor: x.tutor || undefined });
           });
           setScore(right);
         }}

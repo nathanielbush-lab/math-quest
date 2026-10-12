@@ -4,6 +4,7 @@ import { answerText, canonicalResponse, check, type Response } from "../engine/c
 import { AnswerInput } from "./AnswerInput";
 import { MathText, speak } from "./MathText";
 import { SolutionSteps, scaffoldSteps } from "./SolutionSteps";
+import { StuckButton } from "./Tutor";
 import { Visual } from "./Visual";
 
 export interface ProblemResult {
@@ -11,6 +12,12 @@ export interface ProblemResult {
   assisted: boolean;
   given: string;
   correct: string;
+  /** Wrong tries before the end (0 = right first time). */
+  tries: number;
+  hints: number;
+  secs: number;
+  /** She asked the "I'm stuck" tutor. */
+  tutor: boolean;
 }
 
 const PRAISE = ["Nice work! 🎉", "You got it! ⭐", "Excellent! 🌟", "That's right! 🙌", "Great thinking! 🧠", "Nailed it! 🎯", "Yes! 💪"];
@@ -53,6 +60,8 @@ export function ProblemCard({
   const [showSteps, setShowSteps] = useState(false);
   const [stepsDone, setStepsDone] = useState(false);
   const [mark, setMark] = useState<{ x: number; y: number; ok: boolean } | null>(null);
+  const [tutorUsed, setTutorUsed] = useState(false);
+  const [wrongs, setWrongs] = useState<string[]>([]);
   const shownAt = useRef(Date.now());
   const contRef = useRef<HTMLButtonElement>(null);
   const correctText = useMemo(() => answerText(problem.answer), [problem]);
@@ -76,19 +85,20 @@ export function ProblemCard({
     }
     const given = describe(problem, r);
     if (v.verdict === "correct") {
-      const assisted = guided || hints > 0 || tries > 0;
+      const assisted = guided || hints > 0 || tries > 0 || tutorUsed;
       setFeedback({ tone: "good", text: placement ? "Got it!" : PRAISE[Math.floor(Math.random() * PRAISE.length)] + (tries > 0 ? " Fixing a mistake is how brains grow." : "") });
-      setResult({ ok: true, assisted, given, correct: correctText });
+      setResult({ ok: true, assisted, given, correct: correctText, tries, hints, secs: Math.round((Date.now() - shownAt.current) / 1000), tutor: tutorUsed });
       return;
     }
     const n = tries + 1;
     setTries(n);
+    setWrongs((w) => [...w, given]);
     if (r.kind === "choice") setStruck((s) => [...s, r.index]);
     const speedy = Date.now() - shownAt.current < 3500 && problem.prompt.length > 60 ? " Whoa, speedy! Read it once more, slowly." : "";
     if (placement || n >= 2) {
       setFeedback({ tone: "bad", text: placement ? "Not this time. That's OK, this just helps find your starting point!" : `${v.message ? v.message + " " : ""}The answer is ${correctText}. Let's look at how it works.` });
       setShowSteps(!placement);
-      setResult({ ok: false, assisted: true, given, correct: correctText });
+      setResult({ ok: false, assisted: true, given, correct: correctText, tries: n, hints, secs: Math.round((Date.now() - shownAt.current) / 1000), tutor: tutorUsed });
       return;
     }
     setFeedback({ tone: "bad", text: (v.message ?? NUDGE[Math.floor(Math.random() * NUDGE.length)]) + speedy });
@@ -122,6 +132,7 @@ export function ProblemCard({
           <button className="btn ghost" onClick={() => setHints((h) => h + 1)}>💡 {hints ? "Another hint" : "Hint"}</button>
         )}
         {done && !placement && !showSteps && <button className="btn ghost" onClick={() => setShowSteps(true)}>See the solution</button>}
+        {!done && !placement && <StuckButton problem={problem} wrongAnswers={wrongs} hintsShown={hints} onUsed={() => setTutorUsed(true)} />}
         <span className="grow" />
         {done && (
           <button ref={contRef} className="btn primary" onClick={() => onFinish(result!)}>Continue →</button>

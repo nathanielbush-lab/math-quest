@@ -6,9 +6,9 @@ import { Calculator } from "../components/Calculator";
 import { MathText } from "../components/MathText";
 import { ProblemCard } from "../components/ProblemCard";
 import { makeRng } from "../lib/rng";
-import { bumpStreak, recordWhyChoice, setWrittenStatus } from "../engine/mastery";
+import { WEEK_BONUS, bumpStreak, checkWeeklyGoal, recordWhyChoice, setWrittenStatus } from "../engine/mastery";
 import { afterAnswer, nextItem, startSession, type Item, type SessionCtx, type SessionType } from "../engine/session";
-import { LEVEL_NAMES, newSkillState, today, type AppState } from "../engine/state";
+import { LEVEL_NAMES, logEvent, newSkillState, today, type AppState } from "../engine/state";
 import type { WhyWritten } from "../content/types";
 import { LevelBadge } from "../ui";
 
@@ -54,10 +54,15 @@ export function Session({ state, mutate, type, skillId, onExit, toast }: {
     lastChallenge = ctx.lastChallenge;
     if (next.kind === "done" && !logged.current) {
       logged.current = true;
+      const notes: string[] = [];
       mutate((s) => {
-        bumpStreak(s);
+        const st = bumpStreak(s);
         s.sessions.push({ date: today(), minutes: Math.max(1, Math.round((Date.now() - ctx.startedAt) / 60000)), answered: ctx.answered, correct: ctx.correct, skills: ctx.touched, kind: type });
+        if (st.usedFreezes) notes.push(`🧊 ${st.usedFreezes === 1 ? "A streak freeze" : `${st.usedFreezes} streak freezes`} saved your ${s.streak.count}-day streak!`);
+        if (st.earnedFreeze) notes.push(`🧊 ${s.streak.count} days in a row! You earned a streak freeze.`);
+        if (type === "daily" && checkWeeklyGoal(s)) notes.push(`🎯 Weekly goal reached! +${WEEK_BONUS} ⭐`);
       });
+      if (notes.length) toast(notes.join("  "));
     }
     setItem(next);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -142,6 +147,7 @@ function ItemView({ item, state, mutate, ctx, advance, toast, onExit, xpGained, 
             let msg = "";
             mutate((s) => {
               const out = afterAnswer(s, ctx, item, { ok: r.ok, assisted: r.assisted, given: r.given, correct: r.correct, prompt: problem!.prompt });
+              logEvent(s, { skill: item.skillId, level: item.level, mode: item.guided ? "guided" : item.mode, ok: r.ok, assisted: r.assisted, tries: r.tries, hints: r.hints, secs: r.secs, tutor: r.tutor || undefined });
               if (out.levelUp && out.levelUp >= 2) msg = `⭐ ${skill.title}: ${LEVEL_NAMES[out.levelUp]}!`;
               else if (out.becameReady) msg = `🔓 ${skill.title} is solid. New skills unlocked!`;
             });
@@ -201,6 +207,7 @@ function ItemView({ item, state, mutate, ctx, advance, toast, onExit, xpGained, 
             mutate((s) => {
               const right = results.filter((x) => x.ok).length;
               s.xp += right * 8;
+              for (const x of results) logEvent(s, { skill: challenge!.c.id, level: undefined, mode: "challenge", ok: x.ok, assisted: x.assisted, tries: x.tries, hints: x.hints, secs: x.secs, tutor: x.tutor || undefined });
               ctx.answered += results.length;
               ctx.correct += results.filter((x) => x.ok && !x.assisted).length;
             });

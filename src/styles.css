@@ -225,3 +225,6 @@ textarea { width: 100%; min-height: 120px; resize: vertical; }
 .tour-pop .row { flex-wrap: nowrap; }
 .tour-pop .btn { padding: 8px 14px; }
 .topbar .brand, .topbar .btn { white-space: nowrap; }
+.week-goal { display: inline-flex; align-items: center; gap: 5px; }
+.goal-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.8); display: inline-block; }
+.goal-dot.on { background: #fff; }

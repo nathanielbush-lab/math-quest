@@ -35,6 +35,11 @@ export const BADGES: Badge[] = [
   atLeast("explainer-5", "👩‍🏫", "Explained 5 skills", "Reach “Can explain & apply” on 5 skills", (s) => lv(s, 4), 5),
   atLeast("streak-3", "🔥", "3-day streak", "Do a quest 3 days in a row", (s) => s.streak.count, 3),
   atLeast("streak-7", "☄️", "7-day streak", "Do a quest 7 days in a row", (s) => s.streak.count, 7),
+  atLeast("goal-1", "🎯", "Met my weekly goal", "Do your weekly goal of quests in one week", (s) => s.goalWeeks.length, 1),
+  atLeast("goal-4", "📆", "Weekly goal 4 times", "Meet your weekly goal in 4 different weeks", (s) => s.goalWeeks.length, 4),
+  atLeast("first-buy", "🛍️", "First shop treat", "Spend stars in the shop", (s) => s.owned.length, 1),
+  atLeast("screener-1", "📝", "Took a practice screener", "Finish a screener practice", (s) => s.assessments.filter((a) => a.kind !== "checkpoint").length, 1),
+  atLeast("checkpoint-3", "📅", "3 monthly checkpoints", "Finish the monthly checkpoint 3 times", (s) => s.assessments.filter((a) => a.kind === "checkpoint").length, 3),
   atLeast("mistake-fixer", "🛠️", "Fixed 5 old mistakes", "Get 5 questions right from your mistake journal", (s) => s.mistakes.filter((m) => m.resolved).length, 5),
   atLeast("placement", "🧭", "Found my starting point", "Finish the starting-point check for 5 topics", (s) => Object.keys(s.placement).length, 5),
   ...TOPICS.map((t) => {

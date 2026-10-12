@@ -5,10 +5,13 @@ import { previewToday } from "../engine/session";
 import { daysBetween, today, type AppState } from "../engine/state";
 import { BADGES, monthFocus } from "../store";
 import { TrophyPeek, TrophyRoom } from "../components/Badges";
+import { Avatar, ShopTab } from "../components/Shop";
+import { AssessCards } from "../components/AssessCards";
+import { questDaysThisWeek } from "../engine/mastery";
 import { LevelBar, LevelGuide, LevelLegend, LevelSummary, fmtDate } from "../ui";
 import type { Route } from "../App";
 
-export type HomeTab = "today" | "map" | "trophies" | "missions";
+export type HomeTab = "today" | "map" | "trophies" | "missions" | "shop";
 
 export function topicCounts(state: AppState, topicId: string) {
   const skills = SKILLS.filter((s) => s.topic === topicId);
@@ -36,6 +39,7 @@ const TABS: { id: HomeTab; label: string }[] = [
   { id: "map", label: "🗺️ My Map" },
   { id: "trophies", label: "🏆 Trophies" },
   { id: "missions", label: "🚩 Missions" },
+  { id: "shop", label: "🛍️ Shop" },
 ];
 
 export function Home({ state, go, tab = "today", mutate }: { state: AppState; go: (r: Route) => void; tab?: HomeTab; mutate: (fn: (s: AppState) => void) => void }) {
@@ -73,6 +77,7 @@ export function Home({ state, go, tab = "today", mutate }: { state: AppState; go
       {tab === "map" && <MapTab state={state} go={go} />}
       {tab === "trophies" && <TrophyRoom state={state} />}
       {tab === "missions" && <MissionsTab state={state} go={go} />}
+      {tab === "shop" && <ShopTab state={state} mutate={mutate} />}
     </div>
   );
 }
@@ -85,7 +90,8 @@ const QUEST_STEPS = [
 
 function Today({ state, go, setTab, mutate }: { state: AppState; go: (r: Route) => void; setTab: (t: HomeTab) => void; mutate: (fn: (s: AppState) => void) => void }) {
   const preview = previewToday(state);
-  const week = state.sessions.filter((s) => daysBetween(s.date, today()) < 7 && s.kind === "daily").length;
+  const week = questDaysThisWeek(state);
+  const goal = state.settings.weeklyGoal;
   const doneToday = state.sessions.some((s) => s.kind === "daily" && s.date === today());
   const openMistakes = state.mistakes.filter((m) => !m.resolved).length;
   const placementDone = Object.keys(state.placement).length;
@@ -99,7 +105,10 @@ function Today({ state, go, setTab, mutate }: { state: AppState; go: (r: Route) 
   return (
     <div>
       <div className="card hero" data-tour="quest">
-        <h1 style={{ marginBottom: 4 }}>Hi {state.settings.studentName || "there"}! 👋</h1>
+        <div className="row" style={{ marginBottom: 4 }}>
+          <Avatar state={state} size="lg" />
+          <h1 style={{ margin: 0 }}>Hi {state.settings.studentName || "there"}! 👋</h1>
+        </div>
         <p className="muted" style={{ marginTop: 0 }}>
           {last ?? "Your first quest starts with a quick warm-up. Ready?"}
           {last && preview.dueTotal > 0 && ` ${preview.dueTotal} skill${preview.dueTotal === 1 ? " is" : "s are"} ready for a quick review today.`}
@@ -120,11 +129,16 @@ function Today({ state, go, setTab, mutate }: { state: AppState; go: (r: Route) 
           <button className="btn primary big" onClick={() => go({ name: "session", type: "daily" })} autoFocus>
             {doneToday ? "Bonus round →" : "Start today's quest →"}
           </button>
-          <span className="muted small">{week} of 4 quests this week</span>
+          <span className="week-goal" title="Weekly goal (Monday–Sunday)">
+            🎯 {Array.from({ length: goal }, (_, i) => <span key={i} className={`goal-dot ${i < week ? "on" : ""}`} />)}
+            <span className="small">{week >= goal ? "Weekly goal done! 🎉" : `${week} of ${goal} quests this week`}</span>
+          </span>
         </div>
       </div>
 
       <TrophyPeek state={state} onOpen={() => setTab("trophies")} />
+
+      <AssessCards state={state} go={go} />
 
       {showPlacement && (
         <div className="card row">

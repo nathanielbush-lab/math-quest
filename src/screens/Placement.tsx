@@ -3,7 +3,7 @@ import { SKILL_BY_ID, TOPICS, skillsInTopic } from "../content";
 import { ProblemCard } from "../components/ProblemCard";
 import { makeRng } from "../lib/rng";
 import { placementAnswer, placementProblem, startPlacement, type PlacementCtx } from "../engine/placement";
-import type { AppState } from "../engine/state";
+import { logEvent, type AppState } from "../engine/state";
 
 export function Placement({ state, mutate, topicId, onExit, go }: {
   state: AppState;
@@ -89,7 +89,10 @@ function PlacementRun({ state, mutate, topicId, onNext, onExit }: { state: AppSt
         readAloud={state.settings.readAloud}
         header={<div className="small muted" style={{ marginBottom: 6 }}>🧭 {SKILL_BY_ID[item.skillId].title} · no hints in a starting-point check, just do your best!</div>}
         onFinish={(r) => {
-          mutate((s) => placementAnswer(s, ctx, r.ok));
+          mutate((s) => {
+            placementAnswer(s, ctx, r.ok);
+            logEvent(s, { skill: item.skillId, level: item.level, mode: "placement", ok: r.ok, assisted: r.assisted, tries: r.tries, hints: r.hints, secs: r.secs, tutor: r.tutor || undefined });
+          });
           setN((x) => x + 1);
         }}
       />

@@ -94,7 +94,50 @@ export interface Settings {
   tourDone?: boolean;
   /** She chose "Not now" on the starting-point card on the Today tab. */
   placementHidden?: boolean;
+  /** Daily quests per week she's aiming for (Monday–Sunday). */
+  weeklyGoal: number;
+  /** "I'm stuck" tutor (needs an API key). */
+  tutorEnabled: boolean;
+  /** Most tutor messages she can send per day, to keep cost predictable. */
+  tutorDailyLimit: number;
 }
+
+/** One answered question, kept for the parent report and for reviewing how the app is working. */
+export interface AttemptEvent {
+  /** Time (ms since 1970). */
+  t: number;
+  /** Skill id, or a challenge/mission id for multi-part problems. */
+  skill: string;
+  level?: number;
+  /** learn, review, guided, challenge, mission, placement, screener, checkpoint, … */
+  mode: string;
+  ok: boolean;
+  assisted: boolean;
+  tries: number;
+  hints: number;
+  secs: number;
+  tutor?: boolean;
+}
+
+/** A screener practice or monthly checkpoint result. */
+export interface AssessmentResult {
+  id: string;
+  kind: "screener-full" | "screener-quick" | "checkpoint";
+  date: string;
+  minutes: number;
+  items: { skillId: string; topic: string; ok: boolean; skipped?: boolean; prompt: string; given: string; correct: string; secs: number }[];
+}
+
+export interface TutorChat {
+  id: string;
+  date: string;
+  skillId?: string;
+  prompt: string;
+  messages: { role: "student" | "tutor"; text: string }[];
+}
+
+/** Keep the attempt log from growing without limit (a few hundred KB at most). */
+export const MAX_EVENTS = 4000;
 
 export interface AppState {
   version: 1;
@@ -102,8 +145,19 @@ export interface AppState {
   updatedAt: string;
   settings: Settings;
   skills: Record<string, SkillState>;
+  /** Stars earned over all time. The spendable balance is xp − starsSpent. */
   xp: number;
-  streak: { count: number; lastDay?: string };
+  starsSpent: number;
+  /** Shop items she owns (avatars, themes) and which ones are in use. */
+  owned: string[];
+  equipped: { avatar?: string; theme?: string };
+  /** freezes: saved "streak freezes" that cover a missed day. best: longest streak. */
+  streak: { count: number; lastDay?: string; freezes?: number; best?: number };
+  /** Weeks (their Monday's date) in which she met her weekly goal; the bonus is paid once per week. */
+  goalWeeks: string[];
+  events: AttemptEvent[];
+  assessments: AssessmentResult[];
+  tutorChats: TutorChat[];
   badges: string[];
   mistakes: MistakeEntry[];
   explanations: Explanation[];
@@ -119,6 +173,24 @@ export function today(now = new Date()): string {
   const m = String(now.getMonth() + 1).padStart(2, "0");
   const d = String(now.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+/** Monday of the week containing `day` (weeks run Monday–Sunday). */
+export function weekStart(day: string): string {
+  const [y, m, d] = day.split("-").map(Number);
+  const dow = (new Date(y, m - 1, d).getDay() + 6) % 7; // Monday = 0
+  return addDays(day, -dow);
+}
+
+/** Stars she can spend right now. */
+export function starBalance(s: AppState): number {
+  return Math.max(0, s.xp - (s.starsSpent ?? 0));
+}
+
+/** Add to the attempt log, dropping the oldest entries past MAX_EVENTS. */
+export function logEvent(s: AppState, e: Omit<AttemptEvent, "t"> & { t?: number }) {
+  s.events.push({ t: Date.now(), ...e });
+  if (s.events.length > MAX_EVENTS) s.events.splice(0, s.events.length - MAX_EVENTS);
 }
 
 export function addDays(day: string, n: number): string {
@@ -158,10 +230,17 @@ export function newState(): AppState {
     version: 1,
     createdAt: now,
     updatedAt: now,
-    settings: { studentName: "", calculator: false, sessionLength: "standard", readAloud: false, model: DEFAULT_MODEL, targetDate: "2027-01-15" },
+    settings: { studentName: "", calculator: false, sessionLength: "standard", readAloud: false, model: DEFAULT_MODEL, targetDate: "2027-01-15", weeklyGoal: 4, tutorEnabled: true, tutorDailyLimit: 20 },
     skills: {},
     xp: 0,
-    streak: { count: 0 },
+    starsSpent: 0,
+    owned: [],
+    equipped: {},
+    streak: { count: 0, freezes: 0, best: 0 },
+    goalWeeks: [],
+    events: [],
+    assessments: [],
+    tutorChats: [],
     badges: [],
     mistakes: [],
     explanations: [],

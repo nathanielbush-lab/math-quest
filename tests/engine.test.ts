@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { SKILL_BY_ID, skillsInTopic } from "../src/content";
-import { recordAttempt, recordWhyChoice, setWrittenStatus } from "../src/engine/mastery";
+import { MAX_FREEZES, WEEK_BONUS, bumpStreak, checkWeeklyGoal, currentStreak, recordAttempt, recordWhyChoice, setWrittenStatus } from "../src/engine/mastery";
 import { placementAnswer, startPlacement } from "../src/engine/placement";
 import { afterAnswer, frontier, nextItem, startSession, type Item } from "../src/engine/session";
-import { addDays, exportJson, newSkillState, newState, parseImport, today, type AppState } from "../src/engine/state";
+import { addDays, exportJson, newSkillState, newState, parseImport, today, weekStart, type AppState } from "../src/engine/state";
 
 let state: AppState;
 beforeEach(() => {
@@ -146,5 +146,50 @@ describe("export/import", () => {
     expect(back.xp).toBe(42);
     expect(back.settings.apiKey).toBeUndefined();
     expect(() => parseImport('{"hello": 1}')).toThrow();
+  });
+});
+
+describe("streaks, freezes and weekly goals", () => {
+  const at = (d: string) => new Date(`${d}T12:00:00`);
+
+  it("counts consecutive days and resets after a gap with no freezes", () => {
+    const s = newState();
+    bumpStreak(s, at("2026-10-05"));
+    bumpStreak(s, at("2026-10-06"));
+    bumpStreak(s, at("2026-10-06"));
+    expect(s.streak.count).toBe(2);
+    bumpStreak(s, at("2026-10-09"));
+    expect(s.streak.count).toBe(1);
+    expect(s.streak.best).toBe(2);
+  });
+
+  it("earns a freeze every 7 days (max 2) and uses one per missed day", () => {
+    const s = newState();
+    for (let d = 1; d <= 21; d++) bumpStreak(s, at(`2026-09-${String(d).padStart(2, "0")}`));
+    expect(s.streak.count).toBe(21);
+    expect(s.streak.freezes).toBe(MAX_FREEZES);
+    expect(currentStreak(s, at("2026-09-23"))).toBe(21); // one missed day, covered
+    const out = bumpStreak(s, at("2026-09-24")); // missed the 22nd and 23rd
+    expect(out.usedFreezes).toBe(2);
+    expect(s.streak.count).toBe(22);
+    expect(s.streak.freezes).toBe(0);
+    expect(currentStreak(s, at("2026-09-26"))).toBe(0);
+  });
+
+  it("pays the weekly goal bonus once per week", () => {
+    const s = newState();
+    s.settings.weeklyGoal = 2;
+    const log = (d: string) => s.sessions.push({ date: d, minutes: 20, answered: 10, correct: 8, skills: [], kind: "daily" });
+    log("2026-10-12"); // Monday
+    expect(checkWeeklyGoal(s, at("2026-10-12"))).toBe(false);
+    log("2026-10-12"); // a bonus round the same day doesn't count twice
+    expect(checkWeeklyGoal(s, at("2026-10-12"))).toBe(false);
+    log("2026-10-14");
+    const xp = s.xp;
+    expect(checkWeeklyGoal(s, at("2026-10-14"))).toBe(true);
+    expect(s.xp).toBe(xp + WEEK_BONUS);
+    log("2026-10-15");
+    expect(checkWeeklyGoal(s, at("2026-10-15"))).toBe(false);
+    expect(weekStart("2026-10-18")).toBe("2026-10-12"); // Sunday belongs to the week starting Monday
   });
 });

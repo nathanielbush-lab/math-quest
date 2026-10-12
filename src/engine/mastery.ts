@@ -1,6 +1,6 @@
 import { SKILL_BY_ID } from "../content";
 import type { Level } from "../content/types";
-import { addDays, daysBetween, newSkillState, today, type AppState, type AttemptMode, type SkillState } from "./state";
+import { addDays, daysBetween, newSkillState, today, weekStart, type AppState, type AttemptMode, type SkillState } from "./state";
 
 /** Review spacing in days after each successful retention check. */
 const INTERVALS = [1, 3, 7, 14, 30, 60];
@@ -175,10 +175,68 @@ export function placeSkill(state: AppState, skillId: string, now = new Date(), s
 }
 
 /** Update the daily streak at the end of a session. */
-export function bumpStreak(state: AppState, now = new Date()) {
+/** Most streak freezes she can hold at once. */
+export const MAX_FREEZES = 2;
+/** A free freeze every this many days in a row. */
+export const FREEZE_EVERY = 7;
+/** Bonus stars for meeting the weekly goal. */
+export const WEEK_BONUS = 50;
+
+export interface StreakOutcome {
+  /** Freezes used up to cover missed days. */
+  usedFreezes: number;
+  /** She earned a free freeze for a 7-day run. */
+  earnedFreeze: boolean;
+}
+
+/**
+ * Count today toward the streak. Missed days are covered by saved freezes if she has
+ * enough of them (one per missed day); otherwise the streak starts again at 1.
+ */
+export function bumpStreak(state: AppState, now = new Date()): StreakOutcome {
+  const out: StreakOutcome = { usedFreezes: 0, earnedFreeze: false };
   const day = today(now);
+  const st = state.streak;
+  const last = st.lastDay;
+  if (last === day) return out;
+  const gap = last ? daysBetween(last, day) : Infinity;
+  const freezes = st.freezes ?? 0;
+  if (gap === 1) st.count += 1;
+  else if (gap > 1 && gap - 1 <= freezes && st.count > 0) {
+    out.usedFreezes = gap - 1;
+    st.freezes = freezes - out.usedFreezes;
+    st.count += 1;
+  } else st.count = 1;
+  st.lastDay = day;
+  st.best = Math.max(st.best ?? 0, st.count);
+  if (st.count % FREEZE_EVERY === 0 && (st.freezes ?? 0) < MAX_FREEZES) {
+    st.freezes = (st.freezes ?? 0) + 1;
+    out.earnedFreeze = true;
+  }
+  return out;
+}
+
+/** Days this week (Monday–Sunday) with a finished daily quest. */
+export function questDaysThisWeek(state: AppState, now = new Date()): number {
+  const start = weekStart(today(now));
+  return new Set(state.sessions.filter((x) => x.kind === "daily" && x.date >= start && x.date <= today(now)).map((x) => x.date)).size;
+}
+
+/** Pay the weekly-goal bonus once, the first time she reaches the goal in a week. Returns true when it was just met. */
+export function checkWeeklyGoal(state: AppState, now = new Date()): boolean {
+  const wk = weekStart(today(now));
+  if (state.goalWeeks.includes(wk)) return false;
+  if (questDaysThisWeek(state, now) < state.settings.weeklyGoal) return false;
+  state.goalWeeks.push(wk);
+  state.xp += WEEK_BONUS;
+  return true;
+}
+
+/** The streak as it stands today: 0 if she has missed more days than her freezes can cover. */
+export function currentStreak(state: AppState, now = new Date()): number {
   const last = state.streak.lastDay;
-  if (last === day) return;
-  state.streak.count = last && daysBetween(last, day) === 1 ? state.streak.count + 1 : 1;
-  state.streak.lastDay = day;
+  if (!last) return 0;
+  const gap = daysBetween(last, today(now));
+  if (gap <= 1) return state.streak.count;
+  return gap - 2 < (state.streak.freezes ?? 0) ? state.streak.count : 0;
 }
