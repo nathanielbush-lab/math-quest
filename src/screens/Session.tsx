@@ -140,6 +140,7 @@ function ItemView({ item, state, mutate, ctx, advance, toast, onExit, xpGained, 
       return (
         <ProblemCard
           problem={problem!}
+          skillId={item.skillId}
           guided={item.guided}
           readAloud={readAloud}
           header={<div className="row small muted" style={{ marginBottom: 6 }}><span>{MODE_LABEL[item.mode]}</span><span>·</span><span>{skill.title}</span></div>}

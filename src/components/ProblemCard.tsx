@@ -44,6 +44,7 @@ export function ProblemCard({
   readAloud,
   onFinish,
   header,
+  skillId,
 }: {
   problem: Problem;
   guided?: boolean;
@@ -51,6 +52,8 @@ export function ProblemCard({
   readAloud: boolean;
   onFinish: (r: ProblemResult) => void;
   header?: React.ReactNode;
+  /** For labelling tutor chats. */
+  skillId?: string;
 }) {
   const [tries, setTries] = useState(0);
   const [hints, setHints] = useState(0);
@@ -132,7 +135,7 @@ export function ProblemCard({
           <button className="btn ghost" onClick={() => setHints((h) => h + 1)}>💡 {hints ? "Another hint" : "Hint"}</button>
         )}
         {done && !placement && !showSteps && <button className="btn ghost" onClick={() => setShowSteps(true)}>See the solution</button>}
-        {!done && !placement && <StuckButton problem={problem} wrongAnswers={wrongs} hintsShown={hints} onUsed={() => setTutorUsed(true)} />}
+        {!done && !placement && <StuckButton problem={problem} skillId={skillId} wrongAnswers={wrongs} hintsShown={hints} onUsed={() => setTutorUsed(true)} />}
         <span className="grow" />
         {done && (
           <button ref={contRef} className="btn primary" onClick={() => onFinish(result!)}>Continue →</button>
