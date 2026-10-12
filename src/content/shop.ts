@@ -45,7 +45,7 @@ export const AVATARS: ShopItem[] = [
   avatar("turtle", "🐢", "Turtle", 100),
   avatar("cupcake", "🧁", "Cupcake", 100),
   avatar("penguin", "🐧", "Penguin", 120),
-  avatar("happy-cat", "😺", "Happy cat", 150),
+  avatar("happy-cat", "🐾", "Cat paws", 150), // id kept from the old 😺 “Happy cat” so anyone who bought it keeps it
   // Nice: a few days of quests.
   avatar("butterfly", "🦋", "Butterfly", 200),
   avatar("cat", "🐈", "Cat", 200),

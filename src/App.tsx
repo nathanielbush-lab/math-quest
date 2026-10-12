@@ -8,6 +8,7 @@ import { Home, type HomeTab } from "./screens/Home";
 import { Assessment, type AssessKind } from "./screens/Assessment";
 import { Avatar } from "./components/Shop";
 import { TutorProvider } from "./components/Tutor";
+import { SyncProvider } from "./sync/useSync";
 import { currentStreak } from "./engine/mastery";
 import { starBalance } from "./engine/state";
 import { MissionScreen } from "./screens/Mission";
@@ -87,7 +88,7 @@ export default function App() {
         body = <MissionScreen state={state} mutate={mutate} id={route.id} onExit={() => go({ name: "home", tab: "missions" })} />;
         break;
       case "assess":
-        body = <Assessment key={route.kind ?? "hub"} state={state} mutate={mutate} kind={route.kind} onExit={home} go={(kind) => go({ name: "assess", kind })} />;
+        body = <Assessment key={route.kind ?? "hub"} state={state} mutate={mutate} kind={route.kind} onExit={home} go={(kind) => go({ name: "assess", kind })} openTopic={(topicId) => go({ name: "topic", topicId })} />;
         break;
       case "parent":
         body = <Parent state={state} mutate={mutate} replace={replace} onExit={home} />;
@@ -96,6 +97,7 @@ export default function App() {
   }
 
   return (
+    <SyncProvider state={state} replace={replace} busy={inActivity}>
     <TutorProvider state={state} mutate={mutate}>
     <div className="app">
       {!inActivity && (
@@ -119,5 +121,6 @@ export default function App() {
       {celebrating && <BadgeCelebration badge={celebrating} more={newBadges.length - 1} onClose={popBadge} />}
     </div>
     </TutorProvider>
+    </SyncProvider>
   );
 }

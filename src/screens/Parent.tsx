@@ -1,4 +1,5 @@
 import { WeeklyReport } from "../components/WeeklyReport";
+import { SyncSettings } from "../sync/SyncSettings";
 import { useRef, useState } from "react";
 import { ORDERED, SKILL_BY_ID, SKILLS, TOPICS, skillsInTopic } from "../content";
 import { grade as gradeIt, reviewPrompt } from "../grading/types";
@@ -332,9 +333,11 @@ function SettingsTab({ state, mutate, replace }: { state: AppState; mutate: (fn:
         </div>
       </div>
 
+      <SyncSettings state={state} replace={replace} />
+
       <div className="card">
-        <h3>Backup and moving between computers</h3>
-        <p className="small muted">Progress is saved automatically in this browser on this computer. To use another computer (say, the Windows desktop), click <strong>Download progress file</strong> here, move the file over (email it to yourself, a USB stick, or a shared folder), then open Math Quest on the other computer and use <strong>Load progress file</strong>. Do the same in reverse when switching back; the newest file wins. It's also a good weekly backup.</p>
+        <h3>Backup file</h3>
+        <p className="small muted">Progress is saved automatically in this browser on this computer. With sync (above) you don't need to move files, but a downloaded file is still a good backup, and it's what to send for a review of how the app is working. Without sync, to use another computer click <strong>Download progress file</strong> here, move the file over (email it to yourself, a USB stick, or a shared folder), then open Math Quest on the other computer and use <strong>Load progress file</strong>. Do the same in reverse when switching back; the newest file wins. It's also a good weekly backup.</p>
         <div className="row">
           <button className="btn primary" onClick={download}>⬇️ Download progress file</button>
           <button className="btn" onClick={() => fileRef.current?.click()}>⬆️ Load progress file</button>
