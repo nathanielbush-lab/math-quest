@@ -91,6 +91,7 @@ p { margin: 0 0 0.75em; }
 .stage { display: flex; gap: 8px; margin-bottom: 12px; }
 .stage span { padding: 4px 12px; border-radius: 999px; font-size: 0.85rem; font-weight: 700; background: var(--surface-2); color: var(--ink-2); }
 .stage span.on { background: var(--primary); color: var(--primary-ink); }
+.stage span.past { background: var(--good-soft); color: var(--good); }
 .progressbar { height: 8px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
 .progressbar > div { height: 100%; background: var(--primary); border-radius: 99px; transition: width 0.3s; }
 .levelbar { display: flex; height: 10px; border-radius: 99px; overflow: hidden; background: var(--lv0); }
@@ -187,3 +188,40 @@ textarea { width: 100%; min-height: 120px; resize: vertical; }
 .next-badge .progressbar { background: var(--surface); }
 .badge-cell.locked { opacity: 1; }
 .badge-cell.locked strong { color: var(--ink-2); }
+.shelf.mini { display: flex; gap: 4px; margin: 0; }
+.shelf-badge.sm { width: 32px; height: 32px; font-size: 1.1rem; border-width: 1px; }
+
+/* Home tabs */
+.tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--line); margin-bottom: 16px; overflow-x: auto; }
+.tab { border: none; background: none; padding: 10px 16px; font-weight: 700; font-size: 1rem; color: var(--ink-2); border-bottom: 3px solid transparent; margin-bottom: -2px; border-radius: 10px 10px 0 0; white-space: nowrap; position: relative; }
+.tab:hover { background: var(--surface-2); }
+.tab.on { color: var(--primary); border-bottom-color: var(--primary); }
+.tab-count { margin-left: 6px; font-size: 0.75rem; background: var(--primary-soft); color: var(--primary); border-radius: 99px; padding: 1px 7px; }
+.tab-dot { position: absolute; top: 8px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+
+/* Quest path on the Today tab */
+.quest-path { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+.quest-step { display: flex; gap: 10px; align-items: flex-start; background: rgba(255, 255, 255, 0.14); border-radius: 14px; padding: 12px; position: relative; }
+.quest-step.done { background: rgba(255, 255, 255, 0.26); }
+.quest-icon { font-size: 1.6rem; line-height: 1; }
+.quest-name { font-weight: 800; }
+.quest-time { font-weight: 600; font-size: 0.8rem; opacity: 0.8; margin-left: 4px; }
+.quest-detail { font-size: 0.9rem; opacity: 0.92; margin-top: 2px; }
+@media (max-width: 640px) { .quest-path { grid-template-columns: 1fr; } }
+
+/* Level labels */
+.level-summary { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.level-guide { margin: 4px 0 8px; }
+.level-guide summary { cursor: pointer; color: var(--primary); font-weight: 700; }
+.level-guide ul { list-style: none; padding-left: 4px; margin: 6px 0; }
+.level-guide li { margin: 3px 0; }
+
+/* Guided tour */
+.tour { position: fixed; inset: 0; z-index: 90; }
+.tour-dim { position: fixed; inset: 0; background: rgba(20, 16, 40, 0.55); }
+.tour-spot { position: fixed; border-radius: 18px; box-shadow: 0 0 0 9999px rgba(20, 16, 40, 0.55); outline: 3px solid var(--shade-2); transition: all 0.25s ease; pointer-events: none; }
+.tour-pop { position: fixed; background: var(--surface); color: var(--ink); border-radius: 16px; padding: 16px 18px; box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3); animation: fadein 0.2s ease-out; }
+@media (prefers-reduced-motion: reduce) { .tour-spot { transition: none; } }
+.tour-pop .row { flex-wrap: nowrap; }
+.tour-pop .btn { padding: 8px 14px; }
+.topbar .brand, .topbar .btn { white-space: nowrap; }

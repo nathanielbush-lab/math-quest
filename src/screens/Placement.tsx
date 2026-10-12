@@ -46,7 +46,7 @@ function TopicChooser({ state, mutate, onPick, onExit }: { state: AppState; muta
           })}
         </div>
       ))}
-      <button className="btn" onClick={onExit}>← Back to the map</button>
+      <button className="btn" onClick={onExit}>← Back home</button>
     </div>
   );
 }

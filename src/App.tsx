@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { SKILL_BY_ID } from "./content";
+import { HOME_TOUR, Tour } from "./components/Tour";
 import type { SessionType } from "./engine/session";
 import { BadgeCelebration } from "./components/Badges";
 import { BADGE_BY_ID, useAppState } from "./store";
-import { Home } from "./screens/Home";
+import { Home, type HomeTab } from "./screens/Home";
 import { MissionScreen } from "./screens/Mission";
 import { Parent } from "./screens/Parent";
 import { Placement } from "./screens/Placement";
@@ -11,7 +13,7 @@ import { Topic } from "./screens/Topic";
 import { Welcome } from "./screens/Welcome";
 
 export type Route =
-  | { name: "home" }
+  | { name: "home"; tab?: HomeTab }
   | { name: "session"; type: SessionType; skillId?: string }
   | { name: "placement"; topicId?: string }
   | { name: "topic"; topicId: string }
@@ -22,6 +24,7 @@ export default function App() {
   const { state, mutate, replace, saveFailed, newBadges, popBadge } = useAppState();
   const [route, setRoute] = useState<Route>({ name: "home" });
   const [toastText, setToastText] = useState<string | null>(null);
+  const [touring, setTouring] = useState(false);
   const go = (r: Route) => {
     setRoute(r);
     window.scrollTo({ top: 0 });
@@ -39,6 +42,16 @@ export default function App() {
     if (newBadges.length && !BADGE_BY_ID[newBadges[0]]) popBadge();
   }, [newBadges, popBadge]);
 
+  const onHome = route.name === "home" && !!state.settings.studentName;
+  // First visit to the home page: walk her through it once.
+  const showTour = onHome && !celebrating && (touring || !state.settings.tourDone);
+  const endTour = useCallback(() => {
+    setTouring(false);
+    mutate((s) => {
+      s.settings.tourDone = true;
+    });
+  }, [mutate]);
+
   const inActivity = route.name === "session" || route.name === "mission" || (route.name === "placement" && !!route.topicId);
   const home = () => go({ name: "home" });
 
@@ -48,10 +61,10 @@ export default function App() {
   } else {
     switch (route.name) {
       case "home":
-        body = <Home state={state} go={go} />;
+        body = <Home state={state} go={go} tab={route.tab} mutate={mutate} />;
         break;
       case "session":
-        body = <Session key={JSON.stringify(route)} state={state} mutate={mutate} type={route.type} skillId={route.skillId} onExit={home} toast={toast} />;
+        body = <Session key={JSON.stringify(route)} state={state} mutate={mutate} type={route.type} skillId={route.skillId} onExit={route.type === "topic" && route.skillId ? () => go({ name: "topic", topicId: SKILL_BY_ID[route.skillId!].topic }) : home} toast={toast} />;
         break;
       case "placement":
         body = <Placement state={state} mutate={mutate} topicId={route.topicId} onExit={home} go={(topicId) => go({ name: "placement", topicId })} />;
@@ -60,7 +73,7 @@ export default function App() {
         body = <Topic state={state} topicId={route.topicId} go={go} />;
         break;
       case "mission":
-        body = <MissionScreen state={state} mutate={mutate} id={route.id} onExit={home} />;
+        body = <MissionScreen state={state} mutate={mutate} id={route.id} onExit={() => go({ name: "home", tab: "missions" })} />;
         break;
       case "parent":
         body = <Parent state={state} mutate={mutate} replace={replace} onExit={home} />;
@@ -74,14 +87,18 @@ export default function App() {
         <div className="topbar">
           <div className="brand" onClick={home} role="link">🧭 Math Quest</div>
           <span className="spacer" />
-          {state.streak.count > 0 && <span className="chip" title="days in a row">🔥 {state.streak.count}</span>}
-          <span className="chip" title="experience points">⭐ {state.xp}</span>
-          {route.name !== "parent" && <button className="btn ghost" onClick={() => go({ name: "parent" })}>👪 Parent</button>}
+          <span className="row" style={{ gap: 8 }} data-tour="stats">
+            {state.streak.count > 0 && <span className="chip" title="days in a row">🔥 {state.streak.count}</span>}
+            <span className="chip" title="stars">⭐ {state.xp}</span>
+          </span>
+          {onHome && <button className="btn ghost" title="Show me around" aria-label="Show me around" onClick={() => { go({ name: "home", tab: "today" }); setTouring(true); }}>❓</button>}
+          {route.name !== "parent" && <button className="btn ghost" data-tour="parent" onClick={() => go({ name: "parent" })}>👪 Parent</button>}
         </div>
       )}
       {saveFailed && <div className="feedback warn">Progress couldn't be saved in this browser (private window or storage blocked?). Use Parent → Settings → Download progress file to keep it.</div>}
       {body}
       {toastText && !celebrating && <div className="toast" role="status">{toastText}</div>}
+      {showTour && (route.tab ?? "today") === "today" && <Tour steps={HOME_TOUR} onDone={endTour} />}
       {celebrating && <BadgeCelebration badge={celebrating} more={newBadges.length - 1} onClose={popBadge} />}
     </div>
   );

@@ -24,6 +24,43 @@ export function LevelLegend() {
   );
 }
 
+/** The colored bar spelled out in words: "2 Exploring · 1 Practicing". */
+export function LevelSummary({ counts, total }: { counts: number[]; total: number }) {
+  const parts = [4, 3, 2, 1].filter((l) => counts[l]);
+  if (!parts.length) return <span className="small muted">Not started yet · {total} skills</span>;
+  return (
+    <span className="level-summary small">
+      {parts.map((l) => (
+        <span key={l} className="row" style={{ gap: 4 }}><span className="lv-dot" style={{ background: LEVEL_COLORS[l] }} />{counts[l]} {LEVEL_NAMES[l].toLowerCase()}</span>
+      ))}
+      {counts[0] ? <span className="muted">{counts[0]} to go</span> : null}
+    </span>
+  );
+}
+
+/** What each level means, in her words. */
+export const LEVEL_MEANING = [
+  "",
+  "You've started learning this skill.",
+  "You've solved some on your own. Keep going until it's solid.",
+  "You still got it right on a later day, so it's really yours.",
+  "You can explain WHY it works, and you still remember it days later.",
+];
+
+export function LevelGuide() {
+  return (
+    <details className="level-guide">
+      <summary className="small">What do the colors mean?</summary>
+      <ul>
+        {[1, 2, 3, 4].map((l) => (
+          <li key={l} className="small"><span className="lv-dot" style={{ background: LEVEL_COLORS[l] }} /> <strong>{LEVEL_NAMES[l]}:</strong> {LEVEL_MEANING[l]}</li>
+        ))}
+        <li className="small"><span className="lv-dot" style={{ background: LEVEL_COLORS[0] }} /> <strong>Gray:</strong> not started yet.</li>
+      </ul>
+    </details>
+  );
+}
+
 export function fmtDate(d?: string) {
   if (!d) return "";
   const [y, m, day] = d.split("-").map(Number);

@@ -50,7 +50,7 @@ export function Topic({ state, topicId, go }: { state: AppState; topicId: string
           </div>
         );
       })}
-      <button className="btn" onClick={() => go({ name: "home" })}>← Back to the map</button>
+      <button className="btn" onClick={() => go({ name: "home", tab: "map" })}>← Back to the map</button>
     </div>
   );
 }

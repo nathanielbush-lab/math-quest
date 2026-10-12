@@ -90,6 +90,10 @@ export interface Settings {
   apiKey?: string;
   model: string;
   targetDate: string;
+  /** The first-launch home page tour has been seen (or skipped). */
+  tourDone?: boolean;
+  /** She chose "Not now" on the starting-point card on the Today tab. */
+  placementHidden?: boolean;
 }
 
 export interface AppState {

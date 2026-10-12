@@ -79,7 +79,10 @@ export function Session({ state, mutate, type, skillId, onExit, toast }: {
     <div>
       <div className="row" style={{ marginBottom: 12 }}>
         <div className="stage grow" style={{ margin: 0 }}>
-          {phases.map((p) => <span key={p} className={ctx.phase === p ? "on" : ""}>{phaseName[p]}</span>)}
+          {phases.map((p, i) => {
+            const cur = ctx.phase === "done" ? phases.length : (phases as readonly string[]).indexOf(ctx.phase);
+            return <span key={p} className={i === cur ? "on" : i < cur ? "past" : ""}>{i < cur ? "✓ " : ""}{phaseName[p]}</span>;
+          })}
         </div>
         <span className="chip">✅ {ctx.correct}/{ctx.answered}</span>
         {state.settings.calculator && <button className="btn ghost" onClick={() => setCalc((c) => !c)} aria-label="calculator">🧮</button>}
@@ -220,7 +223,7 @@ function ItemView({ item, state, mutate, ctx, advance, toast, onExit, xpGained, 
             </div>
           )}
           <MathText as="p" text={ctx.answered ? "Remember: a skill is truly yours when you can do it again a few days later. That's what the warm-up checks!" : "See you next time!"} />
-          <button className="btn primary big" autoFocus onClick={onExit}>Back to the map</button>
+          <button className="btn primary big" autoFocus onClick={onExit}>Back home</button>
         </div>
       );
     }

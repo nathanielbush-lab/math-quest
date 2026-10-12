@@ -14,6 +14,12 @@ Everything runs in the browser. There's no account and no server, and progress i
 2. **Find my starting point**: short adaptive checks, one topic at a time (about 4–8 questions each). They start mid-topic and move up or down, so she skips what she already knows. You can do a few topics a day, and skip any topic that's brand new.
 3. Then **Start today's quest** each session.
 
+The first time she reaches the home page, a short guided tour shows her around (replay it with the ❓ button). The home page has four tabs:
+- **Today:** what she did last time, today's quest as three steps (warm-up → learn → challenge) with one big start button, her next badge, and the mistake journal when there's something in it. The starting-point card can be put away with **Not now**.
+- **My Map:** every topic with its progress bar spelled out in words ("2 practicing · 1 exploring"), plus **What do the colors mean?**
+- **Trophies:** earned badges, the next one, and every locked badge with how to earn it.
+- **Missions:** the three stage challenges (a dot on the tab means one is ready to play).
+
 ### A daily quest follows the roadmap's session shape
 | Part | What happens |
 |---|---|
@@ -34,7 +40,7 @@ Everything runs in the browser. There's no account and no server, and progress i
 - **Spaced review:** checks at 1, 3, 7, 14, 30 and 60 days.
 - **Help:** two tries per question, hints that go from a nudge to nearly the whole method, and feedback that names common mistakes (for example "you added the denominators").
 - **Worked solutions:** after a miss, the full solution is revealed one step at a time ("Can you guess the next step?"), with a **Show all** button. Each step names the move ("Find a common denominator.") and then shows the work, the way she'd write it out.
-- **Badges:** earning one pops up a celebration that says what she did. The **trophy shelf** at the top of the home page shows what she has, the badge she's closest to next, and every locked badge with how to earn it.
+- **Badges:** earning one pops up a celebration that says what she did. The Today tab shows the badge she's closest to next, and the **Trophies** tab shows them all.
 - **Unlimited practice:** problems are generated with fresh numbers every time, so she can't memorize answers.
 
 ### Stage challenges

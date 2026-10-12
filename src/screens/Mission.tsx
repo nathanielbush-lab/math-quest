@@ -15,7 +15,7 @@ export function MissionScreen({ state, mutate, id, onExit }: { state: AppState; 
         <h1>Mission complete! 🚩</h1>
         <p>You solved {score} of {built.parts.length} parts on your own.</p>
         <p className="muted">Real problems mix lots of skills together, and you just did that!</p>
-        <button className="btn primary big" autoFocus onClick={onExit}>Back to the map</button>
+        <button className="btn primary big" autoFocus onClick={onExit}>Back to missions</button>
       </div>
     );
   }
