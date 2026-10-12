@@ -229,3 +229,4 @@ textarea { width: 100%; min-height: 120px; resize: vertical; }
 .week-goal { display: inline-flex; align-items: center; gap: 5px; }
 .goal-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.8); display: inline-block; }
 .goal-dot.on { background: #fff; }
+@media (max-width: 480px) { .topbar { flex-wrap: wrap; row-gap: 8px; } .topbar .chip { white-space: nowrap; } }
