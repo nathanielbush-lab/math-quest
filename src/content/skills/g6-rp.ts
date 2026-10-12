@@ -1,0 +1,309 @@
+import { frac, fromDecimal } from "../../lib/rational";
+import { F, NAMES, choice, money, num, round, trap, traps } from "../helpers";
+import type { Skill } from "../types";
+
+const T = "g6-rp";
+
+const ratioLanguage: Skill = {
+  id: "g6.rp.ratios",
+  title: "Ratio language",
+  topic: T,
+  standards: ["NC.6.RP.1"],
+  prereqs: [],
+  lesson: {
+    bigIdea: "A ratio compares two quantities. Order matters: the ratio of cats to dogs is cats first.",
+    explain: [
+      "In a class with 12 girls and 15 boys, the ratio of girls to boys is 12 : 15 (or 4 : 5). The ratio of boys to **all students** is 15 : 27.",
+      "Ratios can be written 4 : 5, 4 to 5, or {4/5}.",
+    ],
+    visual: { type: "tape", rows: [{ label: "girls", segments: [1, 2, 3, 4].map(() => ({ text: "3", size: 1, shade: true })) }, { label: "boys", segments: [1, 2, 3, 4, 5].map(() => ({ text: "3", size: 1 })) }] },
+  },
+  why: [
+    { kind: "choice", prompt: "A bag has 3 red and 5 blue marbles. Why is the ratio of red to all marbles 3 : 8, not 3 : 5?", choices: ["“All marbles” is 3 + 5 = 8, so you compare 3 to the total.", "Because 8 is bigger.", "It is 3 : 5."], correct: 0, explain: "Part-to-whole ratios use the total." },
+    { kind: "written", prompt: "Explain the difference between a part-to-part ratio and a part-to-whole ratio, using 4 dogs and 6 cats.", keyIdeas: ["part-to-part compares the groups: dogs to cats 4 : 6", "part-to-whole compares a group to the total: dogs to all pets 4 : 10", "the total is 4 + 6 = 10"], exemplar: "Part-to-part compares one group to another, like dogs to cats, 4 : 6. Part-to-whole compares one group to everything, like dogs to all pets, 4 : 10, because there are 4 + 6 = 10 pets." },
+  ],
+  generate(r, lv) {
+    const things = r.pick([["red marbles", "blue marbles", "marbles"], ["cats", "dogs", "pets"], ["girls", "boys", "students"], ["apples", "oranges", "pieces of fruit"], ["fiction books", "nonfiction books", "books"]]);
+    const a = r.int(2, 9);
+    let b = r.int(2, 9);
+    if (b === a) b = a + 1;
+    const total = a + b;
+    const q = lv === 1 ? r.int(0, 1) : r.int(0, 3);
+    const opts: [string, string][] = [[`${a} : ${b}`, `${things[0]} to ${things[1]}`], [`${b} : ${a}`, `${things[1]} to ${things[0]}`], [`${a} : ${total}`, `${things[0]} to all ${things[2]}`], [`${b} : ${total}`, `${things[1]} to all ${things[2]}`]];
+    const [correct, desc] = opts[q];
+    return {
+      prompt: `There are ${a} ${things[0]} and ${b} ${things[1]}. What is the ratio of ${desc}?`,
+      answer: choice(r, correct, opts.filter((o) => o[0] !== correct).map((o) => [o[0], `That's the ratio of ${o[1]}.`] as [string, string])),
+      hints: ["The first quantity named goes first.", `“All ${things[2]}” means the total: ${a} + ${b}.`],
+      steps: [`${desc}: ${correct}`],
+    };
+  },
+};
+
+const ratioTables: Skill = {
+  id: "g6.rp.tables",
+  title: "Equivalent ratios and tape diagrams",
+  topic: T,
+  standards: ["NC.6.RP.3"],
+  prereqs: ["g6.rp.ratios", "g5.multiply"],
+  lesson: {
+    bigIdea: "Equivalent ratios come from multiplying (or dividing) both quantities by the same number.",
+    explain: [
+      "A lemonade recipe uses 2 cups lemon juice for every 5 cups water. Doubling gives 4 : 10, tripling 6 : 15. These are equivalent ratios.",
+      "Tape diagrams help with totals: if boys : girls = 2 : 3 and there are 25 students, draw 5 equal boxes (2 + 3). Each box is 25 ÷ 5 = 5 students, so there are 3 × 5 = 15 girls.",
+    ],
+    visual: { type: "table", headers: ["lemon juice (cups)", "water (cups)"], rows: [[2, 5], [4, 10], [6, 15], [8, 20]] },
+  },
+  why: [
+    { kind: "choice", prompt: "Why is 2 : 5 equivalent to 6 : 15?", choices: ["Both parts were multiplied by 3, so the mixture tastes the same.", "Because 6 − 2 = 4 and 15 − 5 = 10.", "Because 6 and 15 are both multiples of 3."], correct: 0, explain: "Equivalent ratios scale both parts by the same factor." },
+    { kind: "written", prompt: "The ratio of boys to girls is 2 : 3 and there are 25 students. Explain how a tape diagram shows there are 15 girls.", keyIdeas: ["draw 2 boxes for boys and 3 for girls (5 boxes)", "25 ÷ 5 = 5 students per box", "3 boxes × 5 = 15 girls"], exemplar: "I draw 2 boxes for boys and 3 boxes for girls, which is 5 equal boxes for 25 students. Each box is 25 ÷ 5 = 5 students. The girls have 3 boxes, so 3 × 5 = 15 girls." },
+  ],
+  generate(r, lv) {
+    const a = r.int(1, 6);
+    let b = r.int(2, 9);
+    if (a === b) b++;
+    if (lv < 3) {
+      const ks = r.shuffle([2, 3, 4, 5, 6, 7, 8, 10]).slice(0, 3).sort((x, y) => x - y);
+      const miss = r.int(0, 2);
+      const col = r.int(0, 1);
+      const rows: (string | number)[][] = [[a, b], ...ks.map((k) => [a * k, b * k])];
+      const ans = col === 0 ? a * ks[miss] : b * ks[miss];
+      rows[miss + 1][col] = "?";
+      const [h1, h2] = r.pick([["flour (cups)", "sugar (cups)"], ["red paint (cans)", "white paint (cans)"], ["laps", "minutes"], ["tickets", "dollars"]]);
+      return {
+        prompt: `The ratio stays the same in every row. What number goes in the “?”`,
+        visual: { type: "table", headers: [h1, h2], rows },
+        answer: num(ans),
+        hints: ["What was the first row multiplied by to get the row with the “?”", `The known number in that row is ${ks[miss]} times the first row.`],
+        steps: [`The row is ${ks[miss]} × (${a}, ${b})`, `? = ${col === 0 ? a : b} × ${ks[miss]} = ${ans}`],
+        traps: traps(F(ans), [trap(col === 0 ? b * ks[miss] - (b - a) : a * ks[miss] + (b - a), "Equivalent ratios multiply, they don't add. Find the scale factor.")]),
+      };
+    }
+    const k = r.int(2, 8);
+    const [p, q] = r.pick([["boys", "girls"], ["dogs", "cats"], ["red beads", "blue beads"]]);
+    const askFirst = r.chance(0.5);
+    const ans = (askFirst ? a : b) * k;
+    return {
+      prompt: `The ratio of ${p} to ${q} is ${a} : ${b}. There are ${(a + b) * k} ${p} and ${q} in all. How many ${askFirst ? p : q} are there?`,
+      visual: { type: "tape", rows: [{ label: p, segments: Array.from({ length: a }, () => ({ text: "?", size: 1, shade: true })) }, { label: q, segments: Array.from({ length: b }, () => ({ text: "?", size: 1 })) }] },
+      answer: num(ans),
+      hints: [`The tape diagram has ${a} + ${b} = ${a + b} equal boxes.`, `Each box is ${(a + b) * k} ÷ ${a + b} = ${k}.`],
+      steps: [`${a + b} boxes = ${(a + b) * k}, so 1 box = ${k}`, `${askFirst ? p : q}: ${askFirst ? a : b} boxes × ${k} = ${ans}`],
+      traps: traps(F(ans), [trap((askFirst ? a : b) * ((a + b) * k) / (askFirst ? b : a), `Use the total: there are ${a + b} boxes in all.`)]),
+    };
+  },
+};
+
+const unitRate: Skill = {
+  id: "g6.rp.unit-rate",
+  title: "Unit rates and best buys",
+  topic: T,
+  standards: ["NC.6.RP.2", "NC.6.RP.3"],
+  prereqs: ["g6.rp.tables", "g6.ns.dec-div"],
+  lesson: {
+    bigIdea: "A unit rate is how much for ONE: price per item, miles per hour, words per minute.",
+    explain: [
+      "6 pencils cost $3: $3 ÷ 6 = **$0.50 per pencil**. 10 pencils cost $4: $4 ÷ 10 = **$0.40 per pencil**. The second pack costs less per pencil.",
+      "To find a unit rate, divide by the quantity you want “per one” of.",
+    ],
+    tip: "“Per” means “for each one”, which tells you what to divide by.",
+  },
+  why: [
+    { kind: "choice", prompt: "Why compare price per pencil instead of total price?", choices: ["The packs have different numbers of pencils, so price for one pencil is a fair comparison.", "Total price is always wrong.", "Because cheaper packs are always better."], correct: 0, explain: "Unit rates compare on equal footing." },
+    { kind: "written", prompt: "6 pencils cost $3 and 10 pencils cost $4. Explain which is the better buy and how you know.", keyIdeas: ["find cost per pencil", "$3 ÷ 6 = $0.50; $4 ÷ 10 = $0.40", "10 for $4 is cheaper per pencil"], exemplar: "I find the price of one pencil in each pack. $3 ÷ 6 = $0.50 each and $4 ÷ 10 = $0.40 each. The 10-pack is the better buy because each pencil costs less." },
+  ],
+  generate(r, lv) {
+    if (lv === 1) {
+      const per = r.int(2, 15);
+      const n = r.int(2, 9);
+      const [verb, thing, unit, rateUnit] = r.pick([["bikes", "miles", "hours", "miles per hour"], ["reads", "pages", "minutes", "pages per minute"], ["types", "words", "minutes", "words per minute"], ["earns", "dollars", "hours", "dollars per hour"]]);
+      return {
+        prompt: `${r.pick(NAMES)} ${verb} ${per * n} ${thing} in ${n} ${unit}. What is the rate in ${rateUnit}?`,
+        answer: num(per),
+        hints: [`“Per” ${unit.replace(/s$/, "")} means for ONE ${unit.replace(/s$/, "")}.`, `Divide: ${per * n} ÷ ${n}.`],
+        steps: [`${per * n} ÷ ${n} = ${per} ${rateUnit}`],
+        traps: traps(F(per), [trap(frac(n, per * n), `That's ${unit} per ${thing.replace(/s$/, "")}. Divide by the ${unit}.`)]),
+      };
+    }
+    const cents = r.int(15, 95);
+    const n = r.int(3, 12);
+    const price = (cents * n) / 100;
+    if (lv === 2) {
+      const item = r.pick(["granola bars", "markers", "apples", "stickers", "notebooks"]);
+      return {
+        prompt: `A pack of ${n} ${item} costs ${money(price)}. What is the price per ${item.replace(/s$/, "")}?`,
+        answer: num(fromDecimal(cents / 100), { pre: "$" }),
+        hints: ["Price per item = total price ÷ number of items.", `${money(price)} ÷ ${n}.`],
+        steps: [`${money(price)} ÷ ${n} = ${money(cents / 100)} each`],
+      };
+    }
+    let cents2 = r.int(15, 95);
+    while (cents2 === cents) cents2 = r.int(15, 95);
+    let n2 = r.int(3, 12);
+    if (n2 === n) n2++;
+    const price2 = (cents2 * n2) / 100;
+    const item = r.pick(["pencils", "juice boxes", "pens", "cookies"]);
+    const a = `${n} ${item} for ${money(price)}`;
+    const b = `${n2} ${item} for ${money(price2)}`;
+    const better = cents < cents2 ? a : b;
+    const worse = cents < cents2 ? b : a;
+    return {
+      prompt: `Which is the better buy (lower price per item)?`,
+      answer: choice(r, better, [[worse, "Compare the price of ONE item in each pack."], ["They cost the same per item", "Divide each price by the number of items to compare."]], true),
+      hints: ["Find the price for one item in each pack.", `${money(price)} ÷ ${n} and ${money(price2)} ÷ ${n2}.`],
+      steps: [`${money(price)} ÷ ${n} = ${money(cents / 100)} each`, `${money(price2)} ÷ ${n2} = ${money(cents2 / 100)} each`, `Better buy: ${better}`],
+    };
+  },
+};
+
+const percentOf: Skill = {
+  id: "g6.rp.percent",
+  title: "Percent of a number",
+  topic: T,
+  standards: ["NC.6.RP.3"],
+  prereqs: ["g6.rp.tables", "g5.decimals"],
+  lesson: {
+    bigIdea: "Percent means “per 100”. 30% of 80 means {30/100} of 80.",
+    explain: [
+      "Easy percents: 50% is half, 25% is a quarter, 10% is divide by 10. So 30% of 80 = 3 × (10% of 80) = 3 × 8 = **24**.",
+      "Any percent: change it to a decimal and multiply. 35% of 60 = 0.35 × 60 = 21.",
+      "What percent is 12 of 48? {12/48} = {1/4} = {25/100} = 25%.",
+    ],
+    visual: { type: "tape", rows: [{ label: "80", segments: Array.from({ length: 10 }, (_, i) => ({ text: "8", size: 1, shade: i < 3 })) }, { label: "%", segments: Array.from({ length: 10 }, (_, i) => ({ text: `${(i + 1) * 10}%`, size: 1 })) }] },
+    tip: "10% is a great building block: find 10%, then scale up.",
+  },
+  why: [
+    { kind: "choice", prompt: "Why is 10% of a number the same as dividing it by 10?", choices: ["10% = {10/100} = {1/10}, and one-tenth of a number is that number ÷ 10.", "Because percent always means divide by 10.", "Because 10 × 10 = 100."], correct: 0, explain: "{10/100} simplifies to {1/10}." },
+    { kind: "written", prompt: "Explain two different ways to find 30% of 80.", keyIdeas: ["10% of 80 is 8, so 30% is 3 × 8 = 24", "0.30 × 80 = 24 (or 30/100 × 80)", "check: 24 is a bit less than one third of 80"], exemplar: "One way: 10% of 80 is 8, and 30% is three times that, 24. Another way: 30% = 0.3, and 0.3 × 80 = 24. Both give 24." },
+  ],
+  generate(r, lv) {
+    if (lv === 1) {
+      const p = r.pick([10, 50, 25, 20, 75]);
+      const base = r.pick([20, 40, 60, 80, 100, 120, 200]) * (p === 25 || p === 75 ? 1 : r.int(1, 2));
+      const ans = (p * base) / 100;
+      return {
+        prompt: `What is ${p}% of ${base}?`,
+        answer: num(ans),
+        hints: [`${p}% = ${p === 50 ? "one half" : p === 25 ? "one quarter" : p === 75 ? "three quarters" : p === 10 ? "one tenth" : "one fifth"}.`, `Find that fraction of ${base}.`],
+        steps: [`${p}% of ${base} = {${p}/100} × ${base} = ${ans}`],
+        traps: traps(F(ans), [trap(base / p, "That's dividing by the percent. Percent means per 100: multiply by {p/100}.".replace("{p/100}", `{${p}/100}`))]),
+      };
+    }
+    if (lv === 2) {
+      const p = r.int(1, 19) * 5;
+      const base = r.int(2, 30) * 4;
+      const ans = round((p * base) / 100, 2);
+      return {
+        prompt: `What is ${p}% of ${base}?`,
+        answer: num(fromDecimal(ans)),
+        hints: [`${p}% = ${p / 100}.`, `Multiply ${p / 100} × ${base}.`],
+        steps: [`${p}% = ${p / 100}`, `${p / 100} × ${base} = ${ans}`],
+        traps: traps(fromDecimal(ans), [trap(p * base, "Remember to change the percent to a decimal (divide by 100) first.")]),
+      };
+    }
+    const whole = r.pick([20, 25, 40, 50, 80, 200, 60, 120]);
+    const p = r.pick([10, 20, 25, 30, 40, 50, 60, 75, 80, 5, 15]);
+    const part = (p * whole) / 100;
+    if (!Number.isInteger(part)) {
+      return { prompt: `What percent of 40 is 10?`, answer: num(25, { unit: "%" }), hints: ["Write it as a fraction: {10/40}.", "Simplify, then make the denominator 100."], steps: ["{10/40} = {1/4} = {25/100} = 25%"] };
+    }
+    return {
+      prompt: `${part} is what percent of ${whole}?`,
+      answer: num(p, { unit: "%" }),
+      hints: [`Write it as a fraction: {${part}/${whole}}.`, `Rewrite with a denominator of 100 (or divide ${part} ÷ ${whole} and multiply by 100).`],
+      steps: [`{${part}/${whole}} = ${round(part / whole, 4)}`, `${round(part / whole, 4)} × 100 = ${p}%`],
+      traps: traps(F(p), [trap(round((whole / part) * 100, 2), `Put the part (${part}) on top and the whole (${whole}) on the bottom.`)]),
+    };
+  },
+};
+
+const percentWhole: Skill = {
+  id: "g6.rp.percent-whole",
+  title: "Finding the whole from a percent",
+  topic: T,
+  standards: ["NC.6.RP.3"],
+  prereqs: ["g6.rp.percent"],
+  lesson: {
+    bigIdea: "If you know a part and its percent, scale up to 100%.",
+    explain: [
+      "12 is 30% of what number? 30% → 12, so 10% → 4, so 100% → **40**.",
+      "Or use a table: 30 : 12 is the same ratio as 100 : ?. Multiply 12 by {100/30}.",
+    ],
+    visual: { type: "table", headers: ["percent", "amount"], rows: [[30, 12], [10, 4], [100, 40]] },
+  },
+  why: [
+    { kind: "choice", prompt: "12 is 30% of a number. Why is the number bigger than 12?", choices: ["12 is only part (30%) of the whole, and the whole is 100%.", "Because percents make numbers bigger.", "It isn't; the number is 3.6."], correct: 0, explain: "A part less than 100% is smaller than the whole." },
+    { kind: "written", prompt: "Explain how you'd find the whole number if 15 is 25% of it.", keyIdeas: ["25% is one quarter", "the whole is 4 times the part", "15 × 4 = 60"], exemplar: "25% is a quarter of the whole. If a quarter is 15, the whole is 4 times that: 15 × 4 = 60. Check: 25% of 60 is 15." },
+  ],
+  generate(r, lv) {
+    const p = lv === 1 ? r.pick([10, 25, 50, 20]) : r.pick([10, 20, 25, 30, 40, 60, 75, 80, 5, 15, 35]);
+    const whole = (lv === 1 ? r.int(2, 20) * 10 : r.int(2, 30) * 20);
+    const part = (p * whole) / 100;
+    const ctx = lv === 3
+      ? `${r.pick(NAMES)} has read ${part} pages, which is ${p}% of the book. How many pages is the whole book?`
+      : `${part} is ${p}% of what number?`;
+    return {
+      prompt: ctx,
+      answer: num(whole),
+      hints: [`If ${p}% is ${part}, what is ${p >= 10 && p % 10 === 0 ? "10%" : "1%"}?`, `Then scale up to 100%.`],
+      steps: p % 10 === 0 ? [`${p}% → ${part}`, `10% → ${part} ÷ ${p / 10} = ${part / (p / 10)}`, `100% → ${part / (p / 10)} × 10 = ${whole}`] : [`${p}% → ${part}`, `1% → ${part} ÷ ${p} = ${part / p}`, `100% → ${part / p} × 100 = ${whole}`],
+      traps: traps(F(whole), [trap(fromDecimal(round((p * part) / 100, 4)), `That's ${p}% of ${part}. Here ${part} is the part; we need the whole.`)]),
+    };
+  },
+};
+
+const convert: Skill = {
+  id: "g6.rp.convert",
+  title: "Converting units",
+  topic: T,
+  standards: ["NC.6.RP.3"],
+  prereqs: ["g6.rp.tables"],
+  lesson: {
+    bigIdea: "Use a known rate like 12 inches per foot to convert, multiplying when going to smaller units.",
+    explain: [
+      "Feet → inches: each foot is 12 inches, so 5 ft = 5 × 12 = 60 in. Bigger unit → smaller unit: multiply.",
+      "Inches → feet: 48 in ÷ 12 = 4 ft. Smaller unit → bigger unit: divide.",
+      "Handy facts: 3 ft = 1 yd, 16 oz = 1 lb, 2 cups = 1 pint, 2 pints = 1 quart, 4 quarts = 1 gallon, 100 cm = 1 m, 1000 g = 1 kg, 60 min = 1 hr.",
+    ],
+    tip: "Ask: should my answer be a bigger or smaller number?",
+  },
+  why: [
+    { kind: "choice", prompt: "Why do you multiply to change feet into inches?", choices: ["Inches are smaller, so it takes more of them, and each foot is 12 inches.", "You always multiply when converting.", "Because 12 is a big number."], correct: 0, explain: "Smaller units → more of them." },
+    { kind: "written", prompt: "Explain how to change 3 gallons into cups.", keyIdeas: ["1 gallon = 4 quarts, 1 quart = 2 pints, 1 pint = 2 cups → 16 cups per gallon", "multiply because cups are smaller", "3 × 16 = 48 cups"], exemplar: "One gallon is 4 quarts, each quart is 2 pints, and each pint is 2 cups, so a gallon is 4 × 2 × 2 = 16 cups. Cups are smaller, so I multiply: 3 × 16 = 48 cups." },
+  ],
+  generate(r, lv) {
+    const facts: [string, string, number][] = [["feet", "inches", 12], ["yards", "feet", 3], ["pounds", "ounces", 16], ["hours", "minutes", 60], ["meters", "centimeters", 100], ["kilograms", "grams", 1000], ["gallons", "quarts", 4], ["quarts", "pints", 2], ["pints", "cups", 2], ["minutes", "seconds", 60]];
+    if (lv === 3) {
+      const [big, , k] = r.pick([["yards", "", 36], ["gallons", "", 16]] as [string, string, number][]);
+      const small = big === "yards" ? "inches" : "cups";
+      const n = r.int(2, 6);
+      return {
+        prompt: `How many ${small} are in ${n} ${big}?`,
+        answer: num(n * k),
+        hints: big === "yards" ? ["1 yard = 3 feet and 1 foot = 12 inches.", "So 1 yard = 36 inches."] : ["1 gallon = 4 quarts, 1 quart = 2 pints, 1 pint = 2 cups.", "So 1 gallon = 16 cups."],
+        steps: [`1 ${big.replace(/s$/, "")} = ${k} ${small}`, `${n} × ${k} = ${n * k} ${small}`],
+      };
+    }
+    const [big, small, k] = r.pick(facts);
+    const n = r.int(2, 9);
+    const toSmall = lv === 1 || r.chance(0.5);
+    if (toSmall) {
+      return {
+        prompt: `${n} ${big} = how many ${small}?`,
+        answer: num(n * k),
+        hints: [`1 ${big.replace(/s$/, "")} = ${k} ${small}.`, `${small} are smaller, so multiply.`],
+        steps: [`${n} × ${k} = ${n * k} ${small}`],
+        traps: traps(F(n * k), [trap(frac(n, k), `${small} are smaller units, so there should be MORE of them. Multiply.`)]),
+      };
+    }
+    return {
+      prompt: `${n * k} ${small} = how many ${big}?`,
+      answer: num(n),
+      hints: [`1 ${big.replace(/s$/, "")} = ${k} ${small}.`, `${big} are bigger, so there will be fewer of them. Divide.`],
+      steps: [`${n * k} ÷ ${k} = ${n} ${big}`],
+      traps: traps(F(n), [trap(n * k * k, `${big} are bigger units, so there should be FEWER of them. Divide.`)]),
+    };
+  },
+};
+
+export default [ratioLanguage, ratioTables, unitRate, percentOf, percentWhole, convert];
