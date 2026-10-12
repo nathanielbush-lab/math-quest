@@ -44,7 +44,13 @@ const multistep: Skill = {
       return {
         prompt: `Solve for x: ${k}(x${cst(m)}) = ${linear(c2, d2)}`,
         answer: num(x),
-        hints: [`Distribute: ${k}x${cst(k * m)}.`, `Move the x-terms to one side: ${k - c2}x = ${ms(d2 - k * m)}.`],
+        hints: [
+          `Start by distributing the ${k}: multiply it by x AND by ${ms(m)}.`,
+          `Now you have ${linear(k, k * m)} = ${linear(c2, d2)}. ${c2 > 0 ? "Subtract" : "Add"} ${term(Math.abs(c2), "x")} ${c2 > 0 ? "from" : "to"} both sides to get the x's together on the left.`,
+          k - c2 !== 1
+            ? `Then ${k * m > 0 ? "subtract" : "add"} ${Math.abs(k * m)} on both sides. You should reach ${term(k - c2, "x")} = ${ms(d2 - k * m)}. Divide to finish.`
+            : `Then ${k * m > 0 ? "subtract" : "add"} ${Math.abs(k * m)} on both sides to get x by itself.`,
+        ],
         steps: [
           st("Distribute on the left.", `${k}(x${cst(m)}) = ${k}x${cst(k * m)}, so ${linear(k, k * m)} = ${linear(c2, d2)}.`),
           st(`Get the x-terms on one side: ${c2 > 0 ? "subtract" : "add"} ${term(Math.abs(c2), "x")} ${c2 > 0 ? "from" : "to"} both sides.`, `${linear(k - c2, k * m)} = ${ms(d2)}`),
@@ -57,7 +63,13 @@ const multistep: Skill = {
     return {
       prompt: `Solve for x: ${linear(a, b)} = ${linear(c, d)}`,
       answer: num(x),
-      hints: [`Subtract ${linear(c, 0)} from both sides to collect x-terms.`, `${linear(a - c, b)} = ${ms(d)}`],
+      hints: [
+        `Get all the x's on the left. The right side has ${term(c, "x")}, so ${c > 0 ? "subtract" : "add"} ${term(Math.abs(c), "x")} ${c > 0 ? "from" : "to"} both sides.`,
+        b !== 0
+          ? `That leaves ${linear(a - c, b)} = ${ms(d)}. Next, ${b > 0 ? "subtract" : "add"} ${Math.abs(b)} on both sides so the x-term is alone.`
+          : "After that, the x-term is alone on the left. Then you can find x.",
+        ...(a - c !== 1 ? [`You should reach ${term(a - c, "x")} = ${ms(d - b)}. Divide both sides by ${ms(a - c)}.`] : []),
+      ],
       steps: [
         st("Plan.", "Collect the x-terms on one side and the numbers on the other, then divide."),
         st(`${c > 0 ? "Subtract" : "Add"} ${term(Math.abs(c), "x")} ${c > 0 ? "from" : "to"} both sides.`, `${linear(a, b)}${c > 0 ? " − " : " + "}${term(Math.abs(c), "x")} = ${ms(d)}, so ${linear(a - c, b)} = ${ms(d)}`),
@@ -93,6 +105,7 @@ const solutionTypes: Skill = {
     const b = r.int(-9, 9);
     const kind = r.int(0, 2);
     let lhs: string, rhs: string;
+    let rc = a, k = 1;
     let why: string[] = [];
     if (kind === 0) {
       let c = r.nonzero(-6, 6);
@@ -100,6 +113,7 @@ const solutionTypes: Skill = {
       lhs = linear(a, b);
       const e = r.int(-9, 9);
       rhs = linear(c, e);
+      rc = c;
       why = [st("Compare the x-terms.", `The left has ${term(a, "x")} and the right has ${term(c, "x")}: different amounts of x.`), st("Collect the x-terms.", `Subtracting ${term(c, "x")} from both sides leaves ${term(a - c, "x")}${cst(b)} = ${ms(e)}. There's still an x, so you can solve for ONE value: x = ${fr(frac(e - b, a - c))}.`)];
     } else if (kind === 1) {
       let d = r.int(-9, 9);
@@ -108,7 +122,8 @@ const solutionTypes: Skill = {
       rhs = linear(a, d);
       why = [st("Compare the x-terms.", `Both sides have ${term(a, "x")}.`), st("Subtract it from both sides.", `The x's cancel, leaving ${ms(b)} = ${ms(d)}.`), st("Is that ever true?", `${ms(b)} = ${ms(d)} is false, and no value of x can change that.`)];
     } else {
-      const k = r.int(2, 4);
+      k = r.int(2, 4);
+      rc = k * a;
       lhs = `${k}(${linear(a, b)})`;
       rhs = linear(k * a, k * b);
       why = [st("Distribute the left side.", `${k}(${linear(a, b)}) = ${linear(k * a, k * b)}`), st("Compare the two sides.", `${linear(k * a, k * b)} = ${linear(k * a, k * b)}: they're exactly the same, so EVERY value of x makes it true.`)];
@@ -117,7 +132,11 @@ const solutionTypes: Skill = {
     return {
       prompt: `How many solutions does ${lhs} = ${rhs} have?`,
       answer: choice(r, labels[kind], labels.filter((_, i) => i !== kind).map((l) => [l, "Simplify both sides and compare the x-terms and the constants."] as [string, string]), true),
-      hints: ["Simplify both sides completely.", "Compare: are the x-coefficients the same? Are the constants the same?"],
+      hints: [
+        kind === 2 ? `Start by distributing the ${k} on the left: multiply it by each term inside the parentheses.` : `Compare the x-terms: the left side has ${term(a, "x")} and the right side has ${term(rc, "x")}.`,
+        `Imagine ${rc > 0 ? "subtracting" : "adding"} ${term(Math.abs(rc), "x")} ${rc > 0 ? "from" : "to"} both sides. Are any x's left over?`,
+        "x's left → you can solve for one value. x's all gone → look at what's left: false (like 3 = 5) means no solution; true (like 4 = 4) means every x works.",
+      ],
       steps: [...why, st("Answer.", labels[kind])],
     };
   },
@@ -153,7 +172,7 @@ const systems: Skill = {
       return {
         prompt: `Click the point where the two lines cross (the solution of the system).`,
         answer: { kind: "point", x, y, min: -8, max: 10, lines: [{ m: m1, b: b1 }, { m: m2, b: b2 }] },
-        hints: ["Find where the two lines meet.", "Read its coordinates and check them in both equations."],
+        hints: ["The solution is the one point that sits on BOTH lines: where they cross.", `Read the crossing point's x (across) and y (up or down). Check it: does y = ${linear(m1, b1)} come out true with your x and y?`],
         steps: [
           st("The solution is where the lines cross.", `That point is on BOTH lines, so it makes both equations true.`),
           st("Read the crossing point.", `(${x}, ${y})`),
@@ -165,7 +184,11 @@ const systems: Skill = {
       return {
         prompt: `Solve the system: y = ${linear(m1, b1)} and y = ${linear(m2, b2)}`,
         answer: { kind: "multi", fields: [{ value: F(x), pre: "x =" }, { value: F(y), pre: "y =" }] },
-        hints: ["Both equal y, so set the right sides equal to each other.", `${linear(m1, b1)} = ${linear(m2, b2)} → solve for x, then find y.`],
+        hints: [
+          `Both equations say what y equals, so the right sides must be equal: ${linear(m1, b1)} = ${linear(m2, b2)}.`,
+          `Collect the x's: ${m2 > 0 ? "subtract" : "add"} ${term(Math.abs(m2), "x")} ${m2 > 0 ? "from" : "to"} both sides to get ${linear(m1 - m2, b1)} = ${ms(b2)}. Solve that for x.`,
+          `Then put your x into y = ${linear(m1, b1)} to get y.`,
+        ],
         steps: [
           st("Both equations equal y, so set them equal.", `${linear(m1, b1)} = ${linear(m2, b2)}`),
           st(`${m2 > 0 ? "Subtract" : "Add"} ${term(Math.abs(m2), "x")} ${m2 > 0 ? "from" : "to"} both sides.`, `${linear(m1 - m2, b1)} = ${ms(b2)}`),
@@ -186,14 +209,14 @@ const systems: Skill = {
       return {
         prompt: `Bike rental A costs $10 plus $2 per hour. Rental B costs $4 plus $4 per hour. After how many hours do they cost the same?`,
         answer: num(3),
-        hints: ["Write 10 + 2h = 4 + 4h.", "Solve for h."],
+        hints: ["Each cost is the starting fee plus the hourly price times h. They cost the same when 10 + 2h = 4 + 4h.", "Subtract 2h and 4 from both sides: 6 = 2h. What is h?"],
         steps: [st("Write each cost.", "A: 10 + 2h. B: 4 + 4h."), st("Set them equal.", "10 + 2h = 4 + 4h"), st("Subtract 2h and 4 from both sides.", "6 = 2h"), st("Divide by 2.", "h = 3"), st("Check.", "A: 10 + 6 = $16. B: 4 + 12 = $16 ✔")],
       };
     }
     return {
       prompt: `${name} compares two bike rentals. Shop A charges $${f1} plus $${p1} per hour. Shop B charges $${f2} plus $${p2} per hour. After how many hours do they cost the same?`,
       answer: num(h),
-      hints: [`Write ${f1} + ${p1}h = ${f2} + ${p2}h.`, "Collect the h-terms on one side."],
+      hints: [`Each cost is the starting fee plus the hourly price times h (hours). They cost the same when ${f1} + ${term(p1, "h")} = ${f2} + ${term(p2, "h")}.`, `Subtract ${term(p1, "h")}${f2 ? ` and ${f2}` : ""} from both sides: ${f1 - f2} = ${term(p2 - p1, "h")}. Then divide.`],
       steps: [
         st("Write each cost for h hours.", `Shop A: ${f1} + ${p1}h. Shop B: ${f2} + ${p2}h.`),
         st("Set them equal.", `${f1} + ${p1}h = ${f2} + ${p2}h`),

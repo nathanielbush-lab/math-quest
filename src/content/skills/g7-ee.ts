@@ -33,7 +33,10 @@ const simplify: Skill = {
       return {
         prompt: `Simplify: ${term(p, v)}${cst(c)}${term(q, v, false)}${cst(d)}`,
         answer: { kind: "multi", fields: [{ value: F(p + q), post: v }, { value: F(c + d), pre: "+" }] },
-        hints: [`Combine the ${v}-terms: ${ms(p)} + ${sn(q)}.`, `Combine the numbers: ${ms(c)} + ${sn(d)}.`],
+        hints: [
+          `Group like terms, keeping each sign with its term. ${v}-terms: ${term(p, v)} and ${term(q, v)}. Plain numbers: ${ms(c)} and ${ms(d)}.${Math.abs(p) === 1 || Math.abs(q) === 1 ? ` (${term(Math.abs(p) === 1 ? p : q, v)} means ${Math.abs(p) === 1 ? ms(p) : ms(q)}${v}.)` : ""}`,
+          `Add the numbers in front of ${v}: ${ms(p)} + ${sn(q)}. Then add the plain numbers: ${ms(c)} + ${sn(d)}.`,
+        ],
         steps: [
           st("Group the like terms (keep each sign with its term).", `${v}-terms: ${term(p, v)} and ${term(q, v)}. Numbers: ${ms(c)} and ${ms(d)}.`),
           st(`Combine the ${v}-terms.`, `${ms(p)} + ${sn(q)} = ${ms(p + q)}, so ${term(p + q || 0, v)}`),
@@ -48,7 +51,10 @@ const simplify: Skill = {
       return {
         prompt: `Expand: ${ms(a)}(${v}${cst(b)})`,
         answer: { kind: "multi", fields: [{ value: F(a), post: v }, { value: F(a * b), pre: "+" }] },
-        hints: [`Multiply ${ms(a)} by ${v} and by ${ms(b)}.`, `${sn(a)} × ${sn(b)} = ?`],
+        hints: [
+          `Distribute: the ${ms(a)} outside multiplies BOTH terms inside, the ${v} and the ${ms(b)}.`,
+          `First term: ${sn(a)} × ${v} = ${term(a, v)}. Second term: ${sn(a)} × ${sn(b)} = ? (${(a < 0) === (b < 0) ? "same signs" : "different signs"}).`,
+        ],
         steps: [
           st("Distribute: multiply the number outside by EACH term inside.", `${sn(a)} × ${v} = ${term(a, v)}`),
           st("Multiply the second term, watching the signs.", `${sn(a)} × ${sn(b)} = ${ms(a * b)} (${(a < 0) === (b < 0) ? "same signs → positive" : "different signs → negative"})`),
@@ -65,7 +71,10 @@ const simplify: Skill = {
     return {
       prompt: `Simplify: ${ms(a)}(${v}${cst(b)})${term(k, v, false)}${c < 0 ? " − " : " + "}${Math.abs(c)}(${d})`.replace(`(${d})`, `(${ms(d)})`),
       answer: { kind: "multi", fields: [{ value: F(coef), post: v }, { value: F(constant), pre: "+" }] },
-      hints: ["Distribute first.", "Then combine like terms."],
+      hints: [
+        `Distribute first: ${ms(a)} multiplies both ${v} and ${ms(b)}. Also multiply out the last part: ${sn(c)} × ${sn(d)}.`,
+        `With no parentheses it reads ${linear(a, a * b, v)}${term(k, v, false)}${cst(c * d)}. Now combine the ${v}-terms and the plain numbers.`,
+      ],
       steps: [
         st("Distribute first.", `${ms(a)}(${v}${cst(b)}) = ${sn(a)} × ${v} + ${sn(a)} × ${sn(b)} = ${linear(a, a * b, v)}`),
         st("Multiply the last part.", `${c < 0 ? "−" : "+"}${Math.abs(c)}(${ms(d)}) = ${ms(c * d)}`),
@@ -108,7 +117,10 @@ const twoStep: Skill = {
       return {
         prompt: `Solve for ${v}: ${ms(a)}(${v}${cst(b)}) = ${ms(rhs)}`,
         answer: num(x),
-        hints: [`Divide both sides by ${ms(a)} first (or distribute).`, `${v}${cst(b)} = ${ms(x + b)}`],
+        hints: [
+          `The (${v}${cst(b)}) is multiplied by ${ms(a)}. Undo that first: divide both sides by ${ms(a)}.`,
+          `${ms(rhs)} ÷ ${sn(a)} = ${ms(x + b)}, so ${v}${cst(b)} = ${ms(x + b)}. Now ${b > 0 ? "subtract" : "add"} ${Math.abs(b)} on both sides.`,
+        ],
         steps: [
           st(`The parentheses are multiplied by ${ms(a)}. Undo that first: divide both sides by ${ms(a)}.`, `${ms(rhs)} ÷ ${sn(a)} = ${ms(x + b)}, so ${v}${cst(b)} = ${ms(x + b)}.`),
           st(`Undo the ${b > 0 ? "+" : "−"} ${Math.abs(b)}: ${b > 0 ? "subtract" : "add"} ${Math.abs(b)} on both sides.`, `${v} = ${ms(x + b)}${cst(-b)} = ${ms(x)}`),
@@ -124,7 +136,10 @@ const twoStep: Skill = {
       return {
         prompt: `Solve for ${v}: {${v}/${d}}${cst(b)} = ${ms(rhs)}`,
         answer: num(xx),
-        hints: [`${b > 0 ? "Subtract" : "Add"} ${Math.abs(b)} first.`, `Then multiply both sides by ${d}.`],
+        hints: [
+          `Undo in reverse order. The ${b > 0 ? "+" : "−"} ${Math.abs(b)} came last, so undo it first: ${b > 0 ? "subtract" : "add"} ${Math.abs(b)} on both sides.`,
+          `That leaves {${v}/${d}} = ${ms(rhs - b)}. ${v} is divided by ${d}, so multiply both sides by ${d}.`,
+        ],
         steps: [
           st(`Undo the ${b > 0 ? "+" : "−"} ${Math.abs(b)} first: ${b > 0 ? "subtract" : "add"} ${Math.abs(b)} on both sides.`, `{${v}/${d}} = ${ms(rhs)}${cst(-b)} = ${ms(rhs - b)}`),
           st(`${v} is divided by ${d}. Undo it: multiply both sides by ${d}.`, `${v} = ${sn(rhs - b)} × ${d} = ${ms(xx)}`),
@@ -137,7 +152,10 @@ const twoStep: Skill = {
     return {
       prompt: `Solve for ${v}: ${term(a, v)}${cst(b)} = ${ms(rhs)}`,
       answer: num(x),
-      hints: [`${b > 0 ? "Subtract" : "Add"} ${Math.abs(b)} on both sides.`, `Then divide both sides by ${ms(a)}.`],
+      hints: [
+        `Undo in reverse order. The ${b > 0 ? "+" : "−"} ${Math.abs(b)} came last, so undo it first: ${b > 0 ? "subtract" : "add"} ${Math.abs(b)} on both sides.`,
+        `That leaves ${term(a, v)} = ${ms(rhs - b)}. Now divide both sides by ${ms(a)}${a < 0 ? " (watch the signs)" : ""}.`,
+      ],
       steps: [
         st("Plan: undo the operations in reverse order.", `${v} was multiplied by ${ms(a)}, then ${b > 0 ? `${b} was added` : `${-b} was subtracted`}. Undo the ${b > 0 ? "adding" : "subtracting"} first.`),
         ...twoStepSolve(a, b, rhs, v),
@@ -174,7 +192,11 @@ const twoStepIneq: Skill = {
       return {
         prompt: `A park charges a $${fee} entry fee plus $${per} per ride. ${r.pick(NAMES)} has $${budget}. What is the greatest number of rides that fits the budget?`,
         answer: num(n),
-        hints: [`Write ${fee} + ${per}r ≤ ${budget}.`, `Subtract ${fee}, then divide by ${per}. Round down to a whole number of rides.`],
+        hints: [
+          `Let r = rides. The fee plus the rides can't cost more than $${budget}: ${fee} + ${per}r ≤ ${budget}.`,
+          `Subtract the $${fee} fee: ${per}r ≤ ${budget - fee}. Then divide by ${per}.`,
+          "You can't buy part of a ride, so round DOWN to a whole number.",
+        ],
         steps: [
           st("Write an inequality.", `Let r = number of rides. Fee + rides must be no more than the money: ${fee} + ${per}r ≤ ${budget}.`),
           st(`Subtract ${fee} from both sides.`, `${per}r ≤ ${budget} − ${fee} = ${budget - fee}`),
@@ -196,7 +218,12 @@ const twoStepIneq: Skill = {
     return {
       prompt: `Solve: ${term(a, "x")}${cst(b)} ${sym} ${ms(rhs)}`,
       answer: choice(r, right, [[`x ${a < 0 ? sym : flip[sym]} ${ms(x0)}`, a < 0 ? "You divided by a negative, so the sign must flip." : "You only flip when multiplying or dividing by a negative."], `x ${res} ${ms(-x0)}`, `x ${sym} ${ms(rhs - b)}`]),
-      hints: [`${b > 0 ? "Subtract" : "Add"} ${Math.abs(b)} on both sides.`, `Divide by ${ms(a)}${a < 0 ? " and FLIP the sign" : ""}.`],
+      hints: [
+        `Solve it like an equation. First undo the ${b > 0 ? "+" : "−"} ${Math.abs(b)}: ${b > 0 ? "subtract" : "add"} ${Math.abs(b)} on both sides.`,
+        a < 0
+          ? `That leaves ${term(a, "x")} ${sym} ${ms(a * x0)}. Divide both sides by ${ms(a)}. Dividing by a NEGATIVE flips the inequality sign.`
+          : `That leaves ${term(a, "x")} ${sym} ${ms(a * x0)}. Divide both sides by ${a}. It's positive, so the sign stays the same.`,
+      ],
       steps: [
         st(`Undo the ${b > 0 ? "+" : "−"} ${Math.abs(b)}: ${b > 0 ? "subtract" : "add"} ${Math.abs(b)} on both sides.`, `${term(a, "x")} ${sym} ${ms(rhs)}${cst(-b)} = ${ms(a * x0)}`),
         a < 0
@@ -238,7 +265,10 @@ const wordEq: Skill = {
       return {
         prompt: `A rectangle has a perimeter of ${2 * (l + w)} cm and a length of ${l} cm. What is its width?`,
         answer: num(w),
-        hints: ["Perimeter = 2 × length + 2 × width.", `2(${l}) + 2w = ${2 * (l + w)}`],
+        hints: [
+          `A rectangle has 2 lengths and 2 widths, and together they make the perimeter: 2 × ${l} + 2w = ${2 * (l + w)}.`,
+          `The two lengths use ${2 * l} cm. Subtract that from ${2 * (l + w)} to get both widths together, then split it in half.`,
+        ],
         steps: [
           st("Write an equation.", `Perimeter = 2 × length + 2 × width, so 2(${l}) + 2w = ${2 * (l + w)}.`),
           st("Multiply.", `${2 * l} + 2w = ${2 * (l + w)}`),
@@ -257,7 +287,10 @@ const wordEq: Skill = {
       return {
         prompt: `A club costs $${fee} to join plus $${per} per month. ${name} has paid $${fee + per * m} in total. How many months has ${name} been a member?`,
         answer: num(m),
-        hints: [`Write ${per}m + ${fee} = ${fee + per * m}.`, `Subtract ${fee}, then divide by ${per}.`],
+        hints: [
+          `Let m = months. $${per} each month plus the $${fee} fee makes the total: ${per}m + ${fee} = ${fee + per * m}.`,
+          `Take away the $${fee} fee first: ${fee + per * m} − ${fee}. Then divide by ${per} to count the months.`,
+        ],
         steps: [
           st("Write an equation.", `Let m = months. Cost per month × m + joining fee = total: ${per}m + ${fee} = ${fee + per * m}.`),
           st(`Subtract the ${fee} fee from both sides.`, `${per}m = ${fee + per * m} − ${fee} = ${per * m}`),
@@ -274,7 +307,10 @@ const wordEq: Skill = {
       return {
         prompt: `${name} and a friend collected ${total} cans in all. The friend collected ${diff} more than ${name}. How many cans did ${name} collect?`,
         answer: num(a),
-        hints: [`Let c = ${name}'s cans. The friend has c + ${diff}.`, `c + (c + ${diff}) = ${total}`],
+        hints: [
+          `Let c = ${name}'s cans. The friend has ${diff} more, c + ${diff}. Together: c + (c + ${diff}) = ${total}.`,
+          `That's 2c + ${diff} = ${total}. Subtract ${diff}, then divide by 2.`,
+        ],
         steps: [
           st("Name the unknowns.", `Let c = ${name}'s cans. The friend has ${diff} more: c + ${diff}.`),
           st("Write an equation.", `c + (c + ${diff}) = ${total}, which is 2c + ${diff} = ${total}.`),
@@ -292,7 +328,10 @@ const wordEq: Skill = {
     return {
       prompt: `${name} buys ${n} identical shirts and uses a $${coupon} coupon. The total is $${total.toFixed(2)}. How much does each shirt cost?`,
       answer: num(fromDecimal(price), { pre: "$" }),
-      hints: [`${n}s − ${coupon} = ${total.toFixed(2)}`, `Add ${coupon}, then divide by ${n}.`],
+      hints: [
+        `Let s = the price of one shirt. ${n} shirts cost ${n}s, and the coupon takes off $${coupon}: ${n}s − ${coupon} = ${total.toFixed(2)}.`,
+        `Add the $${coupon} back: ${n}s = ${(total + coupon).toFixed(2)}. Then divide by ${n}.`,
+      ],
       steps: [
         st("Write an equation.", `Let s = price of one shirt. ${n} shirts minus the coupon = total: ${n}s − ${coupon} = ${total.toFixed(2)}.`),
         st(`Add the ${coupon} back on both sides.`, `${n}s = ${total.toFixed(2)} + ${coupon} = ${(total + coupon).toFixed(2)}`),

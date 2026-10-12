@@ -31,7 +31,10 @@ const exponents: Skill = {
       return {
         prompt: `${b}^${e} = ?`,
         answer: num(ans),
-        hints: [`Write it out: ${Array(e).fill(b).join(" × ")}.`, "Multiply step by step."],
+        hints: [
+          `The little ${e} says how many ${b}s to multiply: ${Array(e).fill(b).join(" × ")}. It does NOT mean ${b} × ${e}.`,
+          e === 2 ? `Multiply: ${b} × ${b} = ?` : `Go one step at a time: ${b} × ${b} = ${b * b}. Then keep multiplying by ${b} until you've used all ${e} of them.`,
+        ],
         steps: [
           st("An exponent means repeated multiplication.", `${b}^${e} means ${e} copies of ${b} multiplied together: ${Array(e).fill(b).join(" × ")}.`),
           st("Multiply one step at a time.", Array.from({ length: e - 1 }, (_, i) => `${b ** (i + 1)} × ${b} = ${b ** (i + 2)}`).join(", then ")),
@@ -48,7 +51,10 @@ const exponents: Skill = {
       return {
         prompt: `(${fr(f)})^${e} = ?`,
         answer: num(ans, { simplest: true }),
-        hints: [`Multiply ${fr(f)} by itself ${e} times.`, `Tops: ${f.n}^${e}. Bottoms: ${f.d}^${e}.`],
+        hints: [
+          `The ${e} means ${e} copies of ${fr(f)} multiplied: ${Array(e).fill(fr(f)).join(" × ")}.`,
+          `Multiply the tops: ${Array(e).fill(f.n).join(" × ")} = ? Then multiply the bottoms: ${Array(e).fill(f.d).join(" × ")} = ?`,
+        ],
         steps: [
           st("An exponent means repeated multiplication.", `(${fr(f)})^${e} = ${Array(e).fill(fr(f)).join(" × ")}`),
           st("Multiply the numerators.", `${Array(e).fill(f.n).join(" × ")} = ${f.n ** e}`),
@@ -64,7 +70,10 @@ const exponents: Skill = {
     return {
       prompt: `${b}^${e} = ?`,
       answer: num(fromDecimal(ans)),
-      hints: [`${b} × ${b}`, "Count decimal places: one in each factor makes two in the answer."],
+      hints: [
+        `Squaring means multiplying ${b} by itself: ${b} × ${b} (not ${b} × 2).`,
+        `Multiply without the decimal points: ${Math.round(b * 10)} × ${Math.round(b * 10)} = ? Each ${b} has 1 decimal place, so the answer needs 2.`,
+      ],
       steps: [st("Squaring means multiplying the number by itself.", `${b}^2 = ${b} × ${b}`), ...decimalMultiplySteps(b, b)],
       traps: traps(fromDecimal(ans), [trap(fromDecimal(b * 2), "That's doubling. Squaring means multiplying the number by itself.")]),
     };
@@ -101,20 +110,21 @@ const orderOps: Skill = {
     let ans = 0;
     let wrong = 0;
     let steps: string[] = [];
+    let hints: string[] = [];
     switch (f) {
-      case 0: expr = `${a} + ${b} × ${c}`; ans = a + b * c; wrong = (a + b) * c; steps = [st("No parentheses or exponents, so multiply before adding.", `${b} × ${c} = ${b * c}. The expression becomes ${a} + ${b * c}.`), st("Add.", `${a} + ${b * c} = ${ans}`)]; break;
-      case 1: expr = `(${a} + ${b}) × ${c}`; ans = (a + b) * c; wrong = a + b * c; steps = [st("Parentheses first.", `${a} + ${b} = ${a + b}. The expression becomes ${a + b} × ${c}.`), st("Multiply.", `${a + b} × ${c} = ${ans}`)]; break;
-      case 2: expr = `${b * c} ÷ ${c} + ${a} × ${d}`; ans = b + a * d; wrong = (b + a) * d; steps = [st("Do × and ÷ before +, working left to right.", `${b * c} ÷ ${c} = ${b} and ${a} × ${d} = ${a * d}.`), st("Rewrite.", `The expression becomes ${b} + ${a * d}.`), st("Add.", `${b} + ${a * d} = ${ans}`)]; break;
-      case 3: expr = `${a} × ${b}^2`; ans = a * b * b; wrong = (a * b) ** 2; steps = [st("Exponents before multiplying.", `${b}^2 = ${b} × ${b} = ${b * b}. The exponent belongs only to the number right before it.`), st("Rewrite.", `The expression becomes ${a} × ${b * b}.`), ...multiplySteps(a, b * b)]; break;
-      case 4: { const big = a * b + c; expr = `${big} − ${a} × ${b}`; ans = c; wrong = (big - a) * b; steps = [st("Multiply before subtracting.", `${a} × ${b} = ${a * b}. The expression becomes ${big} − ${a * b}.`), st("Subtract.", `${big} − ${a * b} = ${ans}`)]; break; }
-      case 5: { const big = 2 * d * d + a; expr = `${big} − 2 × ${d}^2`; ans = a; wrong = (big - 2) * d * d; steps = [st("Exponent first.", `${d}^2 = ${d * d}. Now it's ${big} − 2 × ${d * d}.`), st("Multiply next.", `2 × ${d * d} = ${2 * d * d}. Now it's ${big} − ${2 * d * d}.`), st("Subtract last.", `${big} − ${2 * d * d} = ${ans}`)]; break; }
-      case 6: expr = `(${a} + ${b})^2 ÷ ${a + b}`; ans = a + b; wrong = a * a + b * b; steps = [st("Parentheses first.", `${a} + ${b} = ${a + b}. Now it's ${a + b}^2 ÷ ${a + b}.`), st("Exponent next.", `${a + b}^2 = ${a + b} × ${a + b} = ${(a + b) ** 2}. Now it's ${(a + b) ** 2} ÷ ${a + b}.`), st("Divide.", `${(a + b) ** 2} ÷ ${a + b} = ${ans}`)]; break;
-      default: expr = `${c} × (${a} + ${b}) − ${d}^2`; ans = c * (a + b) - d * d; wrong = c * a + b - d * d; steps = [st("Parentheses first.", `${a} + ${b} = ${a + b}. Now it's ${c} × ${a + b} − ${d}^2.`), st("Exponent next.", `${d}^2 = ${d * d}. Now it's ${c} × ${a + b} − ${d * d}.`), st("Multiply.", `${c} × ${a + b} = ${c * (a + b)}. Now it's ${c * (a + b)} − ${d * d}.`), st("Subtract last.", `${c * (a + b)} − ${d * d} = ${ms(ans)}`)];
+      case 0: expr = `${a} + ${b} × ${c}`; ans = a + b * c; wrong = (a + b) * c; steps = [st("No parentheses or exponents, so multiply before adding.", `${b} × ${c} = ${b * c}. The expression becomes ${a} + ${b * c}.`), st("Add.", `${a} + ${b * c} = ${ans}`)]; hints = ["There are no parentheses or exponents, so multiply before you add, even though the + comes first.", `Do ${b} × ${c} first. Then add ${a} to that.`]; break;
+      case 1: expr = `(${a} + ${b}) × ${c}`; ans = (a + b) * c; wrong = a + b * c; steps = [st("Parentheses first.", `${a} + ${b} = ${a + b}. The expression becomes ${a + b} × ${c}.`), st("Multiply.", `${a + b} × ${c} = ${ans}`)]; hints = ["The parentheses say: do the adding inside them first.", `${a} + ${b} = ${a + b}. Now multiply ${a + b} × ${c}.`]; break;
+      case 2: expr = `${b * c} ÷ ${c} + ${a} × ${d}`; ans = b + a * d; wrong = (b + a) * d; steps = [st("Do × and ÷ before +, working left to right.", `${b * c} ÷ ${c} = ${b} and ${a} × ${d} = ${a * d}.`), st("Rewrite.", `The expression becomes ${b} + ${a * d}.`), st("Add.", `${b} + ${a * d} = ${ans}`)]; hints = ["Do the ÷ and the × before the +.", `Work out ${b * c} ÷ ${c} and ${a} × ${d}. Then add those two answers.`]; break;
+      case 3: expr = `${a} × ${b}^2`; ans = a * b * b; wrong = (a * b) ** 2; steps = [st("Exponents before multiplying.", `${b}^2 = ${b} × ${b} = ${b * b}. The exponent belongs only to the number right before it.`), st("Rewrite.", `The expression becomes ${a} × ${b * b}.`), ...multiplySteps(a, b * b)]; hints = [`Exponents come before multiplying, and the ^2 belongs only to the ${b}.`, `${b}^2 = ${b} × ${b} = ${b * b}. Now multiply ${a} × ${b * b}.`]; break;
+      case 4: { const big = a * b + c; expr = `${big} − ${a} × ${b}`; ans = c; wrong = (big - a) * b; steps = [st("Multiply before subtracting.", `${a} × ${b} = ${a * b}. The expression becomes ${big} − ${a * b}.`), st("Subtract.", `${big} − ${a * b} = ${ans}`)]; hints = ["Multiply before you subtract, even though the − comes first.", `Find ${a} × ${b} first. Then take that away from ${big}.`]; break; }
+      case 5: { const big = 2 * d * d + a; expr = `${big} − 2 × ${d}^2`; ans = a; wrong = (big - 2) * d * d; steps = [st("Exponent first.", `${d}^2 = ${d * d}. Now it's ${big} − 2 × ${d * d}.`), st("Multiply next.", `2 × ${d * d} = ${2 * d * d}. Now it's ${big} − ${2 * d * d}.`), st("Subtract last.", `${big} − ${2 * d * d} = ${ans}`)]; hints = ["Exponent first, then multiply, and subtract last.", `${d}^2 = ${d} × ${d} = ${d * d}. Next find 2 × ${d * d}.`, `Take that away from ${big}.`]; break; }
+      case 6: expr = `(${a} + ${b})^2 ÷ ${a + b}`; ans = a + b; wrong = a * a + b * b; steps = [st("Parentheses first.", `${a} + ${b} = ${a + b}. Now it's ${a + b}^2 ÷ ${a + b}.`), st("Exponent next.", `${a + b}^2 = ${a + b} × ${a + b} = ${(a + b) ** 2}. Now it's ${(a + b) ** 2} ÷ ${a + b}.`), st("Divide.", `${(a + b) ** 2} ÷ ${a + b} = ${ans}`)]; hints = ["Parentheses first, then the exponent, then divide.", `Add inside the parentheses: ${a} + ${b}. Then square that sum (multiply it by itself).`, `Last, divide your squared number by ${a + b}.`]; break;
+      default: expr = `${c} × (${a} + ${b}) − ${d}^2`; ans = c * (a + b) - d * d; wrong = c * a + b - d * d; steps = [st("Parentheses first.", `${a} + ${b} = ${a + b}. Now it's ${c} × ${a + b} − ${d}^2.`), st("Exponent next.", `${d}^2 = ${d * d}. Now it's ${c} × ${a + b} − ${d * d}.`), st("Multiply.", `${c} × ${a + b} = ${c * (a + b)}. Now it's ${c * (a + b)} − ${d * d}.`), st("Subtract last.", `${c * (a + b)} − ${d * d} = ${ms(ans)}`)]; hints = ["Order: parentheses, then the exponent, then multiply, then subtract.", `${a} + ${b} = ${a + b} and ${d}^2 = ${d * d}. Now it's ${c} × ${a + b} − ${d * d}.`, `Multiply ${c} × ${a + b} before you subtract ${d * d}.${ans < 0 ? " (The answer goes below zero.)" : ""}`];
     }
     return {
       prompt: `Evaluate: ${expr}`,
       answer: num(ans),
-      hints: ["Parentheses first, then exponents.", "Then multiply/divide left to right, then add/subtract left to right."],
+      hints,
       steps,
       traps: traps(F(ans), [trap(wrong, "Check the order: parentheses, exponents, multiply/divide, then add/subtract.")]),
     };
@@ -143,22 +153,22 @@ const writeExpr: Skill = {
     const v = r.pick(["n", "x", "y", "m", "k"]);
     const a = r.int(2, 12);
     const b = r.int(2, 9);
-    const bank: [string, string, (string | [string, string])[]][] = [
-      [`${a} more than ${v}`, `${v} + ${a}`, [`${a}${v}`, [`${v} − ${a}`, "“More than” means add."]]],
-      [`${a} less than ${v}`, `${v} − ${a}`, [[`${a} − ${v}`, "“Less than” flips the order: start with the variable."], `${v} + ${a}`]],
-      [`the product of ${a} and ${v}`, `${a}${v}`, [[`${a} + ${v}`, "Product means multiply."], `${v} ÷ ${a}`]],
-      [`the quotient of ${v} and ${a}`, `${v} ÷ ${a}`, [[`${a} ÷ ${v}`, "The first thing named is divided by the second."], `${a}${v}`]],
-      [`twice the sum of ${v} and ${b}`, `2(${v} + ${b})`, [[`2${v} + ${b}`, "“Twice the sum” doubles the whole sum, so use parentheses."], `2 + ${v} + ${b}`]],
-      [`${b} times the difference of ${v} and ${a}`, `${b}(${v} − ${a})`, [[`${b}${v} − ${a}`, "Multiply the whole difference, so use parentheses."], `${b}(${a} − ${v})`]],
-      [`${a} more than ${b} times ${v}`, `${b}${v} + ${a}`, [[`${b}(${v} + ${a})`, "Only the variable is multiplied by ${b}, then add.".replace("${b}", String(b))], `${a}${v} + ${b}`]],
-      [`half of ${v}, minus ${a}`, `${v} ÷ 2 − ${a}`, [[`(${v} − ${a}) ÷ 2`, "Take half of the variable first, then subtract."], `2${v} − ${a}`]],
+    const bank: [string, string, (string | [string, string])[], string[]][] = [
+      [`${a} more than ${v}`, `${v} + ${a}`, [`${a}${v}`, [`${v} − ${a}`, "“More than” means add."]], ["Find the key words: “more than”. Which operation makes a number bigger by adding on?", `Picture it: you have ${v} stickers and get ${a} more. How do you write the total?`]],
+      [`${a} less than ${v}`, `${v} − ${a}`, [[`${a} − ${v}`, "“Less than” flips the order: start with the variable."], `${v} + ${a}`], ["“Less than” means subtract, but the order is backwards from how you read it.", `${a} less than ${v} means start with ${v}, then take ${a} away. Which choice does that?`]],
+      [`the product of ${a} and ${v}`, `${a}${v}`, [[`${a} + ${v}`, "Product means multiply."], `${v} ÷ ${a}`], ["“Product” means the answer to a multiplication.", `A number written right next to a letter, like ${a}${v}, means ${a} × ${v}.`]],
+      [`the quotient of ${v} and ${a}`, `${v} ÷ ${a}`, [[`${a} ÷ ${v}`, "The first thing named is divided by the second."], `${a}${v}`], ["“Quotient” means the answer to a division.", `Order matters: the first thing named (${v}) gets divided by the second thing (${a}).`]],
+      [`twice the sum of ${v} and ${b}`, `2(${v} + ${b})`, [[`2${v} + ${b}`, "“Twice the sum” doubles the whole sum, so use parentheses."], `2 + ${v} + ${b}`], [`“Twice” means × 2, and “the sum of ${v} and ${b}” is ${v} + ${b}.`, "Twice the sum means the WHOLE sum gets doubled, so the sum needs parentheses around it."]],
+      [`${b} times the difference of ${v} and ${a}`, `${b}(${v} − ${a})`, [[`${b}${v} − ${a}`, "Multiply the whole difference, so use parentheses."], `${b}(${a} − ${v})`], [`“The difference of ${v} and ${a}” means ${v} − ${a}, in that order.`, `“${b} times” multiplies the WHOLE difference, so keep ${v} − ${a} together in parentheses.`]],
+      [`${a} more than ${b} times ${v}`, `${b}${v} + ${a}`, [[`${b}(${v} + ${a})`, "Only the variable is multiplied by ${b}, then add.".replace("${b}", String(b))], `${a}${v} + ${b}`], [`Find the two pieces: “${b} times ${v}” and “${a} more than” that.`, `Only ${v} is multiplied by ${b}. Then ${a} is added on, so no parentheses are needed.`]],
+      [`half of ${v}, minus ${a}`, `${v} ÷ 2 − ${a}`, [[`(${v} − ${a}) ÷ 2`, "Take half of the variable first, then subtract."], `2${v} − ${a}`], [`“Half of ${v}” means ${v} ÷ 2, and “minus ${a}” means subtract ${a}.`, `Take half of ${v} FIRST, then subtract ${a}. Which choice does it in that order?`]],
     ];
     const pool = lv === 1 ? bank.slice(0, 4) : lv === 2 ? bank.slice(2, 6) : bank.slice(4);
-    const [words, right, wrong] = r.pick(pool);
+    const [words, right, wrong, hints] = r.pick(pool);
     return {
       prompt: `Which expression means “${words}”?`,
       answer: choice(r, right, wrong),
-      hints: ["Find the operation words: sum, difference, product, quotient, more, less, twice.", "Watch the order with “less than” and use parentheses when a whole sum or difference is multiplied."],
+      hints,
       steps: [
         st("Find the operation words.", /more than .* times/.test(words) ? "“Times” means multiply, and “more than” means add. Only the variable is multiplied." : /less than/.test(words) ? "“Less than” means subtract, and it flips the order: start with the variable, then take the number away." : /more than/.test(words) ? "“More than” means add." : /product/.test(words) ? "“Product” means multiply. A number next to a variable (like 3x) means multiply." : /quotient/.test(words) ? "“Quotient” means divide: the first thing named ÷ the second." : /sum/.test(words) ? "“Sum” means add, and “twice the sum” doubles the WHOLE sum, so the sum goes in parentheses." : /difference/.test(words) ? "“Difference” means subtract, and “times the difference” multiplies the WHOLE difference, so it goes in parentheses." : "“Half of” means ÷ 2, and “minus” means subtract. Take half first, then subtract."),
         st("Write the expression.", `“${words}” → ${right}`),
@@ -190,16 +200,16 @@ const evaluate: Skill = {
       const which = r.int(0, 2);
       if (which === 0) {
         const s = r.int(2, 9);
-        return { prompt: `The volume of a cube is V = s^3. Find V when s = ${s}.`, answer: num(s ** 3), hints: [`Replace s with ${s}.`, `${s}^3 = ${s} × ${s} × ${s}.`], steps: [st("Substitute.", `V = ${s}^3`), st("Cubing means three copies multiplied.", `${s} × ${s} × ${s} = ${s * s} × ${s} = ${s ** 3}`), st("Answer.", `V = ${s ** 3} cubic units`)], traps: traps(F(s ** 3), [trap(3 * s, "s^3 means s × s × s, not 3 × s.")]) };
+        return { prompt: `The volume of a cube is V = s^3. Find V when s = ${s}.`, answer: num(s ** 3), hints: [`Put ${s} in place of s: V = ${s}^3.`, `${s}^3 means ${s} × ${s} × ${s}, not 3 × ${s}. Start with ${s} × ${s} = ${s * s}, then multiply by ${s} again.`], steps: [st("Substitute.", `V = ${s}^3`), st("Cubing means three copies multiplied.", `${s} × ${s} × ${s} = ${s * s} × ${s} = ${s ** 3}`), st("Answer.", `V = ${s ** 3} cubic units`)], traps: traps(F(s ** 3), [trap(3 * s, "s^3 means s × s × s, not 3 × s.")]) };
       }
       if (which === 1) {
         const l = r.int(3, 15);
         const w = r.int(2, 12);
-        return { prompt: `The perimeter of a rectangle is P = 2l + 2w. Find P when l = ${l} and w = ${w}.`, answer: num(2 * l + 2 * w), hints: [`Substitute: 2(${l}) + 2(${w}).`, "Multiply first, then add."], steps: [st("Substitute.", `P = 2(${l}) + 2(${w})`), st("Multiply first.", `2 × ${l} = ${2 * l} and 2 × ${w} = ${2 * w}`), st("Add.", `${2 * l} + ${2 * w} = ${2 * l + 2 * w}`)] };
+        return { prompt: `The perimeter of a rectangle is P = 2l + 2w. Find P when l = ${l} and w = ${w}.`, answer: num(2 * l + 2 * w), hints: [`Put the numbers in: P = 2(${l}) + 2(${w}). The 2 next to the parentheses means multiply.`, `Multiply first: 2 × ${l} and 2 × ${w}. Then add the two answers.`], steps: [st("Substitute.", `P = 2(${l}) + 2(${w})`), st("Multiply first.", `2 × ${l} = ${2 * l} and 2 × ${w} = ${2 * w}`), st("Add.", `${2 * l} + ${2 * w} = ${2 * l + 2 * w}`)] };
       }
       const t = r.int(2, 6);
       const d = 16 * t * t;
-      return { prompt: `A dropped ball falls d = 16t^2 feet in t seconds. How far does it fall in ${t} seconds?`, answer: num(d), hints: [`Square first: ${t}^2 = ${t * t}.`, `Then 16 × ${t * t}.`], steps: [st("Substitute.", `d = 16 × ${t}^2`), st("Exponent first.", `${t}^2 = ${t} × ${t} = ${t * t}. Only the t is squared.`), st("Multiply.", `16 × ${t * t} = ${d}`), st("Answer.", `${d} feet`)], traps: traps(F(d), [trap((16 * t) ** 2, "Only t is squared, not 16t. Square first, then multiply by 16.")]) };
+      return { prompt: `A dropped ball falls d = 16t^2 feet in t seconds. How far does it fall in ${t} seconds?`, answer: num(d), hints: [`Put ${t} in for t: d = 16 × ${t}^2. Only the t is squared, not the 16.`, `Square first: ${t}^2 = ${t} × ${t} = ${t * t}. Then multiply 16 × ${t * t}.`], steps: [st("Substitute.", `d = 16 × ${t}^2`), st("Exponent first.", `${t}^2 = ${t} × ${t} = ${t * t}. Only the t is squared.`), st("Multiply.", `16 × ${t * t} = ${d}`), st("Answer.", `${d} feet`)], traps: traps(F(d), [trap((16 * t) ** 2, "Only t is squared, not 16t. Square first, then multiply by 16.")]) };
     }
     const v = r.pick(["x", "n", "a"]);
     const val = lv === 1 ? r.int(1, 10) : r.pick([F(1, 2), F(3), F(5), F(3, 2), F(4)]);
@@ -208,24 +218,25 @@ const evaluate: Skill = {
     const b = r.int(1, 15);
     const V = fr(value);
     const sq = mul(value, value);
-    type Ex = [string, (x: typeof value) => ReturnType<typeof frac>, () => string[]];
+    type Ex = [string, (x: typeof value) => ReturnType<typeof frac>, () => string[], () => string[]];
+    const mv = mul(F(m), value);
     const exprs: Ex[] = lv === 1
       ? [
-          [`${m}${v} + ${b}`, (x) => frac(m * x.n + b * x.d, x.d), () => [st("Multiply first.", `${m} × ${V} = ${fr(mul(F(m), value))}`), st("Add.", `${fr(mul(F(m), value))} + ${b} = ${fr(add(mul(F(m), value), F(b)))}`)]],
-          [`${m}${v} − ${b}`, (x) => frac(m * x.n - b * x.d, x.d), () => [st("Multiply first.", `${m} × ${V} = ${fr(mul(F(m), value))}`), st("Subtract.", `${fr(mul(F(m), value))} − ${b} = ${ms(fr(sub(mul(F(m), value), F(b))))}`)]],
+          [`${m}${v} + ${b}`, (x) => frac(m * x.n + b * x.d, x.d), () => [st("Multiply first.", `${m} × ${V} = ${fr(mul(F(m), value))}`), st("Add.", `${fr(mul(F(m), value))} + ${b} = ${fr(add(mul(F(m), value), F(b)))}`)], () => [`Put ${V} in place of ${v}: ${m} × ${V} + ${b}. (${m}${v} means ${m} × ${v}.)`, `Multiply first: ${m} × ${V} = ? Then add ${b}.`]],
+          [`${m}${v} − ${b}`, (x) => frac(m * x.n - b * x.d, x.d), () => [st("Multiply first.", `${m} × ${V} = ${fr(mul(F(m), value))}`), st("Subtract.", `${fr(mul(F(m), value))} − ${b} = ${ms(fr(sub(mul(F(m), value), F(b))))}`)], () => [`Put ${V} in place of ${v}: ${m} × ${V} − ${b}. (${m}${v} means ${m} × ${v}.)`, `Multiply first: ${m} × ${V} = ? Then subtract ${b}.${mv.n < b * mv.d ? " (The answer goes below zero.)" : ""}`]],
         ]
       : [
-          [`${v}^2 + ${b}`, (x) => frac(x.n * x.n + b * x.d * x.d, x.d * x.d), () => [st("Exponent first.", `(${V})^2 = ${V} × ${V} = ${fr(sq)}`), st("Add.", `${fr(sq)} + ${b} = ${fr(add(sq, F(b)))}`)]],
-          [`${m}(${v} + ${b})`, (x) => frac(m * (x.n + b * x.d), x.d), () => [st("Parentheses first.", `${V} + ${b} = ${fr(add(value, F(b)))}`), st("Multiply.", `${m} × ${fr(add(value, F(b)))} = ${fr(mul(F(m), add(value, F(b))))}`)]],
-          [`${b * m} ÷ ${v} + ${m}`, (x) => frac(b * m * x.d + m * x.n, x.n), () => [st("Divide first.", `${b * m} ÷ ${V} = ${fr(div(F(b * m), value))}${value.d > 1 ? ` (dividing by ${V} is the same as multiplying by ${fr(F(value.d, value.n))})` : ""}`), st("Add.", `${fr(div(F(b * m), value))} + ${m} = ${fr(add(div(F(b * m), value), F(m)))}`)]],
+          [`${v}^2 + ${b}`, (x) => frac(x.n * x.n + b * x.d * x.d, x.d * x.d), () => [st("Exponent first.", `(${V})^2 = ${V} × ${V} = ${fr(sq)}`), st("Add.", `${fr(sq)} + ${b} = ${fr(add(sq, F(b)))}`)], () => [`Put ${V} in place of ${v}: ${value.d > 1 ? `(${V})` : V}^2 + ${b}. Do the exponent before adding.`, `${value.d > 1 ? `(${V})` : V}^2 means ${V} × ${V}${value.d > 1 ? " (multiply the tops and the bottoms)" : ""}. Then add ${b}.`]],
+          [`${m}(${v} + ${b})`, (x) => frac(m * (x.n + b * x.d), x.d), () => [st("Parentheses first.", `${V} + ${b} = ${fr(add(value, F(b)))}`), st("Multiply.", `${m} × ${fr(add(value, F(b)))} = ${fr(mul(F(m), add(value, F(b))))}`)], () => [`Put ${V} in place of ${v}: ${m}(${V} + ${b}). Parentheses come first.`, `${V} + ${b} = ${fr(add(value, F(b)))}. Now multiply ${m} × ${fr(add(value, F(b)))}.`]],
+          [`${b * m} ÷ ${v} + ${m}`, (x) => frac(b * m * x.d + m * x.n, x.n), () => [st("Divide first.", `${b * m} ÷ ${V} = ${fr(div(F(b * m), value))}${value.d > 1 ? ` (dividing by ${V} is the same as multiplying by ${fr(F(value.d, value.n))})` : ""}`), st("Add.", `${fr(div(F(b * m), value))} + ${m} = ${fr(add(div(F(b * m), value), F(m)))}`)], () => [`Put ${V} in place of ${v}: ${b * m} ÷ ${V} + ${m}. Divide before you add.`, value.d > 1 ? `Dividing by ${V} is the same as multiplying by its flip, ${fr(F(value.d, value.n))}: ${b * m} × ${fr(F(value.d, value.n))} = ? Then add ${m}.` : `${b * m} ÷ ${V} = ? Then add ${m}.`]],
         ];
-    const [expr, fn, how] = r.pick(exprs);
+    const [expr, fn, how, hint] = r.pick(exprs);
     const ans = fn(value);
     return {
       prompt: `Evaluate ${expr} when ${v} = ${V}.`,
       answer: num(ans),
-      hints: [`Replace ${v} with ${V}.`, "Use the order of operations."],
-      steps: [st("Substitute.", `Replace ${v} with ${V}: ${expr.replace(/(\d)(?=[a-z])/g, "$1 × ").replaceAll(v, `(${V})`)}`), ...how(), st("Answer.", fr(ans))],
+      hints: hint(),
+      steps: [st("Substitute.", `Replace ${v} with ${V}: ${expr.replace(/(\d)(?=[a-z])/g, "$1 × ").replaceAll(v, `(${V})`)}`), ...how(), st("Answer.", ms(fr(ans)))],
     };
   },
 };
@@ -257,7 +268,7 @@ const equivalent: Skill = {
       return {
         prompt: `Use the distributive property: ${a}(${v} + ${b}) = ?`,
         answer: { kind: "multi", fields: [{ value: F(a), post: v }, { value: F(a * b), pre: "+" }] },
-        hints: [`Multiply ${a} by each term inside.`, `${a} × ${v} and ${a} × ${b}.`],
+        hints: [`The ${a} outside multiplies EVERYTHING inside the parentheses: both the ${v} and the ${b}.`, `${a} × ${v} = ${a}${v}. Now find ${a} × ${b} for the second part.`],
         steps: [
           st("Distribute: multiply EACH term inside the parentheses by the number outside.", `${a} × ${v} = ${a}${v} and ${a} × ${b} = ${a * b}.`),
           st("Write the result.", `${a}(${v} + ${b}) = ${a}${v} + ${a * b}`),
@@ -274,7 +285,10 @@ const equivalent: Skill = {
       return {
         prompt: `Combine like terms: ${p}${v} + ${c} + ${q}${v}${d ? ` + ${d}` : ""} = ?`,
         answer: { kind: "multi", fields: [{ value: F(ans1), post: v }, { value: F(c + d), pre: "+" }] },
-        hints: [`Group the ${v}-terms and the number terms.`, `${p}${v} + ${q}${v} = ? and ${c}${d ? ` + ${d}` : ""} = ?`],
+        hints: [
+          `Like terms are the same kind of thing: the ${v}-terms (${p}${v} and ${q}${v}) go together${d ? `, and the plain numbers (${c} and ${d}) go together` : `. The plain number ${c} is a different kind`}.`,
+          `${p} ${v}'s plus ${q} more ${v}'s is how many ${v}'s? ${d ? `Then add the numbers: ${c} + ${d}.` : `The ${c} has nothing to combine with, so it stays.`}`,
+        ],
         steps: [
           st("Sort the terms into like terms.", `${v}-terms: ${p}${v} and ${q}${v}. Number terms: ${c}${d ? ` and ${d}` : ""}.`),
           st(`Combine the ${v}-terms.`, `${p}${v} + ${q}${v} = ${ans1}${v} (${p} ${v}'s plus ${q} more ${v}'s is ${ans1} ${v}'s).`),
@@ -293,7 +307,11 @@ const equivalent: Skill = {
     return {
       prompt: `Factor out the greatest common factor: ${g * a}${v} + ${g * b} = ?`,
       answer: { kind: "multi", fields: [{ value: F(G), post: "(" }, { value: F(a / inner), post: v }, { value: F(b / inner), pre: "+", post: ")" }] },
-      hints: [`What's the GCF of ${g * a} and ${g * b}?`, `GCF = ${G}. Divide each term by ${G}.`],
+      hints: [
+        `Find the greatest common factor (GCF): the biggest number that divides both ${g * a} and ${g * b}. List the factors of each.`,
+        `The GCF is ${G}. Divide each term by it: ${g * a}${v} ÷ ${G} and ${g * b} ÷ ${G}.`,
+        `Write ${G} outside the parentheses and those two answers inside, joined by +.`,
+      ],
       steps: [
         st("Find the GCF of the numbers.", `Look at ${g * a} (from ${g * a}${v}) and ${g * b}.`),
         ...gcfSteps(g * a, g * b),
@@ -329,18 +347,20 @@ const oneStep: Skill = {
     const kind = r.int(0, 3);
     const x = lv === 3 ? r.pick([F(r.int(1, 9), 2), fromDecimal(r.int(11, 99) / 10)]) : F(r.int(2, lv === 1 ? 15 : 40));
     const k = lv === 3 ? r.pick([F(1, 2), F(2, 3), F(3, 4), fromDecimal(r.int(2, 9) / 10), F(r.int(2, 9))]) : F(r.int(2, 12));
-    let eqn = "", steps: string[] = [], tr: ReturnType<typeof trap>[] = [];
+    let eqn = "", steps: string[] = [], tr: ReturnType<typeof trap>[] = [], hints: string[] = [];
+    const flip = (f: typeof x) => fr(F(f.d, f.n));
+    const sameDen = (a: typeof x, b: typeof x) => (a.d === 1 && b.d === 1 ? "" : a.d === b.d ? " The bottoms already match, so just work with the tops." : a.d === 1 || b.d === 1 ? ` Write the whole number ${a.d === 1 ? a.n : b.n} as a fraction over ${a.d === 1 ? b.d : a.d} first.` : " Give both fractions the same denominator first.");
     const show = (f: typeof x) => fr(f);
     switch (kind) {
-      case 0: { const sum = add(x, k); eqn = `${v} + ${show(k)} = ${show(sum)}`; steps = [st(`${show(k)} is added to ${v}. Undo it: subtract ${show(k)} from both sides.`, `${v} + ${show(k)} − ${show(k)} = ${show(sum)} − ${show(k)}`), st("Simplify both sides.", `${v} = ${show(x)}${x.d > 1 || k.d > 1 ? " (use a common denominator to subtract the fractions)" : ""}`), st("Check.", `${show(x)} + ${show(k)} = ${show(sum)} ✔`)]; tr = [trap(add(sum, k), "Subtraction undoes addition. Subtract to get the variable alone.")]; break; }
-      case 1: { const prod = mul(k, x); eqn = `${show(k)}${v} = ${show(prod)}`; steps = [st(`${v} is multiplied by ${show(k)}. Undo it: divide both sides by ${show(k)}.`, `${show(k)}${v} ÷ ${show(k)} = ${show(prod)} ÷ ${show(k)}`), ...(k.d > 1 ? [st("Dividing by a fraction means multiplying by its reciprocal.", `${show(prod)} ÷ ${show(k)} = ${show(prod)} × ${fr(F(k.d, k.n))}`), st("Multiply.", `{${prod.n} × ${k.d}/${prod.d} × ${k.n}} = ${raw(prod.n * k.d, prod.d * k.n)}`), ...simplifySteps(prod.n * k.d, prod.d * k.n)] : []), st("So", `${v} = ${show(x)}`), st("Check.", `${show(k)} × ${show(x)} = ${show(prod)} ✔`)]; tr = [trap(mul(prod, k), "The variable is multiplied, so divide (don't multiply) both sides.")]; break; }
-      case 2: { const q = div(x, k); eqn = `${v} ÷ ${show(k)} = ${show(q)}`; steps = [st(`${v} is divided by ${show(k)}. Undo it: multiply both sides by ${show(k)}.`, `${v} ÷ ${show(k)} × ${show(k)} = ${show(q)} × ${show(k)}`), st("Simplify.", `${v} = ${show(x)}`), st("Check.", `${show(x)} ÷ ${show(k)} = ${show(q)} ✔`)]; tr = [trap(div(q, k), "The variable is divided, so multiply both sides.")]; break; }
-      default: { const diff = sub(x, k); eqn = `${v} − ${show(k)} = ${ms(fr(diff))}`; steps = [st(`${show(k)} is subtracted from ${v}. Undo it: add ${show(k)} to both sides.`, `${v} − ${show(k)} + ${show(k)} = ${ms(fr(diff))} + ${show(k)}`), st("Simplify both sides.", `${v} = ${show(x)}`), st("Check.", `${show(x)} − ${show(k)} = ${ms(fr(diff))} ✔`)]; tr = [trap(sub(diff, k), "Subtraction is undone by adding.")]; }
+      case 0: { const sum = add(x, k); eqn = `${v} + ${show(k)} = ${show(sum)}`; steps = [st(`${show(k)} is added to ${v}. Undo it: subtract ${show(k)} from both sides.`, `${v} + ${show(k)} − ${show(k)} = ${show(sum)} − ${show(k)}`), st("Simplify both sides.", `${v} = ${show(x)}${x.d > 1 || k.d > 1 ? " (use a common denominator to subtract the fractions)" : ""}`), st("Check.", `${show(x)} + ${show(k)} = ${show(sum)} ✔`)]; tr = [trap(add(sum, k), "Subtraction undoes addition. Subtract to get the variable alone.")]; hints = [`${show(k)} is added to ${v}. To undo adding, subtract ${show(k)} from both sides.`, `Work out ${show(sum)} − ${show(k)}.${sameDen(sum, k)}`]; break; }
+      case 1: { const prod = mul(k, x); eqn = `${show(k)}${v} = ${show(prod)}`; steps = [st(`${v} is multiplied by ${show(k)}. Undo it: divide both sides by ${show(k)}.`, `${show(k)}${v} ÷ ${show(k)} = ${show(prod)} ÷ ${show(k)}`), ...(k.d > 1 ? [st("Dividing by a fraction means multiplying by its reciprocal.", `${show(prod)} ÷ ${show(k)} = ${show(prod)} × ${fr(F(k.d, k.n))}`), st("Multiply.", `{${prod.n} × ${k.d}/${prod.d} × ${k.n}} = ${raw(prod.n * k.d, prod.d * k.n)}`), ...simplifySteps(prod.n * k.d, prod.d * k.n)] : []), st("So", `${v} = ${show(x)}`), st("Check.", `${show(k)} × ${show(x)} = ${show(prod)} ✔`)]; tr = [trap(mul(prod, k), "The variable is multiplied, so divide (don't multiply) both sides.")]; hints = [`${v} is multiplied by ${show(k)}. To undo multiplying, divide both sides by ${show(k)}.`, k.d > 1 ? `Dividing by ${show(k)} is the same as multiplying by its flip, ${flip(k)}. Work out ${show(prod)} × ${flip(k)}.` : `Work out ${show(prod)} ÷ ${show(k)}.`]; break; }
+      case 2: { const q = div(x, k); eqn = `${v} ÷ ${show(k)} = ${show(q)}`; steps = [st(`${v} is divided by ${show(k)}. Undo it: multiply both sides by ${show(k)}.`, `${v} ÷ ${show(k)} × ${show(k)} = ${show(q)} × ${show(k)}`), st("Simplify.", `${v} = ${show(x)}`), st("Check.", `${show(x)} ÷ ${show(k)} = ${show(q)} ✔`)]; tr = [trap(div(q, k), "The variable is divided, so multiply both sides.")]; hints = [`${v} is divided by ${show(k)}. To undo dividing, multiply both sides by ${show(k)}.`, `Work out ${show(q)} × ${show(k)}.${q.d > 1 && k.d === 1 ? ` Multiply the top by ${show(k)}, then simplify.` : q.d > 1 || k.d > 1 ? " Multiply the tops, then the bottoms, then simplify." : ""}`]; break; }
+      default: { const diff = sub(x, k); eqn = `${v} − ${show(k)} = ${ms(fr(diff))}`; steps = [st(`${show(k)} is subtracted from ${v}. Undo it: add ${show(k)} to both sides.`, `${v} − ${show(k)} + ${show(k)} = ${ms(fr(diff))} + ${show(k)}`), st("Simplify both sides.", `${v} = ${show(x)}`), st("Check.", `${show(x)} − ${show(k)} = ${ms(fr(diff))} ✔`)]; tr = [trap(sub(diff, k), "Subtraction is undone by adding.")]; hints = [`${show(k)} is taken away from ${v}. To undo subtracting, add ${show(k)} to both sides.`, `Work out ${ms(fr(diff))} + ${show(k)}.${sameDen(diff, k)}`]; }
     }
     return {
       prompt: `Solve for ${v}: ${eqn}`,
       answer: num(x),
-      hints: [`What is being done to ${v}?`, "Do the opposite operation to both sides."],
+      hints,
       steps,
       traps: traps(x, tr),
     };
@@ -377,29 +397,34 @@ const inequalities: Skill = {
       const right = r.pick(good);
       return {
         prompt: `Which number is a solution to ${v} ${sym} ${c}?`,
-        answer: choice(r, String(right), bad.slice(0, 3).map((b) => [String(b), b === c ? `${c} is ${sym === ">" || sym === "<" ? "not included because the symbol is strict" : "included, but check the direction"}.` : `Is ${b} ${sym} ${c}? Check it.`] as [string, string])),
-        hints: ["Test each number in the inequality.", `${sym === ">" ? "Greater than" : sym === "<" ? "Less than" : sym === "≥" ? "Greater than or equal to" : "Less than or equal to"} ${c}.`],
+        answer: choice(r, ms(right), bad.slice(0, 3).map((b) => [ms(b), b === c ? `${c} is ${sym === ">" || sym === "<" ? "not included because the symbol is strict" : "included, but check the direction"}.` : `Is ${ms(b)} ${sym} ${c}? Check it.`] as [string, string])),
+        hints: [
+          `${v} ${sym} ${c} means ${v} is ${sym === ">" ? "greater than" : sym === "<" ? "less than" : sym === "≥" ? "greater than or equal to" : "less than or equal to"} ${c}. Try each choice in place of ${v}.`,
+          sym === ">" || sym === "<"
+            ? `${c} itself does NOT count, because the symbol has no line under it. Which choice is ${sym === ">" ? "bigger" : "smaller"} than ${c}?`
+            : `${c} itself counts (that's what the line under the symbol means). Which choice is ${c} or ${sym === "≥" ? "bigger" : "smaller"}?`,
+        ],
         steps: [
           st("Read the inequality.", `${v} ${sym} ${c} means ${v} is ${sym === ">" ? "greater than" : sym === "<" ? "less than" : sym === "≥" ? "greater than or equal to" : "less than or equal to"} ${c}.`),
-          st("Test each choice.", [right, ...bad.slice(0, 3)].sort((p, q) => p - q).map((x) => `${x} ${sym} ${c}? ${test(x) ? "yes ✔" : "no ✘"}`).join(" · ")),
-          st("Answer.", `${right} is a solution.`),
+          st("Test each choice.", [right, ...bad.slice(0, 3)].sort((p, q) => p - q).map((x) => `${ms(x)} ${sym} ${c}? ${test(x) ? "yes ✔" : "no ✘"}`).join(" · ")),
+          st("Answer.", `${ms(right)} is a solution.`),
         ],
       };
     }
-    const scenarios: [string, string, (string | [string, string])[]][] = [
-      [`You must be at least ${c} years old to join.`, `${v} ≥ ${c}`, [[`${v} > ${c}`, "“At least” includes the number itself."], [`${v} ≤ ${c}`, "“At least” means that number or more."], `${v} < ${c}`]],
-      [`The elevator can hold no more than ${c} people.`, `${v} ≤ ${c}`, [[`${v} < ${c}`, "“No more than” includes the number itself."], [`${v} ≥ ${c}`, "“No more than” means that number or fewer."], `${v} > ${c}`]],
-      [`The temperature stayed below ${c} degrees.`, `${v} < ${c}`, [[`${v} ≤ ${c}`, "“Below” doesn't include the number itself."], `${v} > ${c}`, `${v} ≥ ${c}`]],
-      [`You need more than ${c} points to win.`, `${v} > ${c}`, [[`${v} ≥ ${c}`, "“More than” doesn't include the number itself."], `${v} < ${c}`, `${v} ≤ ${c}`]],
+    const scenarios: [string, string, (string | [string, string])[], string][] = [
+      [`You must be at least ${c} years old to join.`, `${v} ≥ ${c}`, [[`${v} > ${c}`, "“At least” includes the number itself."], [`${v} ≤ ${c}`, "“At least” means that number or more."], `${v} < ${c}`], `“At least ${c}” means ${c} or more. Someone exactly ${c} is allowed, so you need a symbol with the “or equal” line.`],
+      [`The elevator can hold no more than ${c} people.`, `${v} ≤ ${c}`, [[`${v} < ${c}`, "“No more than” includes the number itself."], [`${v} ≥ ${c}`, "“No more than” means that number or fewer."], `${v} > ${c}`], `“No more than ${c}” means ${c} or fewer. Exactly ${c} people is allowed, so you need a symbol with the “or equal” line.`],
+      [`The temperature stayed below ${c} degrees.`, `${v} < ${c}`, [[`${v} ≤ ${c}`, "“Below” doesn't include the number itself."], `${v} > ${c}`, `${v} ≥ ${c}`], `“Below ${c}” means smaller than ${c}. Exactly ${c} is not below ${c}, so no “or equal” line.`],
+      [`You need more than ${c} points to win.`, `${v} > ${c}`, [[`${v} ≥ ${c}`, "“More than” doesn't include the number itself."], `${v} < ${c}`, `${v} ≤ ${c}`], `“More than ${c}” means bigger than ${c}. Exactly ${c} points is not enough, so no “or equal” line.`],
     ];
     if (lv === 2) {
-      const [text, right, wrong] = r.pick(scenarios);
+      const [text, right, wrong, hint2] = r.pick(scenarios);
       const incl = right.includes("≥") || right.includes("≤");
       const big = right.includes(">") || right.includes("≥");
       return {
         prompt: `${text} Which inequality matches?`,
         answer: choice(r, right, wrong),
-        hints: ["Does the situation include the number itself?", "“At least” → ≥, “no more than / at most” → ≤, “more than” → >, “less than / below” → <."],
+        hints: [`Ask two questions: should ${v} be bigger or smaller than ${c}? And is exactly ${c} allowed?`, hint2],
         steps: [
           st("Does the situation include the number itself?", incl ? `Yes: “at least” and “no more than” include ${c}, so use ≥ or ≤.` : `No: “more than” and “below” don't include ${c}, so use > or <.`),
           st("Which direction?", big ? `The values must be bigger than ${c}, so ${v} ${incl ? "≥" : ">"} ${c}.` : `The values must be smaller than ${c}, so ${v} ${incl ? "≤" : "<"} ${c}.`),
@@ -414,7 +439,10 @@ const inequalities: Skill = {
     return {
       prompt: `Which number-line graph shows ${v} ${sym} ${c}?`,
       answer: choice(r, desc(open, dir), [[desc(!open, dir), open ? "Strict inequalities (> or <) use an open circle." : "≥ and ≤ include the number, so use a closed circle."], [desc(open, dir === "right" ? "left" : "right"), "Check the direction of the symbol."], desc(!open, dir === "right" ? "left" : "right")]),
-      hints: ["Is the number itself included? Included → closed circle.", "Greater → shade right. Less → shade left."],
+      hints: [
+        `Circle first: does ${sym} include ${c} itself? If ${c} counts, use a filled-in (closed) circle; if not, an open circle.`,
+        `Then direction: ${v} must be ${dir === "right" ? "greater" : "less"} than ${c}. Which side of the number line has the ${dir === "right" ? "bigger" : "smaller"} numbers?`,
+      ],
       steps: [
         st("Open or closed circle?", open ? `${sym} does NOT include ${c} itself, so draw an open circle at ${c}.` : `${sym} includes ${c} (“or equal to”), so draw a closed (filled-in) circle at ${c}.`),
         st("Which way to shade?", dir === "right" ? `${v} must be greater than ${c}, and greater numbers are to the right.` : `${v} must be less than ${c}, and smaller numbers are to the left.`),
@@ -453,7 +481,7 @@ const twoVariables: Skill = {
         prompt: `The table follows the rule y = ${m}x. What is y when x = ${x}?`,
         visual: { type: "table", headers: ["x", "y"], rows },
         answer: num(m * x),
-        hints: [`Substitute x = ${x} into y = ${m}x.`, `${m} × ${x}`],
+        hints: [`The rule says y is always ${m} times x. You can check it in the table: x = 2 gives y = ${m} × 2 = ${2 * m}.`, `Put x = ${x} into the rule: y = ${m} × ${x} = ?`],
         steps: [st("Substitute the x-value into the rule.", `y = ${m}x, so y = ${m} × ${x}`), ...multiplySteps(m, x), st("Answer.", `y = ${m * x}`)],
       };
     }
@@ -462,7 +490,11 @@ const twoVariables: Skill = {
       prompt: `Which equation matches the table?`,
       visual: { type: "table", headers: ["x", "y"], rows },
       answer: choice(r, right, [[b ? `y = ${m}x` : `y = x + ${m}`, b ? "Check x = 1: does it give the right y?" : `x + ${m} works for x = 1 but not for x = 2. Check every row.`], b ? `y = ${m + b}x` : `y = ${m + 1}x`, [b ? `y = x + ${m + b}` : `y = ${m}x + ${m}`, "Check more than one row."]]),
-      hints: ["How much does y go up each time x goes up by 1?", b ? `y goes up by ${m} each time. What do you add to ${m}x to get ${m + b} when x = 1?` : `y goes up by ${m}; what do you multiply x by?`],
+      hints: [
+        `Look down the y column: ${rows.map((row) => row[1]).join(", ")}. How much does y go up each time x goes up by 1?`,
+        b ? `y goes up by ${m} each time, so the rule starts with ${m}x. But at x = 1, ${m}x is only ${m}, and the table says ${m + b}. What's added?` : `y goes up by ${m} each time, so x is multiplied by ${m}. Does anything else need to be added when x = 1?`,
+        "Test your rule on another row, like x = 3, before you pick.",
+      ],
       steps: [
         st("See how y changes when x goes up by 1.", `${rows.map((r) => r[1]).join(" → ")}: y goes up by ${m} each time.`),
         st(`So x is multiplied by ${m}.`, `The rule starts with y = ${m}x.`),

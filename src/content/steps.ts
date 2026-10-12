@@ -108,7 +108,7 @@ export function lcdStep(a: number, b: number): string {
 export function rewriteStep(f: Frac, L: number, which = ""): string {
   const k = L / f.d;
   if (k === 1) return st(`${which ? which + " " : ""}${raw(f.n, f.d)} already has denominator ${L}.`);
-  return st(`Rewrite ${which ? which + " " : ""}${raw(f.n, f.d)} in ${L}ths.`, `${L} ÷ ${f.d} = ${k}, so multiply the top and bottom by ${k}: {${minus(f.n)} × ${k}/${f.d} × ${k}} = ${raw(f.n * k, L)}.`);
+  return st(`Rewrite ${which ? which + " " : ""}${raw(f.n, f.d)} with ${L} on the bottom.`, `${L} ÷ ${f.d} = ${k}, so multiply the top and bottom by ${k}: {${minus(f.n)} × ${k}/${f.d} × ${k}} = ${raw(f.n * k, L)}.`);
 }
 
 /** Partial-products multiplication of two whole numbers, as steps. */

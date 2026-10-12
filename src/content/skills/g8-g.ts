@@ -33,16 +33,16 @@ const transform: Skill = {
     const y = r.nonzero(-5, 5);
     const kinds = lv === 1 ? ["translate", "reflect-x", "reflect-y"] : lv === 2 ? ["rotate180", "rotate90", "reflect-x", "reflect-y"] : ["dilate", "rotate90cw", "rotate90", "translate"];
     const kind = r.pick(kinds);
-    let nx = x, ny = y, desc = "", rule = "";
+    let nx = x, ny = y, desc = "";
     const dx = r.nonzero(-4, 4), dy = r.nonzero(-4, 4), k = r.pick([2, 3]);
     switch (kind) {
-      case "translate": nx = x + dx; ny = y + dy; desc = `translate it ${Math.abs(dx)} ${dx > 0 ? "right" : "left"} and ${Math.abs(dy)} ${dy > 0 ? "up" : "down"}`; rule = `(x ${dx > 0 ? "+" : "−"} ${Math.abs(dx)}, y ${dy > 0 ? "+" : "−"} ${Math.abs(dy)})`; break;
-      case "reflect-x": ny = -y; desc = "reflect it across the x-axis"; rule = "(x, −y)"; break;
-      case "reflect-y": nx = -x; desc = "reflect it across the y-axis"; rule = "(−x, y)"; break;
-      case "rotate180": nx = -x; ny = -y; desc = "rotate it 180° about the origin"; rule = "(−x, −y)"; break;
-      case "rotate90": nx = -y; ny = x; desc = "rotate it 90° counterclockwise about the origin"; rule = "(−y, x)"; break;
-      case "rotate90cw": nx = y; ny = -x; desc = "rotate it 90° clockwise about the origin"; rule = "(y, −x)"; break;
-      default: nx = k * x; ny = k * y; desc = `dilate it by a scale factor of ${k} centered at the origin`; rule = `(${k}x, ${k}y)`;
+      case "translate": nx = x + dx; ny = y + dy; desc = `translate it ${Math.abs(dx)} ${dx > 0 ? "right" : "left"} and ${Math.abs(dy)} ${dy > 0 ? "up" : "down"}`; break;
+      case "reflect-x": ny = -y; desc = "reflect it across the x-axis"; break;
+      case "reflect-y": nx = -x; desc = "reflect it across the y-axis"; break;
+      case "rotate180": nx = -x; ny = -y; desc = "rotate it 180° about the origin"; break;
+      case "rotate90": nx = -y; ny = x; desc = "rotate it 90° counterclockwise about the origin"; break;
+      case "rotate90cw": nx = y; ny = -x; desc = "rotate it 90° clockwise about the origin"; break;
+      default: nx = k * x; ny = k * y; desc = `dilate it by a scale factor of ${k} centered at the origin`;
     }
     const lim = Math.max(8, Math.abs(nx) + 1, Math.abs(ny) + 1);
     const pt = `(${ms(x)}, ${ms(y)})`;
@@ -97,10 +97,28 @@ const transform: Skill = {
           ];
       }
     };
+    const transformHints = (): string[] => {
+      switch (kind) {
+        case "translate":
+          return ["Left/right changes x; up/down changes y. Right and up add, left and down subtract.", `New x: ${ms(x)} ${dx > 0 ? "+" : "−"} ${Math.abs(dx)}. New y: ${ms(y)} ${dy > 0 ? "+" : "−"} ${Math.abs(dy)}.`];
+        case "reflect-x":
+          return ["Reflecting across the x-axis flips the point up ↔ down. The x-coordinate stays the same.", `x stays ${ms(x)}. A is ${Math.abs(y)} ${y > 0 ? "above" : "below"} the x-axis, so the image is ${Math.abs(y)} ${y > 0 ? "below" : "above"} it: change the sign of y.`];
+        case "reflect-y":
+          return ["Reflecting across the y-axis flips the point left ↔ right. The y-coordinate stays the same.", `y stays ${ms(y)}. A is ${Math.abs(x)} to the ${x > 0 ? "right" : "left"} of the y-axis, so the image is ${Math.abs(x)} to the ${x > 0 ? "left" : "right"}: change the sign of x.`];
+        case "rotate180":
+          return ["A half-turn about the origin sends the point straight through the origin to the opposite side: (x, y) → (−x, −y).", `Change the sign of BOTH numbers in ${pt}.`];
+        case "rotate90":
+          return ["Quarter-turn counterclockwise rule: (x, y) → (−y, x). Swap the two numbers, then change the sign of the new first number.", `Swap: ${pt} → (${ms(y)}, ${ms(x)}). Now change the sign of the first number.`];
+        case "rotate90cw":
+          return ["Quarter-turn clockwise rule: (x, y) → (y, −x). Swap the two numbers, then change the sign of the new second number.", `Swap: ${pt} → (${ms(y)}, ${ms(x)}). Now change the sign of the second number.`];
+        default:
+          return [`A dilation by ${k} from the origin multiplies BOTH coordinates by ${k}.`, `New x = ${k} × ${par(x)}. New y = ${k} × ${par(y)}.`];
+      }
+    };
     return {
       prompt: `Point A is at (${ms(x)}, ${ms(y)}). Click where A lands if you ${desc}.`,
       answer: { kind: "point", x: nx, y: ny, min: -lim, max: lim, extraPoints: [{ x, y, label: "A" }] },
-      hints: [`The rule is (x, y) → ${rule}.`, `Apply it: x = ${ms(x)}, y = ${ms(y)}.`],
+      hints: transformHints(),
       steps: transformSteps(),
     };
   },
@@ -130,8 +148,10 @@ const similarity: Skill = {
       const right = askNot ? options[3][0] : r.pick(options.slice(0, 3))[0];
       return {
         prompt: askNot ? "Which transformation does NOT always produce a congruent figure?" : "Which transformation always produces a congruent figure?",
-        answer: choice(r, right, options.filter(([t]) => t !== right).map(([t, rig]) => [t, rig ? "Slides, flips and turns keep the size the same." : "A dilation changes the size."] as [string, string])),
-        hints: ["Congruent means same size and shape.", "Which one changes the size?"],
+        answer: askNot
+          ? choice(r, right, options.slice(0, 3).map(([t]) => [t, "Slides, flips and turns keep the size the same."] as [string, string]))
+          : choice(r, right, ["a dilation by a factor of 2", "a dilation by a factor of 3", "a dilation by a factor of 0.5"].map((t) => [t, "A dilation changes the size, so the image is similar, not congruent."] as [string, string])),
+        hints: ["Congruent means exactly the same size AND shape. Picture doing each move to a paper triangle.", askNot ? "Sliding, flipping and turning never change the size. Which move can make the shape bigger or smaller?" : "A dilation makes the shape bigger or smaller. Which move only slides, flips or turns it?"],
         steps: [
           st("Congruent means same size AND same shape.", "So ask: which moves can change the size?"),
           st("Translations, reflections and rotations", "only slide, flip or turn the figure. The size never changes → always congruent."),
@@ -152,7 +172,7 @@ const similarity: Skill = {
       return {
         prompt: `A ${ph} ft tall person casts a ${ps} ft shadow. At the same time, a tree casts ${/^(8|11|18)/.test(String(ts)) ? "an" : "a"} ${ts} ft shadow. How tall is the tree?`,
         answer: num(fromDecimal(round(tree, 3)), { tolerance: 0.01 }),
-        hints: ["The person and the tree make similar triangles with their shadows.", `The tree's shadow is ${ts} ÷ ${ps} = ${ts / ps} times as long.`],
+        hints: ["The person and the tree make similar triangles with their shadows. So the tree is as many times taller as its shadow is longer.", `How many times as long is the tree's shadow? Work out ${ts} ÷ ${ps}. Then multiply the person's height, ${ph} ft, by that.`],
         steps: [
           st("Spot the similar triangles.", "The sun's rays hit the person and the tree at the same angle, so (height, shadow) make two similar right triangles."),
           st("Find the scale factor from the shadows.", `tree's shadow ÷ person's shadow = ${ts} ÷ ${ps} = ${ts / ps}`),
@@ -165,7 +185,7 @@ const similarity: Skill = {
     return {
       prompt: `Triangle ABC is similar to triangle DEF. AB = ${a}, BC = ${b}, and DE = ${a * k}. Find EF.`,
       answer: num(fromDecimal(ans)),
-      hints: [`Scale factor = DE ÷ AB = ${a * k} ÷ ${a} = ${k}.`, `EF = BC × ${k}.`],
+      hints: ["Match sides in letter order: AB goes with DE, and BC goes with EF. Find how many times bigger DEF is than ABC.", `Scale factor = DE ÷ AB = ${a * k} ÷ ${a}. Multiply BC (${b}) by that factor.`],
       steps: [
         st("Match corresponding sides.", "ABC ~ DEF, so AB ↔ DE, BC ↔ EF and CA ↔ FD (letters in the same order)."),
         st("Find the scale factor.", `DE ÷ AB = ${a * k} ÷ ${a} = ${k}`),
@@ -203,7 +223,12 @@ const angles8: Skill = {
       return {
         prompt: `Two parallel lines are cut by a transversal. One angle is ${a}°. What is the measure of its ${kind} angle?`,
         answer: num(ans),
-        hints: [kind === "same-side interior" ? "Same-side interior angles are supplementary." : `${kind[0].toUpperCase() + kind.slice(1)} angles are equal.`],
+        hints:
+          kind === "corresponding"
+            ? ["Corresponding angles sit in the same spot at each crossing, like both above the line and right of the transversal.", "The transversal crosses both parallel lines at the same tilt, so corresponding angles are equal (not adding to 180°)."]
+            : kind === "alternate interior"
+              ? ["Alternate interior angles are between the parallel lines, on opposite sides of the transversal. They make a Z shape.", "With parallel lines, alternate interior angles are always equal (not adding to 180°)."]
+              : ["Same-side interior angles are between the parallel lines, on the same side of the transversal. They make a C shape.", `They are supplementary: together they make 180°. So subtract: 180 − ${a}.`],
         steps:
           kind === "corresponding"
             ? [
@@ -232,7 +257,7 @@ const angles8: Skill = {
       return {
         prompt: `In a triangle, two interior angles are ${p}° and ${q}°. What is the exterior angle at the third vertex?`,
         answer: num(p + q),
-        hints: ["Exterior angle = sum of the two remote interior angles.", `${p} + ${q}`],
+        hints: ["The exterior angle sits next to the third interior angle on a straight line, so those two add to 180°.", `Find the third angle first: 180 − ${p} − ${q}. Then the exterior angle is 180 minus that.`],
         steps: [
           st("Picture it.", "The exterior angle and the third interior angle sit side by side on a straight line, so they add to 180°."),
           st("Find the third interior angle.", `The angles of a triangle add to 180°: 180 − ${p} − ${q} = ${180 - p - q}°`),
@@ -252,7 +277,7 @@ const angles8: Skill = {
     return {
       prompt: `In a triangle, the two remote interior angles measure (${k1}x)° and ${p2}°. The exterior angle at the third vertex is ${ext}°. What is x?`,
       answer: num(x),
-      hints: ["Exterior angle = sum of the two remote interior angles.", `${k1}x + ${p2} = ${ext}`],
+      hints: ["An exterior angle equals the two remote (far-away) interior angles added together. Write that as an equation.", `${k1}x + ${p2} = ${ext}. Subtract ${p2} from both sides, then divide by ${k1}.`],
       steps: [
         st("Use the exterior angle rule.", "Exterior angle = sum of the two remote interior angles."),
         st("Write the equation.", `${k1}x + ${p2} = ${ext}`),
@@ -292,7 +317,7 @@ const pythag: Skill = {
         prompt: `A right triangle has legs ${a} and ${b}. How long is the hypotenuse?`,
         visual: { type: "shape", shape: "righttriangle", labels: { a: String(a), b: String(b), c: "?" } },
         answer: num(c),
-        hints: ["a² + b² = c².", `${a}² + ${b}² = ${a * a} + ${b * b} = ${a * a + b * b}`],
+        hints: ["Use a² + b² = c²: square each leg, add them, then the hypotenuse c is the square root of the total.", `${a}² + ${b}² = ${a * a} + ${b * b} = ${a * a + b * b}. What number times itself makes ${a * a + b * b}?`],
         steps: [
           st("Use a² + b² = c².", "The legs are a and b; the hypotenuse c is the side across from the right angle."),
           st("Square the legs.", `${a}² = ${a * a} and ${b}² = ${b * b}`),
@@ -309,7 +334,7 @@ const pythag: Skill = {
         prompt: `A right triangle has hypotenuse ${c} and one leg ${findA ? b : a}. How long is the other leg?`,
         visual: { type: "shape", shape: "righttriangle", labels: { a: findA ? "?" : String(a), b: findA ? String(b) : "?", c: String(c) } },
         answer: num(findA ? a : b),
-        hints: ["The hypotenuse is c: leg² = c² − (other leg)².", `${c}² − ${findA ? b : a}²`],
+        hints: [`The hypotenuse (${c}) is the longest side, so subtract: missing leg² = ${c}² − ${findA ? b : a}².`, `${c}² − ${findA ? b : a}² = ${c * c} − ${(findA ? b : a) ** 2}. Work that out, then take the square root.`],
         steps: [
           st("Use a² + b² = c² with the hypotenuse c = " + c + ".", `${findA ? b : a}² + ?² = ${c}²`),
           st("Square what you know.", `${findA ? b : a}² = ${(findA ? b : a) ** 2} and ${c}² = ${c * c}`),
@@ -326,7 +351,7 @@ const pythag: Skill = {
       return {
         prompt: `Do sides ${sides.join(", ")} form a right triangle?`,
         answer: choice(r, right ? "Yes" : "No", [[right ? "No" : "Yes", `Check: ${sides[0]}² + ${sides[1]}² = ${sides[0] ** 2 + sides[1] ** 2} and ${sides[2]}² = ${sides[2] ** 2}.`]], true),
-        hints: ["Check whether a² + b² = c² with c the longest side."],
+        hints: ["A right triangle must fit a² + b² = c², with c the longest side.", `Work out ${sides[0]}² + ${sides[1]}² and ${sides[2]}². Are they equal?`],
         steps: [
           st("The longest side would have to be the hypotenuse.", `So test whether ${sides[0]}² + ${sides[1]}² = ${sides[2]}².`),
           st("Left side.", `${sides[0]}² + ${sides[1]}² = ${sides[0] ** 2} + ${sides[1] ** 2} = ${sides[0] ** 2 + sides[1] ** 2}`),
@@ -341,7 +366,7 @@ const pythag: Skill = {
     return {
       prompt: `A ladder leans against a wall. Its foot is ${p} ft from the wall and it reaches ${q} ft up the wall. How long is the ladder, to the nearest tenth of a foot?`,
       answer: num(round(h, 1), { tolerance: 0.051 }),
-      hints: ["The wall, ground and ladder make a right triangle; the ladder is the hypotenuse.", `√(${p}² + ${q}²) = √${p * p + q * q}`],
+      hints: ["The ground and the wall make a right angle, so they are the legs of a right triangle. The ladder is the hypotenuse.", `${p}² + ${q}² = ${p * p} + ${q * q} = ${p * p + q * q}. The ladder is √${p * p + q * q}: find it with a calculator and round to the nearest tenth.`],
       steps: [
         st("Draw the right triangle.", `The ground (${p} ft) and the wall (${q} ft) are the legs; the ladder is the hypotenuse.`),
         st("Square the legs and add.", `${p}² + ${q}² = ${p * p} + ${q * q} = ${p * p + q * q}`),
@@ -386,7 +411,11 @@ const distance: Skill = {
       prompt: `What is the distance between (${ms(x1)}, ${ms(y1)}) and (${ms(x2)}, ${ms(y2)})?${lv === 3 ? " Round to the nearest tenth." : ""}`,
       visual: Math.max(Math.abs(x2), Math.abs(y2), Math.abs(x1), Math.abs(y1)) <= 12 ? { type: "grid", min: -12, max: 12, points: [{ x: x1, y: y1 }, { x: x2, y: y2 }], polygon: [{ x: x1, y: y1 }, { x: x2, y: y1 }, { x: x2, y: y2 }] } : undefined,
       answer: num(lv === 3 ? fromDecimal(round(d, 1)) : F(d), { tolerance: lv === 3 ? 0.051 : undefined }),
-      hints: [`Horizontal distance: |${ms(x2)} − (${ms(x1)})| = ${dx}. Vertical: ${dy}.`, `d = √(${dx}² + ${dy}²)`],
+      hints: [
+        "Make a right triangle: one leg goes across (change in x), one goes up or down (change in y). The distance is the slanted side.",
+        `Across: ${ms(x2)} − ${par(x1)}, so that leg is ${dx} long. Up/down: ${ms(y2)} − ${par(y1)}, so that leg is ${dy} long.`,
+        `Now use a² + b² = c²: ${dx}² + ${dy}² = ?, then take the square root${lv === 3 ? " and round to the nearest tenth" : ""}.`,
+      ],
       steps: [
         st("Make a right triangle.", "Draw a horizontal leg and a vertical leg joining the two points. The distance is the hypotenuse."),
         st("Horizontal leg (change in x).", `${ms(x2)} − ${par(x1)} = ${ms(x2 - x1)}, so the leg is ${dx} long`),
@@ -430,7 +459,12 @@ const volume8: Skill = {
       prompt: `Find the volume of ${shapeDesc}. Give your answer in terms of π (type the number in front of π).`,
       visual: { type: "shape", shape: kind as "cylinder" | "cone" | "sphere", labels: kind === "sphere" ? { r: String(rad) } : { r: String(rad), h: String(h) } },
       answer: { kind: "multi", fields: [{ value: coef, post: "π" }] },
-      hints: [kind === "cylinder" ? "V = πr²h" : kind === "cone" ? "V = {1/3}πr²h" : "V = {4/3}πr³", kind === "sphere" ? `r³ = ${rad ** 3}` : `r² = ${rad * rad}`],
+      hints:
+        kind === "cylinder"
+          ? ["A cylinder is a stack of circles: V = πr²h (circle area πr², times the height). Keep π as a symbol.", `r² = ${rad} × ${rad} = ${rad * rad}. Multiply that by the height, ${h}.`]
+          : kind === "cone"
+            ? ["A cone holds {1/3} of the cylinder with the same base and height: V = {1/3}πr²h. Keep π as a symbol.", `r² = ${rad} × ${rad} = ${rad * rad}. Multiply by the height, ${h}, then divide by 3${coef.d === 1 ? "" : " (a fraction is OK)"}.`]
+            : ["Sphere volume: V = {4/3}πr³. Cube the radius, multiply by 4, then divide by 3. Keep π as a symbol.", `r³ = ${rad} × ${rad} × ${rad} = ${rad ** 3}. Now work out 4 × ${rad ** 3} ÷ 3 (a fraction is OK).`],
       steps:
         kind === "cylinder"
           ? [

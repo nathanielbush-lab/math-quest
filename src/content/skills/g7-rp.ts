@@ -5,6 +5,17 @@ import { fracDivide, percentDetail, simplifySteps, st } from "../steps";
 
 const T = "g7-rp";
 
+/** How to find p% of an amount in your head (the method percentDetail uses), without the result. */
+function pctHow(p: number, base: string): string {
+  if (p === 50) return `50% is half, so divide ${base} by 2.`;
+  if (p === 25) return `25% is a quarter, so divide ${base} by 4.`;
+  if (p === 10) return `10% is a tenth, so divide ${base} by 10.`;
+  if (p % 10 === 0) return `Find 10% first (${base} ÷ 10), then multiply by ${p / 10} to get ${p}%.`;
+  if (p === 5) return `5% is half of 10%: find ${base} ÷ 10, then halve it.`;
+  if (p % 5 === 0) return `Find 10% (${base} ÷ 10) and 5% (half of that). ${p}% is ${Math.floor(p / 10) > 1 ? `${Math.floor(p / 10)} × 10%` : "10%"} + 5%.`;
+  return `Find 1% first (${base} ÷ 100), then multiply by ${p} to get ${p}%.`;
+}
+
 const complexRate: Skill = {
   id: "g7.rp.complex-rate",
   title: "Unit rates with fractions",
@@ -34,7 +45,10 @@ const complexRate: Skill = {
       return {
         prompt: `A recipe uses ${fr(sugar)} cup of sugar for every ${fr(flour)} cup of flour. How many cups of sugar is that per cup of flour?`,
         answer: num(ans),
-        hints: ["Unit rate = sugar ÷ flour.", `${fr(sugar)} ÷ ${fr(flour)}`],
+        hints: [
+          `You want the sugar for ONE cup of flour, so divide sugar by flour: ${fr(sugar)} ÷ ${fr(flour)}.`,
+          `Keep, change, flip: ${fr(sugar)} × ${fr(F(flour.d, flour.n))}. Then multiply the tops and the bottoms.`,
+        ],
         steps: [
           st("A unit rate is “per ONE”.", `We want cups of sugar for 1 cup of flour, so divide sugar by flour: ${fr(sugar)} ÷ ${fr(flour)}.`),
           st("Keep, change, flip.", fracDivide(sugar, flour)),
@@ -46,7 +60,11 @@ const complexRate: Skill = {
     return {
       prompt: `${r.pick(NAMES)} ${verb} ${mixed(d)} ${d.n === d.d ? one : thing} in ${fr(t)} ${per}. What is the rate in ${thing} per ${per}?`,
       answer: num(rate),
-      hints: [`Rate = ${thing} ÷ ${per}s.`, `${mixed(d)} ÷ ${fr(t)} = ${mixed(d)} × ${t.d}`],
+      hints: [
+        `You want ${thing} in ONE whole ${per}, so divide ${thing} by ${per}s: ${mixed(d)} ÷ ${fr(t)}.`,
+        `Dividing by ${fr(t)} is the same as multiplying by ${t.d}: a whole ${per} has ${t.d} pieces of ${fr(t)} ${per}. So find ${mixed(d)} × ${t.d}.`,
+        ...(d.d > 1 && d.n > d.d ? [`Write ${mixed(d)} as ${fr(d)} first, then multiply the top by ${t.d}.`] : []),
+      ],
       steps: [
         st(`Rate = ${thing} ÷ ${per}s.`, `${mixed(d)} ÷ ${fr(t)}`),
         st("Keep, change, flip.", fracDivide(d, t)),
@@ -85,7 +103,7 @@ const proportional: Skill = {
         prompt: `The table shows a proportional relationship. What is the constant of proportionality (k in y = kx)?`,
         visual: { type: "table", headers: ["x", "y"], rows: xs.map((x) => [x, k * x]) },
         answer: num(k),
-        hints: ["k = y ÷ x for any row.", `${k * xs[0]} ÷ ${xs[0]}`],
+        hints: ["In a proportional table, y ÷ x gives the same number in every row. That number is k.", `Use the first row: x = ${xs[0]} and y = ${k * xs[0]}. Divide y by x.`],
         steps: [
           st("In a proportional relationship, y ÷ x is the same in every row.", "That number is k, the constant of proportionality."),
           st("Divide y by x in one row.", `${k * xs[0]} ÷ ${xs[0]} = ${k}`),
@@ -104,7 +122,10 @@ const proportional: Skill = {
         prompt: `Is the relationship in this table proportional?`,
         visual: { type: "table", headers: ["x", "y"], rows },
         answer: choice(r, prop ? `Yes, y ÷ x is always ${k}` : "No, y ÷ x is not the same for every row", [prop ? ["No, y ÷ x is not the same for every row", "Check y ÷ x for each row. Are they equal?"] : [`Yes, y ÷ x is always ${round(k + b, 2)}`, `Try the second row: ${rows[1][1]} ÷ 2 isn't ${round(k + b, 2)}.`], "Yes, because y increases when x increases"]),
-        hints: ["Find y ÷ x for every row.", "Proportional only if every ratio is the same."],
+        hints: [
+          `Divide y by x in every row. Start with the first row: ${rows[0][1]} ÷ ${rows[0][0]}.`,
+          "If every row gives the same number, it's proportional. If even one row is different, it isn't. (Both going up together is not enough.)",
+        ],
         steps: [
           st("Find y ÷ x for every row.", rows.map(([x, y]) => `${y} ÷ ${x} = ${round(Number(y) / Number(x), 3)}`).join("; ")),
           st("Compare the results.", prop ? `They're all ${k}, so the relationship is proportional: y = ${k}x.` : "They're not all the same, so it's NOT proportional."),
@@ -117,7 +138,10 @@ const proportional: Skill = {
       prompt: `The graph shows a proportional relationship. Use the point at x = 1 (or any point) to find k.`,
       visual: { type: "grid", min: 0, max: 10, lines: [{ m: kk, b: 0 }], points: kk === 0.5 || kk === 1.5 ? [{ x: 2, y: 2 * kk }] : [{ x: 1, y: kk }] },
       answer: num(fromDecimal(kk)),
-      hints: ["k = y ÷ x for any point on the line.", "The point (1, k) shows the unit rate."],
+      hints: [
+        "k = y ÷ x for any point on the line. Find a point that sits exactly on grid lines.",
+        kk === 0.5 || kk === 1.5 ? "Look at the dot at x = 2. Read how high it is (its y-value), then divide that by 2." : "Look at the dot at x = 1. Its y-value is y ÷ 1, which is k itself.",
+      ],
       steps: [
         st("Pick a point on the line with easy coordinates.", kk === 0.5 || kk === 1.5 ? `(2, ${2 * kk}) is on the line.` : `(1, ${kk}) is on the line.`),
         st("k = y ÷ x.", kk === 0.5 || kk === 1.5 ? `${2 * kk} ÷ 2 = ${kk}` : `${kk} ÷ 1 = ${kk}. The point (1, k) always shows the unit rate.`),
@@ -158,7 +182,10 @@ const solveProportion: Skill = {
       return {
         prompt: `Solve for n: {${x}/${x * k}} = {${y}/n}`,
         answer: num(y * k),
-        hints: [`The bottom of the first ratio is ${k} times its top.`, `So n = ${y} × ${k}.`],
+        hints: [
+          `Equal ratios keep the same relationship between top and bottom. In {${x}/${x * k}}, how many times bigger is the bottom than the top?`,
+          `${x * k} ÷ ${x} = ${k}, so the bottom is ${k} times the top. In {${y}/n} it's the same: n is ${k} times ${y}.`,
+        ],
         steps: [
           st("Compare the top and bottom of the first ratio.", `${x * k} ÷ ${x} = ${k}, so the bottom is ${k} times the top.`),
           st("Keep the same relationship in the second ratio.", `n = ${y} × ${k} = ${y * k}`),
@@ -170,7 +197,11 @@ const solveProportion: Skill = {
     return {
       prompt: `${a} ${item} cost ${money(round(unit * a, 2))}. At the same price, how much do ${b} ${item} cost?`,
       answer: num(fromDecimal(ans), { pre: "$" }),
-      hints: [`Find the cost of 1: ${money(round(unit * a, 2))} ÷ ${a}.`, `Then multiply by ${b}.`],
+      hints: [
+        `Find the price of ONE first (the unit price). Then multiply to get the cost of ${b}.`,
+        `One costs ${money(round(unit * a, 2))} ÷ ${a}.${Number.isInteger(unit) ? "" : ` Tip: think in cents: ${Math.round(unit * a * 100)} ÷ ${a}.`}`,
+        `Now multiply the price of one by ${b}.`,
+      ],
       steps: [
         st("Find the unit price (the cost of ONE).", `${money(round(unit * a, 2))} ÷ ${a} = ${money(unit)}${Number.isInteger(unit) ? "" : ` (in cents: ${Math.round(unit * a * 100)} ÷ ${a} = ${Math.round(unit * 100)} cents)`}`),
         st(`Multiply by the number you want, ${b}.`, `${b} × ${money(unit)} = ${money(ans)}`),
@@ -207,7 +238,10 @@ const percentApps: Skill = {
       return {
         prompt: `A $${price} item is on sale for ${p}% off. What is the sale price?`,
         answer: num(fromDecimal(ans), { pre: "$" }),
-        hints: [`Find ${p}% of ${price}, then subtract.`, `Or find ${100 - p}% of ${price}.`],
+        hints: [
+          `Sale price = original price − discount. First find the discount, ${p}% of $${price}.`,
+          `${pctHow(p, `$${price}`)} Then subtract that discount from $${price}.`,
+        ],
         steps: [
           st("Find the discount.", percentDetail(p, price, true)),
           st("Subtract the discount from the price.", `${money(price)} − ${money(round((price * p) / 100, 2))} = ${money(ans)}`),
@@ -226,7 +260,11 @@ const percentApps: Skill = {
       return {
         prompt,
         answer: num(fromDecimal(ans), { pre: "$", tolerance: 0.011 }),
-        hints: [`Find ${p}% of ${money(base)}.`, "Add it to the original amount."],
+        hints: [
+          `Total = original amount + the ${kind}. First find the ${kind}: ${p}% of ${money(base)}.`,
+          `${pctHow(p, money(base))} Round to the nearest cent if needed.`,
+          `Add the ${kind} to ${money(base)}.`,
+        ],
         steps: [
           st(`Find the ${kind}.`, percentDetail(p, base, true)),
           ...(Math.abs(round((base * p) / 100, 2) - (base * p) / 100) > 1e-9 ? [st("Round to the nearest cent.", `${money(round((base * p) / 100, 2))}`)] : []),
@@ -243,7 +281,10 @@ const percentApps: Skill = {
     return {
       prompt: `A price changed from ${money(orig)} to ${money(now)}. What is the percent ${up ? "increase" : "decrease"}?`,
       answer: num(pct, { unit: "%" }),
-      hints: [`Change = ${up ? `${now} − ${orig}` : `${orig} − ${now}`}.`, `Divide the change by the ORIGINAL amount (${orig}), then ×100.`],
+      hints: [
+        `Percent change compares the change to the ORIGINAL price. First find the change: ${up ? `${money(now)} − ${money(orig)}` : `${money(orig)} − ${money(now)}`}.`,
+        `Divide the change by the original price, ${money(orig)}. Then turn that decimal into a percent (× 100).`,
+      ],
       steps: [
         st("Find the amount of change.", up ? `${money(now)} − ${money(orig)} = ${money(Math.abs(now - orig))}` : `${money(orig)} − ${money(now)} = ${money(Math.abs(now - orig))}`),
         st("Compare the change to the ORIGINAL price.", `{${round(Math.abs(now - orig), 2)}/${orig}}`),

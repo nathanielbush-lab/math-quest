@@ -1,9 +1,51 @@
 import { add, div, fromDecimal, gcd, lcm, mul, toNum } from "../../lib/rational";
 import { F, NAMES, choice, fr, mixed, ms, num, round, sn, trap, traps } from "../helpers";
 import type { Skill } from "../types";
-import { decimalAddSubSteps, decimalDivideSteps, decimalMultiplySteps, finishSteps, gcfSteps, longDivisionSteps, raw, rewriteStep, st, toImproperStep } from "../steps";
+import { decimalAddSubSteps, decimalDivideSteps, decimalMultiplySteps, finishSteps, gcfSteps, longDivisionSteps, places as placesOf, raw, rewriteStep, st, toImproperStep } from "../steps";
 
 const T = "g6-ns";
+
+/** Last hint for a fraction answer: what is left to do with n/d (simplify and/or make mixed), or "" if nothing. */
+function finishHint(n: number, d: number): string {
+  const g = gcd(n, d);
+  const improper = n / g > d / g && d / g > 1;
+  if (g > 1 && d / g === 1) return `${raw(n, d)} is a whole number: ${n} ÷ ${d} = ?`;
+  if (g > 1) return `Simplify ${raw(n, d)}: divide the top and bottom by ${g}.${improper ? " Then change it to a mixed number." : ""}`;
+  if (improper) return `${raw(n, d)} is more than 1 whole. Change it to a mixed number: how many ${d}s fit in ${n}?`;
+  return "";
+}
+
+/** Same as finishHint, for a hint that already names n/d ("Multiply across to get n/d. …"). */
+function finishAfter(n: number, d: number): string {
+  const g = gcd(n, d);
+  const improper = n / g > d / g && d / g > 1;
+  if (g > 1 && d / g === 1) return `That's a whole number: ${n} ÷ ${d} = ?`;
+  if (g > 1) return `Simplify: divide the top and bottom by ${g}.${improper ? " Then change it to a mixed number." : ""}`;
+  if (improper) return `That's more than 1 whole, so change it to a mixed number: how many ${d}s fit in ${n}?`;
+  return "";
+}
+
+/** "Multiply the tops and bottoms" hint that shows the product only when there is still work left after it. */
+function multiplyHint(an: number, ad: number, bn: number, bd: number): string[] {
+  const finish = finishHint(an * bn, ad * bd);
+  if (!finish) return [`Multiply the tops (${an} × ${bn}) and the bottoms (${ad} × ${bd}).`];
+  return [`Multiply the tops and the bottoms: {${an} × ${bn}/${ad} × ${bd}} = ${raw(an * bn, ad * bd)}.`, finish];
+}
+
+/** Hint for finding the GCF of a and b, matching gcfSteps (factor lists for small numbers, dividing out common primes for big ones). */
+function gcfHint(a: number, b: number): string {
+  if (Math.max(a, b) <= 60) return `List the factors of ${Math.min(a, b)}: ${factorList(Math.min(a, b))}. The biggest one that also divides ${Math.max(a, b)} is the GCF.`;
+  return `Check if both divide by 2, 3, 5, 7 or 11. Divide out each one they share (more than once if you can), then multiply what you took out.`;
+}
+
+function factorList(n: number): string {
+  const out: number[] = [];
+  for (let i = 1; i <= n; i++) if (n % i === 0) out.push(i);
+  return out.join(", ");
+}
+
+/** "1 pencil", "3 pencils". */
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 const divVisual: Skill = {
   id: "g6.ns.div-groups",
@@ -25,7 +67,7 @@ const divVisual: Skill = {
     { kind: "written", prompt: "Explain with a drawing in words why 3 cups ÷ {3/4} cup per serving gives 4 servings.", keyIdeas: ["split each cup into fourths: 12 fourths", "each serving uses 3 fourths", "12 ÷ 3 = 4 servings"], exemplar: "I cut each of the 3 cups into 4 fourths, so there are 12 fourths. Each serving is 3 fourths, so I make groups of 3. 12 ÷ 3 = 4 servings." },
   ],
   generate(r, lv) {
-    const items = [["cups of rice", "cup", "serving"], ["pounds of trail mix", "pound", "bag"], ["yards of ribbon", "yard", "bow"], ["meters of rope", "meter", "piece"], ["hours", "hour", "practice session"]];
+    const items = [["cups of rice", "cup", "serving"], ["pounds of trail mix", "pound", "bag"], ["yards of ribbon", "yard", "bow"], ["meters of rope", "meter", "jump rope"], ["hours", "hour", "practice session"]];
     const [what, unit, group] = r.pick(items);
     let a: number, b: number, total: number;
     if (lv === 1) {
@@ -46,7 +88,14 @@ const divVisual: Skill = {
       return {
         prompt: `How many ${fr(small)}s are in ${fr(big)}? (Think: ${fr(big)} ÷ ${fr(small)})`,
         answer: num(k),
-        hints: [`Rewrite both with the same denominator.`, `${fr(big)} = ${fr(big.n * (small.d / big.d), small.d)}. How many ${fr(1, small.d)}s is that?`],
+        hints: [
+          `Dividing asks: how many ${fr(small)}-size pieces fit into ${fr(big)}?`,
+          big.d === small.d
+            ? `Picture a bar cut into ${small.d} equal parts with ${fr(big)} shaded. Each part is ${fr(small)}. Count the shaded parts.`
+            : big.d === 1
+              ? `Each whole holds ${small.d} pieces of size ${fr(small)}. You have ${plural(big.n, "whole")}: ${big.n} × ${small.d} = ?`
+              : `Make the pieces the same size: rewrite ${fr(big)} with ${small.d} on the bottom (multiply the top and bottom by the same number). The new top counts the ${fr(small)}s.`,
+        ],
         steps: [
           st("Think about what division asks.", `${fr(big)} ÷ ${fr(small)} asks: how many ${fr(small)}-size pieces fit into ${fr(big)}?`),
           ...(big.d === small.d ? [] : [rewriteStep(big, small.d)]),
@@ -61,7 +110,13 @@ const divVisual: Skill = {
     return {
       prompt: `You have ${total} ${what}. Each ${group} uses ${fr(piece)} ${unit}. How many ${group}s can you make?`,
       answer: num(ans),
-      hints: [`How many ${fr(1, b)}s are in ${total} ${unit}s?`, `${total} × ${b} = ${total * b} pieces of size ${fr(1, b)}. Each ${group} uses ${a} of them.`],
+      hints:
+        a === 1
+          ? [`Cut every ${unit} into ${b} equal parts. Each part is ${fr(1, b)} ${unit}, which is exactly one ${group}.`, `Each ${unit} makes ${b} ${group}s, and you have ${total} ${unit}s: ${total} × ${b} = ?`]
+          : [
+              `Cut every ${unit} into ${b} equal parts of ${fr(1, b)} ${unit}. Each ${group} uses ${a} of those parts.`,
+              `${total} ${unit}s × ${b} parts each = ${total * b} parts. How many groups of ${a} can you make? ${total * b} ÷ ${a} = ?`,
+            ],
       steps: [
         st("Decide what to find.", `How many ${fr(piece)}-${unit} ${group}s fit into ${total} ${unit}s? That's ${total} ÷ ${fr(piece)}.`),
         st(`Cut every ${unit} into ${b} equal pieces.`, `Each piece is ${fr(1, b)} ${unit}. ${total} ${unit}s × ${b} pieces each = ${total * b} pieces.`),
@@ -108,7 +163,24 @@ const divFractions: Skill = {
     return {
       prompt: `${show(x)} ÷ ${show(y)} = ?`,
       answer: num(ans, { simplest: true }),
-      hints: [...(lv === 3 ? ["Change mixed numbers to improper fractions."] : []), `Keep the first fraction, change ÷ to ×, and flip the second: × ${fr(recip)}.`, `${fr(x)} × ${fr(recip)}: multiply tops and bottoms, then simplify.`],
+      hints: (() => {
+        const mixedOnes = [x, y].filter((f) => lv === 3 && f.d > 1 && f.n > f.d);
+        const flipText = y.d === 1 ? `${y.n} (that's {${y.n}/1})` : fr(y);
+        const recipText = recip.d === 1 ? `{${recip.n}/1}` : fr(recip);
+        const pn = x.n * recip.n, pd = x.d * recip.d;
+        const finish = finishHint(pn, pd);
+        if (mixedOnes.length) {
+          return [
+            `Change ${mixedOnes.map((f) => mixed(f)).join(" and ")} to ${mixedOnes.length > 1 ? "improper fractions" : "an improper fraction"} first: whole × bottom + top gives the new top.`,
+            `Now keep, change, flip: ${fr(x)} ÷ ${y.d === 1 ? y.n : fr(y)} = ${fr(x)} × ${recipText}.`,
+            finish ? `Multiply across to get ${raw(pn, pd)}. ${finishAfter(pn, pd)}` : `Multiply the tops (${x.n} × ${recip.n}) and the bottoms (${x.d} × ${recip.d}).`,
+          ];
+        }
+        return [
+          `Dividing by a number is the same as multiplying by its reciprocal (flip it upside down). Keep ${fr(x)}, change ÷ to ×, and flip ${flipText}.`,
+          ...multiplyHint(x.n, x.d, recip.n, recip.d).map((h, k) => (k === 0 ? `Now it's ${fr(x)} × ${recipText}. ${h}` : h)),
+        ];
+      })(),
       steps: [
         ...(lv === 3 && x.d > 1 && x.n > x.d ? [toImproperStep(x)] : []),
         ...(lv === 3 && y.d > 1 && y.n > y.d ? [toImproperStep(y)] : []),
@@ -149,9 +221,12 @@ const divWord: Skill = {
       const people = r.int(2, 5);
       const ans = div(amt, F(people));
       return {
-        prompt: `${name} has ${fr(amt)} pound of fudge to share equally among ${people} friends. How many pounds does each friend get?`,
+        prompt: `${name} has ${fr(amt)} pound${toNum(amt) > 1 ? "s" : ""} of fudge to share equally among ${people} friends. How many pounds does each friend get?`,
         answer: num(ans, { simplest: true }),
-        hints: [`The fudge is being split into ${people} equal parts: ${fr(amt)} ÷ ${people}.`, `Dividing by ${people} is multiplying by ${fr(1, people)}.`],
+        hints: [
+          `Sharing equally means dividing: split ${fr(amt)} pound into ${people} equal shares, so ${fr(amt)} ÷ ${people}.`,
+          ...multiplyHint(amt.n, amt.d, 1, people).map((h, k) => (k === 0 ? `Dividing by ${people} is the same as multiplying by ${fr(1, people)}: ${fr(amt)} × ${fr(1, people)}. ${h}` : h)),
+        ],
         steps: [
           st("Decide the operation.", `${fr(amt)} pound is split into ${people} equal shares, so divide: ${fr(amt)} ÷ ${people}.`),
           st("Dividing by a whole number = multiplying by its reciprocal.", `${fr(amt)} ÷ ${people} = ${fr(amt)} × {1/${people}}`),
@@ -170,7 +245,13 @@ const divWord: Skill = {
       return {
         prompt: `A walking track is ${fr(lap)} mile around. How many laps does ${name} need to walk ${mixed(total)} miles?`,
         answer: num(ans),
-        hints: [`How many ${fr(lap)}-mile laps fit into ${mixed(total)} miles?`, `${mixed(total)} ÷ ${fr(lap)} = ${fr(total)} × ${lap.d}.`],
+        hints: total.d === 1
+          ? [`“How many laps fit into the distance?” is division: ${total.n} ÷ ${fr(lap)}.`, `Keep, change, flip: ${total.n} ÷ ${fr(lap)} = ${total.n} × ${lap.d}. (Each mile holds ${lap.d} laps.)`]
+          : [
+              `“How many laps fit into the distance?” is division: ${mixed(total)} ÷ ${fr(lap)}.`,
+              `Change ${mixed(total)} to an improper fraction first: ${Math.floor(total.n / total.d)} × ${total.d} + ${total.n % total.d} gives the new top.`,
+              `Keep, change, flip: ${fr(total)} ÷ ${fr(lap)} = ${fr(total)} × {${lap.d}/1}. Multiply, then simplify.`,
+            ],
         steps: [
           st("Decide the operation.", `How many ${fr(lap)}-mile laps fit into ${mixed(total)} miles? That's ${mixed(total)} ÷ ${fr(lap)}.`),
           ...(total.d > 1 ? [toImproperStep(total)] : []),
@@ -188,7 +269,10 @@ const divWord: Skill = {
       return {
         prompt: `A rectangular garden bed has an area of ${fr(area)} square yard. It is ${fr(width)} yard wide. How long is it, in yards?`,
         answer: num(ans, { simplest: true }),
-        hints: ["Area = length × width. Which operation undoes multiplying by the width?", `Length = ${fr(area)} ÷ ${fr(width)}.`],
+        hints: [
+          `Area = length × width, so length = area ÷ width: ${fr(area)} ÷ ${fr(width)}.`,
+          ...multiplyHint(area.n, area.d, width.d, width.n).map((h, k) => (k === 0 ? `Keep, change, flip: ${fr(area)} × ${raw(width.d, width.n)}. ${h}` : h)),
+        ],
         steps: [
           st("Use the area formula.", "Area = length × width, so length = area ÷ width."),
           st("Set up the division.", `length = ${fr(area)} ÷ ${fr(width)}`),
@@ -203,17 +287,26 @@ const divWord: Skill = {
     const cup = F(r.int(1, 3), 4);
     const servings = r.int(3, 10);
     const total = mul(cup, F(servings));
+    const cups = toNum(total) > 1 ? "cups" : "cup";
     return {
-      prompt: `A recipe uses ${fr(cup)} cup of oats per batch. ${name} has ${mixed(total)} cups of oats. How many batches can ${name} make?`,
+      prompt: `A recipe uses ${fr(cup)} cup of oats per batch. ${name} has ${mixed(total)} ${cups} of oats. How many batches can ${name} make?`,
       answer: num(servings),
-      hints: ["How many groups of the batch size fit into the total?", `${mixed(total)} ÷ ${fr(cup)}.`],
+      hints: (() => {
+        const kcf = `Keep, change, flip: ${raw(total.n, total.d)} × ${raw(cup.d, cup.n)}.`;
+        const finish = finishHint(total.n * cup.d, total.d * cup.n);
+        return [
+          `How many ${fr(cup)}-cup batches fit into ${mixed(total)} ${cups}? That's division: ${mixed(total)} ÷ ${fr(cup)}.`,
+          total.d > 1 && total.n > total.d ? `Change ${mixed(total)} to ${fr(total)}. ${kcf}` : kcf,
+          finish ? `Multiply across to get ${raw(total.n * cup.d, total.d * cup.n)}. ${finishAfter(total.n * cup.d, total.d * cup.n)}` : `Multiply the tops and the bottoms.`,
+        ];
+      })(),
       steps: [
-        st("Decide the operation.", `How many ${fr(cup)}-cup batches fit into ${mixed(total)} cups? That's ${mixed(total)} ÷ ${fr(cup)}.`),
+        st("Decide the operation.", `How many ${fr(cup)}-cup batches fit into ${mixed(total)} ${cups}? That's ${mixed(total)} ÷ ${fr(cup)}.`),
         ...(total.d > 1 && total.n > total.d ? [toImproperStep(total)] : []),
         st("Keep, change, flip.", `${raw(total.n, total.d)} × ${raw(cup.d, cup.n)}`),
         st("Multiply.", `{${total.n} × ${cup.d}/${total.d} × ${cup.n}} = ${raw(total.n * cup.d, total.d * cup.n)}`),
         ...finishSteps(total.n * cup.d, total.d * cup.n),
-        st("Check.", `${servings} batches × ${fr(cup)} cup = ${mixed(total)} cups ✔`),
+        st("Check.", `${servings} batches × ${fr(cup)} cup = ${mixed(total)} ${cups} ✔`),
       ],
       traps: traps(F(servings), [trap(mul(total, cup), "Each batch uses part of a cup; how many of those parts fit? Divide.")]),
     };
@@ -266,7 +359,22 @@ const decAddSub: Skill = {
     return {
       prompt,
       answer: num(fromDecimal(ans), { pre: ctx === "money" ? "$" : undefined }),
-      hints: ["Line up the decimal points. Add zeros so both numbers have the same number of decimal places.", `Write them as ${a.toFixed(2)} and ${b.toFixed(2)}, then ${subtract ? "subtract" : "add"} like whole numbers.`],
+      hints: (() => {
+        const p = Math.max(placesOf(a), placesOf(b), ctx === "money" ? 2 : 0);
+        const unit = ["ones", "tenths", "hundredths", "thousandths"][p];
+        const A = Math.round(a * 10 ** p), B = Math.round(b * 10 ** p);
+        const est = subtract ? Math.round(a) - Math.round(b) : Math.round(a) + Math.round(b);
+        const pad = ctx === "money" ? [] : [a, b].filter((v) => placesOf(v) < p);
+        const lineUp = pad.length
+          ? `Line up the decimal points. Write ${pad.map((v) => `${decStr(v)} as ${v.toFixed(p)}`).join(" and ")} so both have ${p} decimal place${p === 1 ? "" : "s"}.`
+          : `Line up the decimal points so ${unit} sit under ${unit}. Both numbers already have ${p} decimal place${p === 1 ? "" : "s"}.`;
+        const what = ctx === "money" ? (subtract ? `Change = what you paid − the price. ` : `Total = add the two prices. `) : "";
+        return [
+          what + lineUp,
+          `Think of them as ${unit}: ${A} ${op} ${B} = ? ${unit}.`,
+          `Put the decimal point back so the answer has ${p} decimal place${p === 1 ? "" : "s"}. It should be close to ${est}.`,
+        ];
+      })(),
       steps: decimalAddSubSteps(a, b, subtract, ctx === "money"),
       estimate: `Round each number to the nearest whole first. About how big should the answer be?`,
     };
@@ -293,22 +401,37 @@ const decMult: Skill = {
   ],
   generate(r, lv) {
     let a: number, b: number;
+    // Re-draw multiples of 10 so the "decimal" factor really has a decimal (no 3 × 2 or 2 × 2.5 problems).
+    const tenths = (lo: number, hi: number) => {
+      let v = r.int(lo, hi);
+      while (v % 10 === 0) v = r.int(lo, hi);
+      return v / 10;
+    };
     if (lv === 1) {
-      a = r.int(11, 99) / 10;
+      a = tenths(11, 99);
       b = r.int(2, 9);
     } else if (lv === 2) {
       a = r.int(1, 9) / 10;
       b = r.int(1, 9) / (r.chance(0.5) ? 10 : 100);
     } else {
-      a = r.int(11, 99) / 10;
-      b = r.int(11, 49) / 10;
+      a = tenths(11, 99);
+      b = tenths(11, 49);
     }
     const ans = round(a * b, 6);
     const places = (String(a).split(".")[1]?.length ?? 0) + (String(b).split(".")[1]?.length ?? 0);
     return {
       prompt: `${a} × ${b} = ?`,
       answer: num(fromDecimal(ans)),
-      hints: ["Multiply the numbers as if there were no decimal points.", `Count the decimal places in both numbers together: ${places}. Put that many in your answer.`],
+      hints: (() => {
+        const pa = placesOf(a), pb = placesOf(b);
+        const A = Math.round(a * 10 ** pa), B = Math.round(b * 10 ** pb);
+        const endsInZero = (A * B) % 10 === 0;
+        return [
+          `Ignore the decimal points for now and multiply ${A} × ${B}.`,
+          `${a} has ${pa} decimal place${pa === 1 ? "" : "s"} and ${b} has ${pb}, so the answer needs ${places} decimal place${places === 1 ? "" : "s"}.${endsInZero ? " (You can drop zeros at the end afterward.)" : ""}`,
+          lv === 2 ? `Both numbers are less than 1, so the answer must be smaller than either one.${String(A * B).length < places ? " Add zeros in front to make room for the decimal places." : ""}` : `Check with an estimate: about ${Math.round(a)} × ${Math.round(b)} = ${Math.round(a) * Math.round(b)}.`,
+        ];
+      })(),
       steps: decimalMultiplySteps(a, b),
       traps: traps(fromDecimal(ans), [trap(fromDecimal(round(ans * 10, 6)), "Check the number of decimal places: count the places in both factors."), trap(fromDecimal(round(ans / 10, 7)), "Too many decimal places. Count the decimal places in both factors and use exactly that many.")]),
     };
@@ -341,7 +464,17 @@ const decDiv: Skill = {
       return {
         prompt: `${(q * dv).toLocaleString("en-US")} ÷ ${dv} = ?`,
         answer: num(q),
-        hints: [`Estimate first: about how many ${dv}s are in ${q * dv}?`, `Try ${dv} × ${Math.floor(q / 10) * 10} = ${dv * Math.floor(q / 10) * 10} and work with what's left.`],
+        hints: (() => {
+          const N = q * dv;
+          const digits = String(N).split("").map(Number);
+          let cur = 0, i = 0;
+          while (cur < dv) cur = cur * 10 + digits[i++];
+          const k = Math.floor(cur / dv), rem = cur - k * dv;
+          return [
+            `Use long division, one digit at a time. Start with the first digits: how many ${dv}s fit in ${cur}?`,
+            `${k} × ${dv} = ${k * dv}, and ${cur} − ${k * dv} = ${rem}. Bring down the ${digits[i]} to make ${rem * 10 + digits[i]}. How many ${dv}s fit in that?`,
+          ];
+        })(),
         steps: [
           st("Estimate first.", `${q * dv} ÷ ${dv} is about ${Math.round((q * dv) / 100) * 100} ÷ ${Math.round(dv / 10) * 10 || dv}, so the answer is roughly ${Math.round(Math.round((q * dv) / 100) * 100 / (Math.round(dv / 10) * 10 || dv))}.`),
           ...longDivisionSteps(q * dv, dv),
@@ -356,7 +489,10 @@ const decDiv: Skill = {
     return {
       prompt: `${dividend} ÷ ${divisor} = ?`,
       answer: num(q),
-      hints: [`Make the divisor a whole number: multiply both numbers by ${scale}.`, `${round(dividend * scale, 4)} ÷ ${round(divisor * scale, 4)} = ?`],
+      hints: [
+        `Make the divisor a whole number: multiply BOTH numbers by ${scale} (move each decimal point ${scale === 10 ? "1 place" : "2 places"} right). The answer stays the same.`,
+        `${dividend} ÷ ${divisor} becomes ${round(dividend * scale, 4)} ÷ ${round(divisor * scale, 4)}. How many ${round(divisor * scale, 4)}s are in ${round(dividend * scale, 4)}?`,
+      ],
       steps: decimalDivideSteps(dividend, divisor),
       traps: traps(F(q), [trap(fromDecimal(round(q / 10, 6)), "Make sure you multiplied BOTH numbers by the same power of 10."), trap(fromDecimal(round(dividend * divisor, 6)), "That's multiplication. Division asks how many groups of the divisor fit.")]),
     };
@@ -393,11 +529,14 @@ const gcfSkill: Skill = {
       return {
         prompt: `${r.pick(NAMES)} has ${x} stickers and ${y} pencils to put into identical party bags with nothing left over. What is the greatest number of bags that can be made?`,
         answer: num(g),
-        hints: ["The number of bags must divide both amounts evenly.", `Find the greatest common factor of ${x} and ${y}.`],
+        hints: [
+          `Every bag gets the same stickers and the same pencils, so the number of bags must divide both ${x} and ${y} evenly. You want the greatest such number.`,
+          `That's the greatest common factor of ${x} and ${y}. ${gcfHint(x, y)}`,
+        ],
         steps: [
           st("Decide what to find.", `Every bag must get the same number of stickers and of pencils, so the number of bags must divide ${x} AND ${y}. The most bags = the greatest common factor.`),
           ...gcfSteps(x, y),
-          st("Make the bags.", `${g} bags, each with ${x} ÷ ${g} = ${a} stickers and ${y} ÷ ${g} = ${b} pencils.`),
+          st("Make the bags.", `${g} bags, each with ${x} ÷ ${g} = ${plural(a, "sticker")} and ${y} ÷ ${g} = ${plural(b, "pencil")}.`),
         ],
         traps: traps(F(g), [trap(lcm(x, y), "That's the least common multiple. Splitting into equal groups uses the greatest common FACTOR.")]),
       };
@@ -405,7 +544,7 @@ const gcfSkill: Skill = {
     return {
       prompt: `What is the greatest common factor of ${x} and ${y}?`,
       answer: num(g),
-      hints: [`List the factors of ${Math.min(x, y)}. Which of them also divide ${Math.max(x, y)}?`, `Check from the largest factor down.`],
+      hints: [`The GCF is the biggest number that divides both ${x} and ${y} with nothing left over.`, gcfHint(x, y)],
       steps: [
         ...gcfSteps(x, y),
         st("Check.", `${x} = ${g} × ${a} and ${y} = ${g} × ${b}. ${a} and ${b} share no common factor except 1, so ${g} really is the greatest.`),
@@ -444,7 +583,10 @@ const lcmSkill: Skill = {
       return {
         prompt: `Hot dogs come in packs of ${a} and buns come in packs of ${b}. What is the smallest number of hot dogs you can buy so you have exactly the same number of buns?`,
         answer: num(L),
-        hints: ["The number must be a multiple of both pack sizes.", `List multiples of ${Math.max(a, b)} and find the first one that ${Math.min(a, b)} divides.`],
+        hints: [
+          `Whole packs of hot dogs make a multiple of ${a}. Whole packs of buns make a multiple of ${b}. You want the smallest number that is both.`,
+          `List multiples of ${Math.max(a, b)}: ${Math.max(a, b)}, ${2 * Math.max(a, b)}, ${3 * Math.max(a, b)}, … Which is the first one that ${Math.min(a, b)} divides evenly?`,
+        ],
         steps: [
           st("Decide what to find.", `The number of hot dogs must be a multiple of ${a} (whole packs), and the number of buns a multiple of ${b}. We want the smallest number that's both: the least common multiple.`),
           st(`List multiples of ${Math.max(a, b)}.`, Array.from({ length: L / Math.max(a, b) }, (_, k) => (k + 1) * Math.max(a, b)).join(", ")),
@@ -457,7 +599,10 @@ const lcmSkill: Skill = {
     return {
       prompt: `What is the least common multiple of ${a} and ${b}?`,
       answer: num(L),
-      hints: [`List multiples of ${Math.max(a, b)}: ${Math.max(a, b)}, ${2 * Math.max(a, b)}, ${3 * Math.max(a, b)}, …`, `Which is the first one that ${Math.min(a, b)} divides evenly?`],
+      hints: [
+        `The LCM is the smallest number that both ${a} and ${b} go into. List multiples of the bigger one: ${Math.max(a, b)}, ${2 * Math.max(a, b)}, ${3 * Math.max(a, b)}, …`,
+        `Test each multiple: does ${Math.min(a, b)} divide it evenly? Stop at the first one that works.`,
+      ],
       steps: [
         st(`List multiples of the bigger number, ${Math.max(a, b)}.`, Array.from({ length: L / Math.max(a, b) }, (_, k) => (k + 1) * Math.max(a, b)).join(", ")),
         st(`Test each one: does ${Math.min(a, b)} divide it evenly?`, Array.from({ length: L / Math.max(a, b) }, (_, k) => (k + 1) * Math.max(a, b)).map((m) => `${m}${m % Math.min(a, b) === 0 ? " ✔" : " ✘"}`).join(", ")),
@@ -495,7 +640,10 @@ const distributive: Skill = {
     return {
       prompt: `Use the GCF to rewrite ${g * a} + ${g * b} as a product.`,
       answer: { kind: "multi", fields: [{ value: F(g) }, { value: F(a), pre: "(" }, { value: F(b), pre: "+", post: ")" }], anyOrder: [1, 2] },
-      hints: [`Find the GCF of ${g * a} and ${g * b}.`, `GCF = ${g}. How many ${g}s are in each number?`],
+      hints: [
+        `First find the GCF of ${g * a} and ${g * b}. ${gcfHint(g * a, g * b)}`,
+        `The GCF is ${g}. It goes outside: ${g}( __ + __ ). Inside go ${g * a} ÷ ${g} and ${g * b} ÷ ${g}.`,
+      ],
       steps: [
         ...gcfSteps(g * a, g * b),
         st(`Divide each number by ${g}.`, `${g * a} ÷ ${g} = ${a} and ${g * b} ÷ ${g} = ${b}, so ${g * a} = ${g} × ${a} and ${g * b} = ${g} × ${b}.`),
@@ -537,7 +685,10 @@ const negatives: Skill = {
       return {
         prompt: `${ctx[0]} Write this as a positive or negative number.`,
         answer: num(ctx[1]),
-        hints: ["Is this above/more than zero, or below/less than zero?", "Below, owe, lose, down → negative."],
+        hints: [
+          "First decide what zero means here: sea level, 0 degrees, no money, or no gain or loss.",
+          "Below, owing, losing and going down are negative. Above, earning, gaining and going up are positive. Which one is this?",
+        ],
         steps: [
           st("Find the zero point.", "Zero is sea level, zero degrees, no money, or no change."),
           st("Decide the direction.", ctx[1] < 0 ? "Below, owing, losing or going down are on the negative side of zero." : "Above, earning, gaining or going up are on the positive side of zero."),
@@ -551,7 +702,10 @@ const negatives: Skill = {
       return {
         prompt: `What is the opposite of the opposite of ${ms(v)}? That is, −(−(${ms(v)}))`,
         answer: num(v),
-        hints: ["Each “opposite” flips the number to the other side of 0.", "Flipping twice puts you back where you started."],
+        hints: [
+          `Work from the inside out. The opposite of ${ms(v)} is the number the same distance from 0, on the other side.`,
+          `The opposite of ${ms(v)} is ${ms(-v)}. Now take the opposite of ${ms(-v)}.`,
+        ],
         steps: [
           st("Work from the inside out.", `−(−(${ms(v)})) means: the opposite of the opposite of ${ms(v)}.`),
           st("First opposite.", `${ms(v)} is ${Math.abs(v)} step${Math.abs(v) === 1 ? "" : "s"} ${v < 0 ? "left" : "right"} of 0. Its opposite is the same distance on the other side: ${ms(-v)}.`),
@@ -568,7 +722,10 @@ const negatives: Skill = {
       prompt: `On this number line, what number is the dot at?`,
       visual: { type: "numberline", min: lo, max: lo + 10 * step, step, labelEvery: 2, points: [{ v }] },
       answer: num(fromDecimal(v)),
-      hints: [`Each tick mark is ${step}.`, `Count ticks from a labeled number.`],
+      hints: [
+        `Find the size of one tick: the labels are ${round(2 * step, 2)} apart with 2 spaces between them.`,
+        `Each tick is ${step}. Start at ${ms(lo)} on the left end and count the ticks to the dot, adding ${step} for each one.`,
+      ],
       steps: [
         st("Find the size of one tick.", `Labels are ${round(2 * step, 2)} apart with 2 spaces between them, so each tick is ${step}.`),
         st("Start at a labeled number.", `The line starts at ${ms(lo)}.`),
@@ -612,7 +769,22 @@ const compare: Skill = {
     return {
       prompt: `Which number is the ${askLeast ? "least" : "greatest"}?`,
       answer: choice(r, label(target), list.filter((v) => v !== target).map((v) => [label(v), v < 0 && Math.abs(v) > Math.abs(target) ? "Careful: for negative numbers, a bigger distance from 0 means smaller." : v === nearZero && askLeast ? "Numbers close to 0 aren't always the smallest. Picture a number line." : undefined] as [string, string])),
-      hints: ["Picture a number line: smaller numbers are on the left.", "For negatives, the one with the larger distance from 0 is smaller."],
+      hints: (() => {
+        const fracs = list.filter((v) => label(v).includes("{"));
+        const negs = list.filter((v) => v < 0), pos = list.filter((v) => v > 0);
+        const sign = askLeast
+          ? negs.length
+            ? "Every negative number is less than every positive number. Among the negatives, the one furthest from 0 is the least."
+            : "None of these is negative, so the least is simply the smallest number."
+          : pos.length
+            ? "Every positive number is greater than 0 and every negative number. Among the positives, pick the biggest."
+            : "None of these is positive. The greatest is the one closest to 0 (furthest right).";
+        return [
+          `Picture a number line: numbers get bigger as you go right. The ${askLeast ? "least is furthest left" : "greatest is furthest right"}.`,
+          ...(fracs.length ? [`Change the fractions to decimals so they're easy to compare: ${fracs.map((v) => `${label(v)} = ${ms(v)}`).join(", ")}.`] : []),
+          sign,
+        ];
+      })(),
       steps: [
         ...(lv === 3 && list.some((v) => label(v).includes("{")) ? [st("Change fractions to decimals so they're easy to compare.", list.filter((v) => label(v).includes("{")).map((v) => `${label(v)} = ${ms(v)}`).join(", "))] : []),
         st("Picture a number line.", "Numbers get bigger as you go right. Negative numbers are left of 0, and the further from 0 a negative number is, the smaller it is."),
@@ -646,10 +818,10 @@ const absolute: Skill = {
       return {
         prompt: `What is |${ms(v)}|?`,
         answer: num(Math.abs(v)),
-        hints: ["Absolute value means distance from 0.", `How many steps is ${ms(v)} from 0?`],
+        hints: ["Absolute value means distance from 0, and a distance is never negative.", `${ms(v)} is to the ${v < 0 ? "left" : "right"} of 0. How many steps away from 0 is it?`],
         steps: [
           st("Absolute value means distance from 0.", "Distance is never negative."),
-          st("Count the distance.", `${ms(v)} is ${Math.abs(v)} units ${v < 0 ? "left" : "right"} of 0, so |${ms(v)}| = ${Math.abs(v)}.`),
+          st("Count the distance.", `${ms(v)} is ${plural(Math.abs(v), "unit")} ${v < 0 ? "left" : "right"} of 0, so |${ms(v)}| = ${Math.abs(v)}.`),
         ],
         traps: traps(F(Math.abs(v)), [trap(-Math.abs(v), "Absolute value is a distance, so it can't be negative.")]),
       };
@@ -662,7 +834,10 @@ const absolute: Skill = {
       return {
         prompt: `|${ms(a)}| ${op} |${ms(b)}| = ?`,
         answer: num(ans),
-        hints: ["Find each absolute value first.", `|${ms(a)}| = ${Math.abs(a)} and |${ms(b)}| = ${Math.abs(b)}.`],
+        hints: [
+          `Find each absolute value first (its distance from 0), then ${op === "+" ? "add" : "subtract"}.`,
+          `|${ms(a)}| = ${Math.abs(a)} and |${ms(b)}| = ${Math.abs(b)}. Now work out ${Math.abs(a)} ${op} ${Math.abs(b)}.${ans < 0 ? " Careful: you're taking a bigger number away from a smaller one, so the answer is negative." : ""}`,
+        ],
         steps: [
           st("Find each absolute value first.", `|${ms(a)}| = ${Math.abs(a)} (distance from 0) and |${ms(b)}| = ${Math.abs(b)}.`),
           st(`Now ${op === "+" ? "add" : "subtract"}.`, `${Math.abs(a)} ${op} ${Math.abs(b)} = ${ms(ans)}`),
@@ -675,7 +850,10 @@ const absolute: Skill = {
     return {
       prompt: `Which account balance shows a debt of more than $${debt}?`,
       answer: choice(r, `${ms(correct)} dollars`, balances.filter((b) => b !== correct).map((b) => [`${ms(b)} dollars`, b < 0 ? `|${ms(b)}| = ${-b}, which is less than ${debt}.` : "A positive balance means no debt."] as [string, string])),
-      hints: ["A debt is a negative balance. The size of the debt is the absolute value.", `Look for a balance less than −${debt}.`],
+      hints: [
+        `A debt of $${debt} is a balance of −${debt}. A bigger debt means a balance further below zero.`,
+        `Look for a negative balance whose absolute value is more than ${debt}. That balance is less than −${debt}.`,
+      ],
       steps: [
         st("A debt is a negative balance.", `Owing $${debt} is a balance of −${debt}.`),
         st("More debt means a lower balance.", `A debt of MORE than $${debt} means a balance LESS than −${debt} (further left on the number line).`),
@@ -712,7 +890,10 @@ const coords: Skill = {
       return {
         prompt: `Click to plot the point (${ms(x)}, ${ms(y)}).`,
         answer: { kind: "point", x, y, min: -7, max: 7 },
-        hints: ["Start at the origin (0, 0). The first number moves you left or right.", `Go ${x > 0 ? "right" : "left"} ${Math.abs(x)}, then ${y > 0 ? "up" : "down"} ${Math.abs(y)}.`],
+        hints: [
+          "Start at the origin (0, 0), where the axes cross. The first number (x) moves you left or right. The second (y) moves you up or down.",
+          `x = ${ms(x)}, so go ${x > 0 ? "right" : "left"} ${Math.abs(x)}. Then y = ${ms(y)}, so go ${y > 0 ? "up" : "down"} ${Math.abs(y)}.`,
+        ],
         steps: [
           st("Start at the origin (0, 0).", "That's where the two axes cross."),
           st(`Use the x-coordinate, ${ms(x)}.`, `Move ${x > 0 ? "right" : "left"} ${Math.abs(x)}.`),
@@ -729,7 +910,12 @@ const coords: Skill = {
       return {
         prompt: `Point A is at (${ms(x)}, ${ms(y)}). Reflect it across the ${axis}-axis and click where it lands.`,
         answer: { kind: "point", x: rx, y: ry, min: -7, max: 7, extraPoints: [{ x, y, label: "A" }] },
-        hints: [`Reflecting across the ${axis}-axis keeps the ${axis === "x" ? "x" : "y"}-coordinate the same.`, `The ${axis === "x" ? "y" : "x"}-coordinate changes sign.`],
+        hints: [
+          `Reflecting across the ${axis}-axis flips A over that line to the other side, the same distance away.`,
+          axis === "x"
+            ? `x stays ${ms(x)}. y = ${ms(y)} switches to its opposite.`
+            : `y stays ${ms(y)}. x = ${ms(x)} switches to its opposite.`,
+        ],
         steps: [
           st(`A reflection across the ${axis}-axis is a flip over that line.`, `The point ends up the same distance from the ${axis}-axis, on the other side.`),
           st(`The ${axis}-coordinate stays the same.`, axis === "x" ? `x stays ${ms(x)}.` : `y stays ${ms(y)}.`),
@@ -749,7 +935,14 @@ const coords: Skill = {
       prompt: `How far apart are (${ms(A[0])}, ${ms(A[1])}) and (${ms(B[0])}, ${ms(B[1])})?`,
       visual: { type: "grid", min: -9, max: 9, points: [{ x: A[0], y: A[1] }, { x: B[0], y: B[1] }] },
       answer: num(d),
-      hints: [`The ${sameX ? "x" : "y"}-coordinates match, so the points line up ${sameX ? "vertically" : "horizontally"}.`, `Find the distance between ${ms(p)} and ${ms(q)} on a number line.`],
+      hints: [
+        `The ${sameX ? "x" : "y"}-coordinates match, so the points are on the same ${sameX ? "up-and-down" : "left-and-right"} line. Only compare the ${sameX ? "y" : "x"}-coordinates: ${ms(p)} and ${ms(q)}.`,
+        (p < 0) !== (q < 0) && p !== 0 && q !== 0
+          ? `${ms(p)} and ${ms(q)} are on opposite sides of 0, so add their distances from 0: ${Math.abs(p)} + ${Math.abs(q)}.`
+          : p === 0 || q === 0
+            ? `One of them is 0, so the distance is just how far ${ms(p === 0 ? q : p)} is from 0.`
+            : `${ms(p)} and ${ms(q)} are on the same side of 0, so subtract their distances from 0: ${Math.max(Math.abs(p), Math.abs(q))} − ${Math.min(Math.abs(p), Math.abs(q))}.`,
+      ],
       steps: [
         st(`The ${sameX ? "x" : "y"}-coordinates match.`, `So the points are on the same ${sameX ? "vertical" : "horizontal"} line, and we only compare the ${sameX ? "y" : "x"}-coordinates: ${ms(p)} and ${ms(q)}.`),
         (p < 0) !== (q < 0) && p !== 0 && q !== 0

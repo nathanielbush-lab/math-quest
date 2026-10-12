@@ -36,7 +36,7 @@ const area: Skill = {
         prompt: `A triangle has a base of ${b} ${unit} and a height of ${h} ${unit}. What is its area in square ${unit}?`,
         visual: { type: "shape", shape: "triangle", labels: { base: `${b} ${unit}`, height: `${h} ${unit}` } },
         answer: num(A),
-        hints: ["Area of a triangle = {1/2} × base × height.", `{1/2} × ${b} × ${h}`],
+        hints: [`A triangle is half of a parallelogram with the same base and height. So find base × height, then take half.`, `Base × height: ${b} × ${h} = ${b * h}. Now take half of ${b * h}.`],
         steps: [
           st("Use the triangle formula.", "Area = {1/2} × base × height. A triangle is half of a parallelogram with the same base and height."),
           st("Substitute.", `Area = {1/2} × ${b} × ${h}`),
@@ -53,7 +53,7 @@ const area: Skill = {
         prompt: `A parallelogram has a base of ${b} ${unit}, a slanted side of ${side} ${unit}, and a height of ${h} ${unit}. What is its area in square ${unit}?`,
         visual: { type: "shape", shape: "parallelogram", labels: { base: `${b} ${unit}`, height: `${h} ${unit}`, side: `${side} ${unit}` } },
         answer: num(b * h),
-        hints: ["Area of a parallelogram = base × height.", "Use the height (straight up), not the slanted side."],
+        hints: ["Slide the triangle from one end to the other and the parallelogram becomes a rectangle. So area = base × height.", `Use the height (${h} ${unit}, measured straight up), not the slanted side (${side} ${unit}). Multiply ${b} × ${h}.`],
         steps: [
           st("Use the parallelogram formula.", "Area = base × height. (Slide the triangle from one end to the other and it becomes a rectangle.)"),
           st("Pick the right measurements.", `The height is ${h} ${unit}, measured straight up from the base. The slanted side (${side} ${unit}) is NOT the height.`),
@@ -69,7 +69,11 @@ const area: Skill = {
       prompt: `A trapezoid has parallel sides of ${b} ${unit} and ${b2} ${unit}, and a height of ${h} ${unit}. What is its area in square ${unit}?`,
       visual: { type: "shape", shape: "trapezoid", labels: { top: `${b} ${unit}`, base: `${b2} ${unit}`, height: `${h} ${unit}` } },
       answer: num(A),
-      hints: ["Area = {1/2} × (b₁ + b₂) × h.", `{1/2} × (${b} + ${b2}) × ${h}`],
+      hints: [
+        "Two copies of this trapezoid make a parallelogram, so area = {1/2} × (top + bottom) × height.",
+        `Add the parallel sides: ${b} + ${b2} = ${b + b2}. Multiply by the height: ${b + b2} × ${h} = ${(b + b2) * h}.`,
+        `Now take half of ${(b + b2) * h}.`,
+      ],
       steps: [
         st("Use the trapezoid formula.", "Area = {1/2} × (base₁ + base₂) × height. Two copies of a trapezoid make a parallelogram."),
         st("Add the two parallel sides.", `${b} + ${b2} = ${b + b2}`),
@@ -111,7 +115,7 @@ const composite: Skill = {
         prompt: `Each grid square is 1 unit. What is the area of the shaded shape in square units?`,
         visual: { type: "grid", min: 0, max: 12, polygon: poly },
         answer: num(ans),
-        hints: [`The outer rectangle is ${W} by ${H}.`, `The missing corner is ${w} by ${h}. Subtract its area.`],
+        hints: [`Pretend the missing corner is filled in. That makes ${W === 8 || W === 11 ? "an" : "a"} ${W} by ${H} rectangle. Find its area.`, `The missing corner is ${w} wide and ${h} tall. Take its area (${w} × ${h}) away from the big rectangle.`],
         steps: [
           st("Picture the big rectangle around the shape.", `It's ${W} units wide and ${H} units tall: ${W} × ${H} = ${W * H} square units.`),
           st("Find the area of the missing corner.", `The cut-out corner is ${w} wide and ${h} tall: ${w} × ${h} = ${w * h} square units.`),
@@ -124,10 +128,10 @@ const composite: Skill = {
     const tri = r.int(2, 6);
     const ans = F(2 * W * H + tri * W, 2);
     return {
-      prompt: `A shape is made of a ${W} by ${H} rectangle with a triangle on top. The triangle's base is the rectangle's ${W}-unit side, and its height is ${tri} units. What is the total area?`,
+      prompt: `A shape is made of ${W === 8 || W === 11 ? "an" : "a"} ${W} by ${H} rectangle with a triangle on top. The triangle's base is the rectangle's ${W}-unit side, and its height is ${tri} units. What is the total area?`,
       visual: { type: "grid", min: 0, max: 18, polygon: [{ x: 0, y: 0 }, { x: W, y: 0 }, { x: W, y: H }, { x: W / 2, y: H + tri }, { x: 0, y: H }] },
       answer: num(ans),
-      hints: ["Find the rectangle's area and the triangle's area separately.", `Triangle: {1/2} × ${W} × ${tri}.`],
+      hints: [`Split it into two pieces: the ${W} by ${H} rectangle and the triangle on top. Find each area, then add.`, `Rectangle: ${W} × ${H} = ${W * H}. Triangle: {1/2} × ${W} × ${tri}, which is half of ${W * tri}.`],
       steps: [
         st("Split the shape into pieces you know.", "A rectangle on the bottom and a triangle on top."),
         st("Area of the rectangle.", `${W} × ${H} = ${W * H}`),
@@ -168,7 +172,11 @@ const volume: Skill = {
       return {
         prompt: `A box has a volume of ${mixed(V)} cubic feet. Its base is ${mixed(l)} ft by ${mixed(w)} ft. How tall is it?`,
         answer: num(h),
-        hints: ["V = l × w × h, so h = V ÷ (l × w).", `Area of the base: ${mixed(l)} × ${mixed(w)} = ${mixed(mul(l, w))}.`],
+        hints: [
+          "Volume = base area × height. You know the volume and the base, so height = volume ÷ base area.",
+          `Base area: ${mixed(l)} × ${mixed(w)} = ${mixed(mul(l, w))}. Now divide ${mixed(V)} ÷ ${mixed(mul(l, w))}.`,
+          ...(V.d > 1 || l.d > 1 ? [`To divide, write both as fractions and multiply by the flip of the second one.`] : []),
+        ],
         steps: [
           st("Use the volume formula backwards.", "V = length × width × height, so height = V ÷ (length × width)."),
           st("Find the area of the base.", fracTimes(l, w)),
@@ -182,7 +190,10 @@ const volume: Skill = {
       prompt: `A rectangular box is ${mixed(l)} ft long, ${mixed(w)} ft wide and ${mixed(h)} ft tall. What is its volume in cubic feet?`,
       visual: { type: "shape", shape: "prism", labels: { l: mixed(l), w: mixed(w), h: mixed(h) } },
       answer: num(V),
-      hints: ["V = length × width × height.", `${mixed(l)} × ${mixed(w)} × ${mixed(h)}`],
+      hints: [
+        `Volume = length × width × height. Start with one layer on the bottom: ${mixed(l)} × ${mixed(w)}.`,
+        `One layer is ${mixed(mul(l, w))}. Now multiply by the height: ${mixed(mul(l, w))} × ${mixed(h)} = ?`,
+      ],
       steps: [
         st("Use the volume formula.", "Volume = length × width × height. Length × width counts the cubes in one layer; height counts the layers."),
         st("One layer: length × width.", fracTimes(l, w)),
@@ -222,7 +233,7 @@ const surface: Skill = {
       return {
         prompt: `A cube has edges of ${s} cm. What is its surface area in square centimeters?`,
         answer: num(6 * s * s),
-        hints: ["A cube has 6 identical square faces.", `One face is ${s} × ${s} = ${s * s}.`],
+        hints: [`Surface area adds up the outside faces. A cube has 6 faces, and each one is a ${s} by ${s} square.`, `One face: ${s} × ${s} = ${s * s} cm². Now add up all 6 faces.`],
         steps: [
           st("A cube has 6 faces, and they're all the same square.", ""),
           st("Area of one face.", `${s} × ${s} = ${s * s} cm²`),
@@ -238,7 +249,11 @@ const surface: Skill = {
       prompt: `${open ? "An open box (no top)" : "A closed box"} is ${l} in long, ${w} in wide and ${h} in tall. How many square inches of cardboard cover its outside?`,
       visual: { type: "shape", shape: "prism", labels: { l: String(l), w: String(w), h: String(h) } },
       answer: num(SA),
-      hints: [`Find the three different face areas: ${l} × ${w}, ${l} × ${h}, ${w} × ${h}.`, open ? "There are 2 of each, except only 1 bottom (no top)." : "There are 2 of each face."],
+      hints: [
+        "Unfold the box. Its faces come in matching pairs: top & bottom, front & back, left & right. Find each different face's area.",
+        `Bottom: ${l} × ${w} = ${l * w}. Front: ${l} × ${h} = ${l * h}. Side: ${w} × ${h} = ${w * h}.`,
+        open ? "No top! Count the bottom only once, but front & back and left & right twice each. Then add all 5 faces." : "Each face has a twin, so count each area twice. Then add all 6 faces.",
+      ],
       steps: [
         st("Unfold the box into a net.", "A box has 3 pairs of matching faces: top & bottom, front & back, left & right."),
         st("Find the area of each different face.", `Top/bottom: ${l} × ${w} = ${l * w}. Front/back: ${l} × ${h} = ${l * h}. Left/right: ${w} × ${h} = ${w * h}.`),
@@ -282,7 +297,10 @@ const coordPolygons: Skill = {
         prompt: `A rectangle has vertices ${pts}. How long is its bottom side?`,
         visual: { type: "grid", min: -9, max: 9, polygon: poly },
         answer: num(x2 - x1),
-        hints: ["The bottom vertices share the same y-coordinate.", `Find the distance from x = ${x1} to x = ${x2}.`],
+        hints: [
+          `The bottom side joins the two corners with y = ${ms(y1)}. Its length is how far apart their x-coordinates are: ${ms(x1)} and ${ms(x2)}.`,
+          x1 < 0 && x2 > 0 ? `Count across 0: from ${ms(x1)} to 0 is ${-x1}, and from 0 to ${x2} is ${x2}. Add them.` : `Subtract the smaller x from the bigger x: ${ms(x2)} − ${x1 < 0 ? `(${ms(x1)})` : x1} = ?`,
+        ],
         steps: [
           st("The bottom two corners have the same y-coordinate.", `(${x1 < 0 ? "−" + -x1 : x1}, ${y1 < 0 ? "−" + -y1 : y1}) and (${x2 < 0 ? "−" + -x2 : x2}, ${y1 < 0 ? "−" + -y1 : y1}), so the side is horizontal.`),
           st("Find the distance between the x-coordinates.", x1 < 0 && x2 > 0 ? `From ${"−" + -x1} to 0 is ${-x1}, and from 0 to ${x2} is ${x2}: ${-x1} + ${x2} = ${x2 - x1}.` : `${x2 < 0 ? "−" + -x2 : x2} − ${x1 < 0 ? "(−" + -x1 + ")" : x1} = ${x2 - x1}`),
@@ -295,7 +313,10 @@ const coordPolygons: Skill = {
         prompt: `A rectangle has vertices ${pts}. What is its area?`,
         visual: { type: "grid", min: -9, max: 9, polygon: poly },
         answer: num((x2 - x1) * (y2 - y1)),
-        hints: ["Find the width and the height from the coordinates.", `Width ${x2 - x1}, height ${y2 - y1}.`],
+        hints: [
+          `Area = width × height. The width is how far apart the x-coordinates are (${ms(x1)} to ${ms(x2)}); the height is how far apart the y-coordinates are (${ms(y1)} to ${ms(y2)}).`,
+          `Width: from ${ms(x1)} to ${ms(x2)} is ${x2 - x1} units. Find the height the same way, then multiply.`,
+        ],
         steps: [
           st("Find the width from the x-coordinates.", `x goes from ${x1 < 0 ? "−" + -x1 : x1} to ${x2 < 0 ? "−" + -x2 : x2}: width = ${x2 - x1}.`),
           st("Find the height from the y-coordinates.", `y goes from ${y1 < 0 ? "−" + -y1 : y1} to ${y2 < 0 ? "−" + -y2 : y2}: height = ${y2 - y1}.`),
@@ -306,10 +327,15 @@ const coordPolygons: Skill = {
     }
     const missing = r.int(0, 3);
     const p = poly[missing];
+    const shown = poly.filter((_, i) => i !== missing);
     return {
       prompt: `Three corners of a rectangle are shown. Click where the fourth corner goes.`,
-      answer: { kind: "point", x: p.x, y: p.y, min: -9, max: 9, extraPoints: poly.filter((_, i) => i !== missing) },
-      hints: ["Rectangle sides are horizontal and vertical here.", "The missing corner shares its x-coordinate with one point and its y-coordinate with another."],
+      answer: { kind: "point", x: p.x, y: p.y, min: -9, max: 9, extraPoints: shown },
+      hints: [
+        "In this rectangle, every x-coordinate is used by exactly two corners, and so is every y-coordinate.",
+        "Look at the three corners shown. Which x appears only once? Which y appears only once? The missing corner uses both.",
+        `The x-values shown are ${shown.map((q) => ms(q.x)).join(", ")} and the y-values are ${shown.map((q) => ms(q.y)).join(", ")}. Find the x and the y that each show up only once.`,
+      ],
       steps: [
         st("Rectangle corners line up.", "Each corner shares its x-coordinate with the corner above or below it, and its y-coordinate with the corner beside it."),
         st("Find the x-coordinate.", `The missing corner is directly above or below the corner with x = ${ms(p.x)}.`),

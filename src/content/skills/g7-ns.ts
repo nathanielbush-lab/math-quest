@@ -1,7 +1,7 @@
 import { add, div, frac, fromDecimal, mul, neg, sub } from "../../lib/rational";
 import { F, NAMES, choice, fr, mixed, ms, num, round, sn, trap, traps } from "../helpers";
 import type { Skill } from "../types";
-import { decimalDivideSteps, decimalMultiplySteps, finishSteps, fracDivide, fracTimes, lcdStep, raw, st } from "../steps";
+import { decimalDivideSteps, decimalMultiplySteps, finishSteps, fracDivide, fracTimes, lcdStep, places, raw, st } from "../steps";
 
 /** Explains the sign rules for adding two signed numbers (works for decimals). */
 function addRule(a: number, b: number): string {
@@ -18,6 +18,19 @@ function signRule(a: number, b: number, op: "×" | "÷"): string {
   const same = (a < 0) === (b < 0);
   return st("Decide the sign first.", `${ms(a)} and ${ms(b)} have ${same ? "the same sign" : "different signs"}, so the answer is ${same ? "positive" : "negative"}. (${op === "×" ? "Multiplying" : "Dividing"} works the same way.)`);
 }
+
+/** Short hint version of addRule: which sign rule applies, with this problem's sizes (no answer). */
+function addHint(a: number, b: number): string {
+  const r = (x: number) => Number(x.toFixed(6));
+  const A = r(Math.abs(a)), B = r(Math.abs(b));
+  if (a === 0 || b === 0) return "Adding 0 doesn't change a number.";
+  if ((a < 0) === (b < 0)) return a < 0 ? `Both are negative: add the sizes, ${A} + ${B}, and keep the minus sign.` : `Both are positive: just add ${A} + ${B}.`;
+  if (A === B) return `${ms(r(a))} and ${ms(r(b))} are opposites (same size, different signs). What do opposites add up to?`;
+  return `Different signs: subtract the sizes, ${Math.max(A, B)} − ${Math.min(A, B)}. The answer gets the sign of ${ms(r(A > B ? a : b))}, the one farther from 0.`;
+}
+
+/** Sign-rule hint for × and ÷ that doesn't give the sign away. */
+const SIGN_RULE = "same signs → positive, different signs → negative";
 
 const T = "g7-ns";
 const gcdN = (x: number, y: number): number => (y ? gcdN(y, x % y) : Math.abs(x));
@@ -53,7 +66,7 @@ const addInt: Skill = {
         prompt: `${ms(a)} + ${sn(b)} = ?`,
         visual: Math.abs(a) <= 10 && Math.abs(ans) <= 10 ? { type: "numberline", min: -12, max: 12, step: 1, labelEvery: 2, points: [{ v: a }] } : undefined,
         answer: num(ans),
-        hints: [`Start at ${ms(a)}.`, `Adding ${ms(b)} moves you ${b > 0 ? "right" : "left"} ${Math.abs(b)}.`],
+        hints: [`Start at ${ms(a)} on the number line. Adding ${ms(b)} means moving ${b > 0 ? "right" : "left"} ${Math.abs(b)}.`, addHint(a, b)],
         steps: [
           st("Start at the first number.", `Put your finger on ${ms(a)} on the number line.`),
           st("Move by the second number.", `Adding ${ms(b)} means moving ${b > 0 ? "right" : "left"} ${Math.abs(b)}.`),
@@ -65,15 +78,16 @@ const addInt: Skill = {
     }
     if (lv === 3) {
       const depth = -Math.abs(a) - 5;
+      const low = a - Math.abs(b);
       const ctx = r.pick([
-        [`At 6 a.m. it was ${ms(a)}°F. By noon the temperature ${b > 0 ? "rose" : "fell"} ${Math.abs(b)}°. What was the noon temperature?`, a + b, `${ms(a)} + ${sn(b)} = ${ms(a + b)}`],
-        [`A submarine is at ${ms(depth)} meters. It ${b > 0 ? "rises" : "dives"} ${Math.abs(b)} meters. What is its new elevation?`, depth + b, `${ms(depth)} + ${sn(b)} = ${ms(depth + b)}`],
-        [`The high was ${ms(a)}° and the low was ${ms(a - Math.abs(b))}°. How many degrees apart were the high and low?`, Math.abs(b), `${ms(a)} − ${sn(a - Math.abs(b))} = ${Math.abs(b)}`],
-      ] as [string, number, string][]);
+        [`At 6 a.m. it was ${ms(a)}°F. By noon the temperature ${b > 0 ? "rose" : "fell"} ${Math.abs(b)}°. What was the noon temperature?`, a + b, `${ms(a)} + ${sn(b)} = ${ms(a + b)}`, [`Rising is +, falling is −. Start at ${ms(a)} and ${b > 0 ? "add" : "add the negative"}: ${ms(a)} + ${sn(b)}.`, addHint(a, b)]],
+        [`A submarine is at ${ms(depth)} meters. It ${b > 0 ? "rises" : "dives"} ${Math.abs(b)} meters. What is its new elevation?`, depth + b, `${ms(depth)} + ${sn(b)} = ${ms(depth + b)}`, [`Up is +, down is −. Start at ${ms(depth)} and ${b > 0 ? "add" : "add the negative"}: ${ms(depth)} + ${sn(b)}.`, addHint(depth, b)]],
+        [`The high was ${ms(a)}° and the low was ${ms(low)}°. How many degrees apart were the high and low?`, Math.abs(b), `${ms(a)} − ${sn(low)} = ${Math.abs(b)}`, [`“How far apart” means subtract: high − low = ${ms(a)} − ${sn(low)}.`, `Subtracting means adding the opposite: ${ms(a)} + ${sn(-low)}. Or count the steps on a number line from ${ms(low)} up to ${ms(a)}.`]],
+      ] as [string, number, string, string[]][]);
       return {
         prompt: ctx[0],
         answer: num(ctx[1]),
-        hints: ["Write an addition or subtraction with signed numbers.", "Use a number line in your head: up is right, down is left."],
+        hints: ctx[3],
         steps: [
           st("Turn the story into signed numbers.", "Rising, up or warmer is +. Falling, down, diving or colder is −."),
           st("Calculate.", ctx[2]),
@@ -85,7 +99,9 @@ const addInt: Skill = {
     return {
       prompt: `${ms(a)} ${op} ${sn(b)} = ?`,
       answer: num(ans),
-      hints: subtract ? [`Change subtraction to adding the opposite: ${ms(a)} + ${sn(-b)}.`, "Now add using the number line."] : ["Same signs: add sizes and keep the sign. Different signs: subtract sizes and keep the sign of the bigger size."],
+      hints: subtract
+        ? [`Subtracting means adding the opposite: ${ms(a)} − ${sn(b)} = ${ms(a)} + ${sn(-b)}.`, addHint(a, -b)]
+        : [`Start at ${ms(a)} on the number line. Adding ${ms(b)} means moving ${b > 0 ? "right" : "left"} ${Math.abs(b)}.`, addHint(a, b)],
       steps: [
         ...(subtract ? [st("Subtracting means adding the opposite.", `${ms(a)} − ${sn(b)} = ${ms(a)} + ${sn(-b)}`)] : []),
         addRule(a, subtract ? -b : b),
@@ -128,7 +144,24 @@ const addRational: Skill = {
     return {
       prompt: `${show(a)} ${subtract ? "−" : "+"} ${showP(b)} = ?`,
       answer: num(ans, { simplest: !dec }),
-      hints: [...(subtract ? [`Rewrite as adding the opposite: ${show(a)} + ${showP(neg(b))}.`] : []), dec ? "Line up the decimal points." : "Use a common denominator.", "Decide the sign: which number is farther from 0?"],
+      hints: (() => {
+        const B = subtract ? neg(b) : b;
+        const opp = `Subtracting means adding the opposite: ${show(a)} + ${showP(B)}.`;
+        if (dec || (a.d === 1 && B.d === 1)) {
+          const x = a.n / a.d, y = B.n / B.d;
+          const look = (x < 0) === (y < 0) ? `Look at the signs: both numbers are ${x < 0 ? "negative" : "positive"}.` : "Look at the signs: one number is positive and one is negative.";
+          return [subtract ? opp : look, addHint(x, y) + (dec ? " Line up the decimal points." : "")];
+        }
+        const L = (a.d * B.d) / gcdN(a.d, B.d);
+        const an = a.n * (L / a.d), bn = B.n * (L / B.d);
+        return [
+          subtract ? opp : "To add fractions, they need the same denominator. Then use the sign rules on the tops.",
+          a.d === B.d
+            ? `Both already have denominator ${L}, so you only need to add the tops.`
+            : `Use ${L} as the common denominator. Rewrite ${[[a, an], [B, bn]].filter(([f]) => (f as typeof a).d !== L).map(([f, n]) => `${show(f as typeof a)} = ${raw(n as number, L)}`).join(" and ")}.`,
+          an > 0 && bn > 0 ? `Now add the tops: ${an} + ${bn}. Keep the denominator ${L}.` : `Now add the tops: ${ms(an)} + ${sn(bn)}. ${addHint(an, bn)}`,
+        ];
+      })(),
       steps: (() => {
         const B = subtract ? neg(b) : b;
         if (dec) {
@@ -142,7 +175,7 @@ const addRational: Skill = {
         const an = a.n * (L / a.d), bn = B.n * (L / B.d);
         return [
           ...(subtract ? [st("Subtracting means adding the opposite.", `${show(a)} − ${showP(b)} = ${show(a)} + ${showP(B)}`)] : []),
-          ...(a.d !== B.d ? [lcdStep(a.d, B.d), st(`Rewrite both in ${L}ths.`, `${show(a)} = ${raw(an, L)} and ${show(B)} = ${raw(bn, L)}`)] : []),
+          ...(a.d !== B.d ? [lcdStep(a.d, B.d), st(`Rewrite both with ${L} on the bottom.`, `${show(a)} = ${raw(an, L)} and ${show(B)} = ${raw(bn, L)}`)] : []),
           st("Add the numerators using the sign rules.", `${ms(an)} + ${sn(bn)} = ${ms(an + bn)}${(an < 0) !== (bn < 0) && an && bn ? ` (different signs: ${Math.max(Math.abs(an), Math.abs(bn))} − ${Math.min(Math.abs(an), Math.abs(bn))} = ${Math.abs(an + bn)}, and the sign of the bigger one wins)` : ""}, so the sum is ${raw(an + bn, L)}.`),
           ...finishSteps(an + bn, L),
           st("Answer.", ms(mixed(ans))),
@@ -181,7 +214,13 @@ const multInt: Skill = {
       return {
         prompt: `${sn(a)} × ${sn(b)} × ${sn(c)} = ?`,
         answer: num(ans),
-        hints: ["Count the negative signs: even → positive, odd → negative.", "Multiply the sizes."],
+        hints: (() => {
+          const negs = [a, b, c].filter((x) => x < 0).length;
+          return [
+            "Work out the sign and the size separately. For the sign, count the negative numbers: an even count → positive, an odd count → negative.",
+            `There ${negs === 1 ? "is 1 negative number" : `are ${negs} negative numbers`}. For the size, multiply ${Math.abs(a)} × ${Math.abs(b)} × ${Math.abs(c)}.`,
+          ];
+        })(),
         steps: [
           st("Count the negative factors.", `${[a, b, c].filter((x) => x < 0).length} negative factor${[a, b, c].filter((x) => x < 0).length === 1 ? "" : "s"}. An even number of negatives makes a positive; an odd number makes a negative. So the answer is ${ans < 0 ? "negative" : "positive"}.`),
           st("Multiply the sizes.", `${Math.abs(a)} × ${Math.abs(b)} = ${Math.abs(a * b)}, then × ${Math.abs(c)} = ${Math.abs(ans)}`),
@@ -196,7 +235,9 @@ const multInt: Skill = {
     return {
       prompt,
       answer: num(ans),
-      hints: ["Same signs → positive. Different signs → negative.", divide ? `Ask: ${sn(b)} × ? = ${ms(a * b)}` : "Multiply the sizes, then decide the sign."],
+      hints: divide
+        ? [`Divide the sizes, then pick the sign. Division uses the same sign rule as ×: ${SIGN_RULE}.`, `${Math.abs(a * b)} ÷ ${Math.abs(b)} = ? ${ms(a * b)} and ${ms(b)} have ${(a * b < 0) === (b < 0) ? "the same sign" : "different signs"}. Check: ${sn(b)} × ? = ${ms(a * b)}.`]
+        : [`Multiply the sizes, then pick the sign: ${SIGN_RULE}.`, `${Math.abs(a)} × ${Math.abs(b)} = ? ${ms(a)} and ${ms(b)} have ${(a < 0) === (b < 0) ? "the same sign" : "different signs"}.`],
       steps: divide
         ? [signRule(a * b, b, "÷"), st("Divide the sizes.", `${Math.abs(a * b)} ÷ ${Math.abs(b)} = ${Math.abs(a)}`), st("Answer.", ms(ans)), st("Check by multiplying.", `${sn(b)} × ${sn(ans)} = ${ms(a * b)} ✔`)]
         : [signRule(a, b, "×"), st("Multiply the sizes.", `${Math.abs(a)} × ${Math.abs(b)} = ${Math.abs(ans)}`), st("Answer.", ms(ans))],
@@ -230,7 +271,10 @@ const multRational: Skill = {
       return {
         prompt: `Which decimal equals ${f}?`,
         answer: choice(r, right, wrong.map((w) => [w, "A fraction means the top divided by the bottom. Try long division."] as [string, string])),
-        hints: ["A fraction bar means divide.", "Do the long division and watch for repeating remainders."],
+        hints: (() => {
+          const [fn, fd] = f.slice(1, -1).split("/");
+          return [`A fraction bar means divide: ${f} = ${fn} ÷ ${fd}.`, `Do the long division: write ${fn} as ${fn}.000 and divide by ${fd}. Does it stop, or does the same remainder keep coming back?`];
+        })(),
         steps: [
           st("A fraction bar means divide.", `${f} means the top ÷ the bottom.`),
           st("Divide (long division).", right.includes("repeating") ? "The remainders start repeating, so the digits repeat forever." : "The division comes out even, so the decimal stops."),
@@ -249,7 +293,20 @@ const multRational: Skill = {
     return {
       prompt: `${show(a)} ${divide ? "÷" : "×"} ${showP(b)} = ?`,
       answer: num(ans, { simplest: !dec }),
-      hints: ["Decide the sign first: same signs → positive, different → negative.", divide ? (dec ? "Multiply both by 10 to make the divisor whole." : "Multiply by the reciprocal of the second fraction.") : dec ? "Multiply, then count decimal places." : "Multiply tops and bottoms, then simplify."],
+      hints: (() => {
+        const x = Math.abs(a.n / a.d), y = Math.abs(b.n / b.d);
+        const r6 = (v: number) => Number(v.toFixed(6));
+        const first = `Decide the sign first: ${SIGN_RULE}. Then work with the sizes, ignoring the signs.`;
+        if (dec) {
+          if (divide) return [first, `Make the divisor whole: multiply BOTH numbers by 10. ${r6(x)} ÷ ${r6(y)} becomes ${r6(x * 10)} ÷ ${r6(y * 10)}.`];
+          const pa = places(x), pb = places(y);
+          return [first, `Multiply ${Math.round(x * 10 ** pa)} × ${Math.round(y * 10 ** pb)} as whole numbers. Then count decimal places: ${pa} + ${pb} = ${pa + pb} in the answer.`];
+        }
+        const A = F(Math.abs(a.n), a.d), Bf = F(Math.abs(b.n), b.d);
+        if (divide) return [first, `Keep, change, flip: ${fr(A)} ÷ ${fr(Bf)} = ${fr(A)} × ${fr(F(Bf.d, Bf.n))}. (Flip the second number to its reciprocal.)`, "Multiply the tops and the bottoms, then simplify."];
+        if (A.d === 1 && Bf.d === 1) return [first, `These are whole numbers: multiply the sizes, ${A.n} × ${Bf.n}.`];
+        return [first, `Multiply the tops (${A.n} × ${Bf.n}) and the bottoms (${A.d} × ${Bf.d}), then simplify.`];
+      })(),
       steps: [
         signRule(a.n / a.d, b.n / b.d, divide ? "÷" : "×"),
         ...(dec
@@ -293,7 +350,7 @@ const signedWord: Skill = {
       return {
         prompt: `A diver is at ${ms(start)} feet. The diver rises ${up} feet, then dives ${down} feet. What is the diver's new elevation?`,
         answer: num(ans),
-        hints: ["Rising is positive, diving is negative.", `${ms(start)} + ${up} − ${down}`],
+        hints: [`Rising is +, diving is −. Write it: ${ms(start)} + ${up} − ${down}.`, `Go in order. First rise: ${ms(start)} + ${up} = ? Then go down ${down} more from there.`],
         steps: [
           st("Write it with signed numbers.", `Start ${ms(start)}, rise +${up}, dive −${down}: ${ms(start)} + ${up} − ${down}.`),
           st("Rise first.", `${ms(start)} + ${up} = ${ms(start + up)}`),
@@ -309,7 +366,7 @@ const signedWord: Skill = {
       return {
         prompt: `A stock's price drops $${loss.toFixed(2)} each day for ${days} days. What is the total change in price (use a negative number for a drop)?`,
         answer: num(fromDecimal(ans), { pre: "$" }),
-        hints: [`Each day's change is −${loss.toFixed(2)}.`, `${days} × (−${loss.toFixed(2)})`],
+        hints: [`A drop is a negative change, so each day the price changes by −${loss.toFixed(2)}. That happens ${days} times: multiply.`, `${days} × (−${loss.toFixed(2)}) is positive × negative, so the answer is negative. For the size, multiply ${days} × ${loss.toFixed(2)}.`],
         steps: [
           st("Each day's change is negative.", `A drop of $${loss.toFixed(2)} is −${loss.toFixed(2)}.`),
           st(`Multiply by the ${days} days.`, `${days} × (−${loss.toFixed(2)}): positive × negative = negative.`),
@@ -327,7 +384,7 @@ const signedWord: Skill = {
       return {
         prompt: `${name} has $${bal} in a bank account and buys ${n} items that cost $${cost} each. What is the new balance?`,
         answer: num(ans, { pre: "$" }),
-        hints: [`Spending is negative: ${n} × (−${cost}).`, `${bal} + ${n} × (−${cost})`],
+        hints: [`Spending takes money away, so it's negative. ${name} spends ${n} × $${cost} in all.`, `Find ${n} × ${cost}, then subtract it from ${bal}. If that's more than ${bal}, the balance goes below 0.`],
         steps: [
           st("Spending is negative.", `${n} items at $${cost} each change the balance by ${n} × (−${cost}) = −${n * cost}.`),
           st("Add that to the starting balance.", `${bal} + (−${n * cost}) = ${ms(ans)}`),
@@ -343,7 +400,16 @@ const signedWord: Skill = {
     return {
       prompt: `The low temperatures for five days were ${temps.map(ms).join("°, ")}°. What was the mean low temperature?`,
       answer: num(mean),
-      hints: ["Add all five temperatures (careful with signs).", "Divide the total by 5."],
+      hints: (() => {
+        const negs = temps.filter((t) => t < 0), poss = temps.filter((t) => t > 0);
+        const nSum = negs.reduce((x, y) => x + y, 0), pSum = poss.reduce((x, y) => x + y, 0);
+        return [
+          "Mean = add all five temperatures, then divide by 5. Be careful with the signs when you add.",
+          poss.length && negs.length
+            ? `Tip: group them. The negatives (${negs.map(ms).join(", ")}) make ${ms(nSum)}. The ${poss.length === 1 ? "positive is" : `positives (${poss.join(", ")}) make`} ${pSum}. Combine those, then divide by 5.`
+            : `Add the sizes: ${temps.map((t) => Math.abs(t)).join(" + ")}. ${negs.length ? "They're all below 0, so the total is negative." : ""} Then divide by 5.`.replace("  ", " "),
+        ];
+      })(),
       steps: [
         st("Add the temperatures (watch the signs).", `${temps.map(ms).join(" + ").replace(/\+ −/g, "+ (−").replace(/(\(−\d+)/g, "$1)")} = ${ms(temps.reduce((a, b) => a + b, 0))}`),
         st("Divide by the number of days.", `${ms(temps.reduce((a, b) => a + b, 0))} ÷ 5 = ${ms(mean)}`),
