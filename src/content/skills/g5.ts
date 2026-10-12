@@ -1,6 +1,7 @@
 import { add, frac, gcd, mul, sub } from "../../lib/rational";
 import { F, choice, fr, mixed, num, trap, traps } from "../helpers";
 import type { Skill } from "../types";
+import { finishSteps, gcfSteps, lcdStep, places, raw, rewriteStep, simplifySteps, st, toImproperStep } from "../steps";
 
 const equiv: Skill = {
   id: "g5.equiv",
@@ -30,7 +31,11 @@ const equiv: Skill = {
         prompt: `Fill in the missing number: ${fr(n, d)} = {?/${d * k}}`,
         answer: num(n * k),
         hints: [`What did ${d} get multiplied by to make ${d * k}?`, `${d} × ${k} = ${d * k}, so multiply the top by ${k} too.`],
-        steps: [`${d} × ${k} = ${d * k}`, `Do the same to the top: ${n} × ${k} = ${n * k}`, `${fr(n, d)} = ${fr(n * k, d * k)}`],
+        steps: [
+          st("Compare the denominators.", `${d} × ? = ${d * k}. Since ${d * k} ÷ ${d} = ${k}, the denominator was multiplied by ${k}.`),
+          st("Do the same thing to the numerator.", `Equivalent fractions multiply the top AND bottom by the same number: ${n} × ${k} = ${n * k}.`),
+          st("Write the answer.", `${fr(n, d)} = {${n} × ${k}/${d} × ${k}} = ${fr(n * k, d * k)}`),
+        ],
         traps: traps(F(n * k), [trap(n + (d * k - d), "It looks like you added. To keep fractions equal, multiply the top and bottom by the same number.")]),
       };
     }
@@ -45,7 +50,11 @@ const equiv: Skill = {
       prompt: `Write ${fr(n * k, d * k)} in simplest form.`,
       answer: num(F(n, d), { simplest: true }),
       hints: [`Find a number that divides both ${n * k} and ${d * k}.`, `The greatest common factor of ${n * k} and ${d * k} is ${g}.`],
-      steps: [`GCF of ${n * k} and ${d * k} is ${g}`, `${n * k} ÷ ${g} = ${n}, ${d * k} ÷ ${g} = ${d}`, `Simplest form: ${fr(n, d)}`],
+      steps: [
+        ...gcfSteps(n * k, d * k),
+        st(`Divide the top and the bottom by ${g}.`, `{${n * k} ÷ ${g}/${d * k} ÷ ${g}} = ${fr(n, d)}`),
+        st("Check that it's in simplest form.", `${n} and ${d} have no common factor except 1, so ${fr(n, d)} is as simple as it gets.`),
+      ],
     };
   },
 };
@@ -98,12 +107,19 @@ const addsub: Skill = {
       prompt: `${show(x)} ${op} ${show(y)} = ?${lv === 3 ? " (A mixed number or fraction is fine.)" : ""}`,
       answer: num(ans, { simplest: true }),
       hints: [`Find a common denominator for ${x.d} and ${y.d}.`, `The least common multiple of ${x.d} and ${y.d} is ${L}. Rewrite both fractions as ${L}ths.`],
-      steps: [
-        `Common denominator: ${L}`,
-        `${fr(x)} = ${fr(x.n * (L / x.d), L)} and ${fr(y)} = ${fr(y.n * (L / y.d), L)}`,
-        `${fr(x.n * (L / x.d), L)} ${op} ${fr(y.n * (L / y.d), L)} = ${fr(subtract ? x.n * (L / x.d) - y.n * (L / y.d) : x.n * (L / x.d) + y.n * (L / y.d), L)}`,
-        `Simplest form: ${mixed(ans)}`,
-      ],
+      steps: (() => {
+        const xn = x.n * (L / x.d), yn = y.n * (L / y.d);
+        const res = subtract ? xn - yn : xn + yn;
+        return [
+          ...(lv === 3 ? [toImproperStep(x), toImproperStep(y)] : []),
+          lcdStep(x.d, y.d),
+          rewriteStep(x, L),
+          rewriteStep(y, L),
+          st(`${subtract ? "Subtract" : "Add"} the numerators. Keep the denominator.`, `${raw(xn, L)} ${op} ${raw(yn, L)} = {${xn} ${op} ${yn}/${L}} = ${raw(res, L)}. The pieces are still ${L}ths, so the bottom stays ${L}.`),
+          ...finishSteps(res, L),
+          st("Answer.", mixed(ans)),
+        ];
+      })(),
       traps: lv < 3 ? traps(ans, [trap(F(subtract ? Math.abs(x.n - y.n) : x.n + y.n, subtract ? Math.max(1, Math.abs(x.d - y.d)) : x.d + y.d), "It looks like you added (or subtracted) the denominators. Rewrite with a common denominator, then only combine the numerators.")]) : undefined,
     };
   },
@@ -137,7 +153,12 @@ const multiply: Skill = {
         prompt: `${fr(n, d)} × ${w} = ?`,
         answer: num(ans),
         hints: [`This means ${fr(n, d)} of ${w}. First find ${fr(1, d)} of ${w}.`, `${w} ÷ ${d} = ${w / d}. Now multiply by ${n}.`],
-        steps: [`${fr(1, d)} of ${w} is ${w} ÷ ${d} = ${w / d}`, `${fr(n, d)} of ${w} is ${n} × ${w / d} = ${ans}`],
+        steps: [
+          st("“Times” a fraction means “of”.", `${fr(n, d)} × ${w} means ${fr(n, d)} of ${w}.`),
+          st(`Find ${fr(1, d)} of ${w}.`, `Split ${w} into ${d} equal groups: ${w} ÷ ${d} = ${w / d} in each group.`),
+          st(`Find ${fr(n, d)} of ${w}.`, `Take ${n} of those groups: ${n} × ${w / d} = ${ans}.`),
+          st("Another way.", `Multiply the top first: ${n} × ${w} = ${n * w}, then divide by the bottom: ${n * w} ÷ ${d} = ${ans}.`),
+        ],
         traps: traps(F(ans), [trap(F(n * w, d * w), "Only multiply the numerator by the whole number: the denominator stays the same.")]),
       };
     }
@@ -153,7 +174,14 @@ const multiply: Skill = {
       prompt: `${lv === 3 ? mixed(x) : fr(x)} × ${fr(y)} = ?`,
       answer: num(ans, { simplest: true }),
       hints: lv === 3 ? [`Turn ${mixed(x)} into an improper fraction first.`, `${mixed(x)} = ${fr(x)}. Multiply tops, multiply bottoms.`] : ["Multiply the numerators, then multiply the denominators.", "Simplify at the end."],
-      steps: [...(lv === 3 ? [`${mixed(x)} = ${fr(x)}`] : []), `${fr(x)} × ${fr(y)} = ${fr(x.n * y.n, x.d * y.d)}`, `Simplest form: ${mixed(ans)}`],
+      steps: [
+        ...(lv === 3 ? [toImproperStep(x)] : []),
+        st("Multiply the numerators.", `${x.n} × ${y.n} = ${x.n * y.n}`),
+        st("Multiply the denominators.", `${x.d} × ${y.d} = ${x.d * y.d}`),
+        st("Write the product.", `${fr(x)} × ${fr(y)} = {${x.n} × ${y.n}/${x.d} × ${y.d}} = ${raw(x.n * y.n, x.d * y.d)}`),
+        ...finishSteps(x.n * y.n, x.d * y.d),
+        st("Answer.", mixed(ans)),
+      ],
       traps: traps(ans, [trap(frac(x.n * y.d, x.d * y.n), "That's division (flipping the second fraction). For multiplication, multiply straight across.")]),
     };
   },
@@ -185,7 +213,15 @@ const decimals: Skill = {
         prompt: `Write ${dec} as a fraction in simplest form.`,
         answer: num(F(n, d), { simplest: true }),
         hints: [`Read it aloud: how many tenths, hundredths or thousandths?`, `Write it over 10, 100 or 1000, then simplify.`],
-        steps: [`${dec} = ${fr(Math.round(Number(dec) * 1000), 1000)}`, `Simplify: ${fr(n, d)}`],
+        steps: (() => {
+          const pl = places(Number(dec));
+          const D = 10 ** pl, N = Math.round(Number(dec) * D);
+          return [
+            st("Read the place value.", `${dec} has ${pl} digit${pl === 1 ? "" : "s"} after the decimal point, so it means ${N} ${["", "tenth", "hundredth", "thousandth"][pl]}${N === 1 ? "" : "s"}: ${raw(N, D)}.`),
+            ...simplifySteps(N, D),
+            st("Answer.", fr(n, d)),
+          ];
+        })(),
       };
     }
     if (lv === 2) {
@@ -196,7 +232,11 @@ const decimals: Skill = {
         prompt: `Which number is greatest?`,
         answer: choice(r, String(big), uniq.filter((v) => v !== big).map(String)),
         hints: ["Give all the numbers the same number of decimal places by adding zeros.", "Compare 0.500 with 0.450 and so on, digit by digit from the left."],
-        steps: [`With three decimal places: ${uniq.map((v) => v.toFixed(3)).join(", ")}`, `Greatest: ${big}`],
+        steps: [
+          st("Give every number the same number of decimal places.", `Adding zeros at the end doesn't change a decimal: ${uniq.map((v) => `${v} → ${v.toFixed(3)}`).join(", ")}.`),
+          st("Compare them like whole numbers of thousandths.", `${[...uniq].sort((a, b) => b - a).map((v) => Math.round(v * 1000)).join(" > ")}`),
+          st("Answer.", `${big} is the greatest.`),
+        ],
       };
     }
     const d = r.pick([4, 5, 8, 20, 25]);
@@ -206,7 +246,15 @@ const decimals: Skill = {
       prompt: `Write ${fr(n, d)} as a decimal.`,
       answer: num(ans),
       hints: [`Find an equivalent fraction with a denominator of 10, 100 or 1000.`, `Or divide: ${n} ÷ ${d}.`],
-      steps: [`${n} ÷ ${d} = ${ans}`],
+      steps: (() => {
+        const k = { 4: 25, 5: 2, 8: 125, 20: 5, 25: 4 }[d]!;
+        const D = d * k;
+        return [
+          st("Make the denominator 10, 100 or 1000.", `${d} × ${k} = ${D}, so multiply the top and bottom by ${k}: {${n} × ${k}/${d} × ${k}} = ${raw(n * k, D)}.`),
+          st("Read it as a decimal.", `${raw(n * k, D)} means ${n * k} ${D === 10 ? "tenths" : D === 100 ? "hundredths" : "thousandths"}, which is written ${ans}.`),
+          st("Check by dividing.", `${n} ÷ ${d} = ${ans} ✔`),
+        ];
+      })(),
     };
   },
 };

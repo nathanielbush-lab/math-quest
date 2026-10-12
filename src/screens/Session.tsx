@@ -162,7 +162,22 @@ function ItemView({ item, state, mutate, ctx, advance, toast, onExit, xpGained, 
               const why = skill.why.find((w): w is WhyWritten => w.kind === "written")!;
               const status = r.grade ? (r.grade.verdict === "got_it" ? "pass" : "revise") : "pending";
               mutate((s) => {
-                s.explanations.push({ id: `${Date.now().toString(36)}`, skillId: item.skillId, prompt: why.prompt, keyIdeas: why.keyIdeas, exemplar: why.exemplar, response: r.response, date: today(), status, feedback: r.grade?.feedbackForStudent, parentNote: r.grade?.noteForParent, gradedBy: r.grade ? "claude" : undefined });
+                s.explanations.push({
+                  id: `${Date.now().toString(36)}`,
+                  skillId: item.skillId,
+                  prompt: why.prompt,
+                  keyIdeas: why.keyIdeas,
+                  exemplar: why.exemplar,
+                  response: r.response,
+                  date: today(),
+                  status,
+                  feedback: r.grade?.feedbackForStudent,
+                  parentNote: r.grade?.noteForParent,
+                  gradedBy: r.grade ? "claude" : undefined,
+                  rounds: r.rounds.length > 1 ? r.rounds : undefined,
+                  howToImprove: r.grade?.howToImprove,
+                  modelExplanation: r.grade?.modelExplanation,
+                });
                 setWrittenStatus(s, item.skillId, status);
                 s.xp += 15;
               });

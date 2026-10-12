@@ -146,7 +146,7 @@ function Explanations({ state, mutate }: { state: AppState; mutate: (fn: (s: App
   const [msg, setMsg] = useState<string | null>(null);
   const list = [...state.explanations].reverse();
   const pending = list.filter((e) => e.status === "pending");
-  const setStatus = (e: Explanation, status: "pass" | "revise", by: "claude" | "parent", feedback?: string, note?: string) =>
+  const setStatus = (e: Explanation, status: "pass" | "revise", by: "claude" | "parent", feedback?: string, note?: string, improve?: string) =>
     mutate((s) => {
       const x = s.explanations.find((y) => y.id === e.id);
       if (!x) return;
@@ -154,19 +154,20 @@ function Explanations({ state, mutate }: { state: AppState; mutate: (fn: (s: App
       x.gradedBy = by;
       if (feedback) x.feedback = feedback;
       if (note) x.parentNote = note;
+      if (improve) x.howToImprove = improve;
       setWrittenStatus(s, e.skillId, status);
     });
   const grade = async (e: Explanation) => {
     if (!state.settings.apiKey) return;
     setBusy(e.id);
     setMsg(null);
-    const out = await gradeIt(state.settings.apiKey, state.settings.model, { skillTitle: SKILL_BY_ID[e.skillId].title, prompt: e.prompt, keyIdeas: e.keyIdeas, exemplar: e.exemplar, response: e.response });
-    if (out.grade) setStatus(e, out.grade.verdict === "got_it" ? "pass" : "revise", "claude", out.grade.feedbackForStudent, out.grade.noteForParent);
+    const out = await gradeIt(state.settings.apiKey, state.settings.model, { skillTitle: SKILL_BY_ID[e.skillId].title, prompt: e.prompt, keyIdeas: e.keyIdeas, exemplar: e.exemplar, response: e.response, previous: e.rounds?.slice(0, -1) });
+    if (out.grade) setStatus(e, out.grade.verdict === "got_it" ? "pass" : "revise", "claude", out.grade.feedbackForStudent, out.grade.noteForParent, out.grade.howToImprove);
     else setMsg(out.error ?? "Couldn't grade it.");
     setBusy(null);
   };
   const copy = async () => {
-    const text = reviewPrompt(pending.map((e) => ({ id: e.id, date: e.date, skillTitle: SKILL_BY_ID[e.skillId].title, prompt: e.prompt, keyIdeas: e.keyIdeas, exemplar: e.exemplar, response: e.response })));
+    const text = reviewPrompt(pending.map((e) => ({ id: e.id, date: e.date, skillTitle: SKILL_BY_ID[e.skillId].title, prompt: e.prompt, keyIdeas: e.keyIdeas, exemplar: e.exemplar, response: e.response, previous: e.rounds?.slice(0, -1) })));
     try {
       await navigator.clipboard.writeText(text);
       setMsg("Copied! Paste it into a Claude chat, then mark each one below.");
@@ -195,8 +196,21 @@ function Explanations({ state, mutate }: { state: AppState; mutate: (fn: (s: App
             <span className="small muted">{fmtDate(e.date)}</span>
           </div>
           <p className="small muted" style={{ margin: "6px 0" }}>{e.prompt}</p>
-          <blockquote style={{ margin: "6px 0", padding: "8px 12px", background: "var(--surface-2)", borderRadius: 10 }}>{e.response}</blockquote>
+          {e.rounds && e.rounds.length > 1 && (
+            <details className="small">
+              <summary>She revised it {e.rounds.length - 1} time{e.rounds.length > 2 ? "s" : ""} with Claude's feedback: see every draft</summary>
+              {e.rounds.slice(0, -1).map((r, i) => (
+                <div key={i} style={{ margin: "6px 0" }}>
+                  <blockquote className="draft"><span className="muted">Draft {i + 1} · {r.verdict === "got_it" ? "got it" : r.verdict === "almost" ? "almost" : "not yet"}</span><br />{r.response}</blockquote>
+                  <div><strong>Feedback:</strong> {r.feedback}{r.guidingQuestion ? <> <em>{r.guidingQuestion}</em></> : null}</div>
+                </div>
+              ))}
+            </details>
+          )}
+          <blockquote className="draft">{e.rounds && e.rounds.length > 1 && <><span className="small muted">Final draft</span><br /></>}{e.response}</blockquote>
           {e.feedback && <p className="small"><strong>Feedback to her:</strong> {e.feedback}</p>}
+          {e.howToImprove && <p className="small"><strong>How she could make it stronger:</strong> {e.howToImprove}</p>}
+          {e.modelExplanation && <p className="small"><strong>Model explanation she was shown:</strong> {e.modelExplanation}</p>}
           {e.parentNote && <p className="small"><strong>Note for you:</strong> {e.parentNote}</p>}
           <details className="small"><summary>What a strong answer includes</summary><ul>{e.keyIdeas.map((k) => <li key={k}>{k}</li>)}</ul><p><em>Example:</em> {e.exemplar}</p></details>
           <div className="row" style={{ marginTop: 8 }}>

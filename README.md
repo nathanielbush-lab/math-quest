@@ -33,6 +33,8 @@ Everything runs in the browser. There's no account and no server, and progress i
 - **Difficulty** within a skill rises after 3 right in a row and drops after 2 misses.
 - **Spaced review:** checks at 1, 3, 7, 14, 30 and 60 days.
 - **Help:** two tries per question, hints that go from a nudge to nearly the whole method, and feedback that names common mistakes (for example "you added the denominators").
+- **Worked solutions:** after a miss, the full solution is revealed one step at a time ("Can you guess the next step?"), with a **Show all** button. Each step names the move ("Find a common denominator.") and then shows the work, the way she'd write it out.
+- **Badges:** earning one pops up a celebration that says what she did. The **trophy shelf** at the top of the home page shows what she has, the badge she's closest to next, and every locked badge with how to earn it.
 - **Unlimited practice:** problems are generated with fresh numbers every time, so she can't memorize answers.
 
 ### Stage challenges
@@ -47,6 +49,7 @@ The three stage challenges from the roadmap unlock as she reaches the relevant s
 
 ### Claude grading (optional)
 Paste an Anthropic API key (from platform.claude.com) in **Settings**. Written explanations are then graded by **Claude Haiku 5.5**, at well under a cent each. Use **Test it** to confirm the key works.
+- **Revision rounds:** if her explanation isn't there yet, Claude says what's missing and asks one guiding question, and she revises. It stops as soon as the explanation is good, and after at most 3 rounds. At the end she sees how to make it even stronger and a model explanation. She can also stop early with **I'm done, show me**. The Parent corner keeps every draft and the feedback on it.
 - The key is stored only in this browser and sent only to Anthropic.
 - Create a separate key with a low monthly spend limit, because anyone using the browser could find it.
 - Without a key, explanations wait for you in the Parent corner.

@@ -1,6 +1,7 @@
 import { frac, fromDecimal } from "../../lib/rational";
 import { F, NAMES, choice, money, num, round, trap, traps } from "../helpers";
 import type { Skill } from "../types";
+import { percentOfSteps, raw, simplifySteps, st } from "../steps";
 
 const T = "g6-rp";
 
@@ -35,7 +36,11 @@ const ratioLanguage: Skill = {
       prompt: `There are ${a} ${things[0]} and ${b} ${things[1]}. What is the ratio of ${desc}?`,
       answer: choice(r, correct, opts.filter((o) => o[0] !== correct).map((o) => [o[0], `That's the ratio of ${o[1]}.`] as [string, string])),
       hints: ["The first quantity named goes first.", `“All ${things[2]}” means the total: ${a} + ${b}.`],
-      steps: [`${desc}: ${correct}`],
+      steps: [
+        st("Read the order of the words.", `“The ratio of ${desc}” means the number of ${desc.split(" to ")[0]} comes first and the number of ${desc.split(" to ")[1].replace(/^all /, "all the ")} comes second.`),
+        ...(q >= 2 ? [st(`Find the total number of ${things[2]}.`, `${a} + ${b} = ${total}`)] : []),
+        st("Write the ratio.", `${desc}: ${correct}`),
+      ],
     };
   },
 };
@@ -75,7 +80,12 @@ const ratioTables: Skill = {
         visual: { type: "table", headers: [h1, h2], rows },
         answer: num(ans),
         hints: ["What was the first row multiplied by to get the row with the “?”", `The known number in that row is ${ks[miss]} times the first row.`],
-        steps: [`The row is ${ks[miss]} × (${a}, ${b})`, `? = ${col === 0 ? a : b} × ${ks[miss]} = ${ans}`],
+        steps: [
+          st("Look at the row with the “?”.", `The number we know in that row is ${col === 0 ? b * ks[miss] : a * ks[miss]} (in the ${col === 0 ? h2 : h1} column).`),
+          st("Find the scale factor.", `Compare it with the first row: ${col === 0 ? b * ks[miss] : a * ks[miss]} ÷ ${col === 0 ? b : a} = ${ks[miss]}. So this row is ${ks[miss]} times the first row.`),
+          st("Multiply the other number by the same factor.", `${col === 0 ? a : b} × ${ks[miss]} = ${ans}`),
+          st("Check.", `${a} : ${b} and ${a * ks[miss]} : ${b * ks[miss]} are equivalent because both parts were multiplied by ${ks[miss]}.`),
+        ],
         traps: traps(F(ans), [trap(col === 0 ? b * ks[miss] - (b - a) : a * ks[miss] + (b - a), "Equivalent ratios multiply, they don't add. Find the scale factor.")]),
       };
     }
@@ -88,7 +98,12 @@ const ratioTables: Skill = {
       visual: { type: "tape", rows: [{ label: p, segments: Array.from({ length: a }, () => ({ text: "?", size: 1, shade: true })) }, { label: q, segments: Array.from({ length: b }, () => ({ text: "?", size: 1 })) }] },
       answer: num(ans),
       hints: [`The tape diagram has ${a} + ${b} = ${a + b} equal boxes.`, `Each box is ${(a + b) * k} ÷ ${a + b} = ${k}.`],
-      steps: [`${a + b} boxes = ${(a + b) * k}, so 1 box = ${k}`, `${askFirst ? p : q}: ${askFirst ? a : b} boxes × ${k} = ${ans}`],
+      steps: [
+        st("Draw the tape diagram.", `${p}: ${a} box${a === 1 ? "" : "es"}, ${q}: ${b} boxes. That's ${a} + ${b} = ${a + b} equal boxes in all.`),
+        st("Find what one box is worth.", `All ${a + b} boxes together are ${(a + b) * k}, so one box = ${(a + b) * k} ÷ ${a + b} = ${k}.`),
+        st(`Find the number of ${askFirst ? p : q}.`, `${askFirst ? a : b} boxes × ${k} = ${ans}`),
+        st("Check.", `${a * k} ${p} + ${b * k} ${q} = ${(a + b) * k} ✔, and ${a * k} : ${b * k} simplifies to ${a} : ${b} ✔`),
+      ],
       traps: traps(F(ans), [trap((askFirst ? a : b) * ((a + b) * k) / (askFirst ? b : a), `Use the total: there are ${a + b} boxes in all.`)]),
     };
   },
@@ -121,7 +136,12 @@ const unitRate: Skill = {
         prompt: `${r.pick(NAMES)} ${verb} ${per * n} ${thing} in ${n} ${unit}. What is the rate in ${rateUnit}?`,
         answer: num(per),
         hints: [`“Per” ${unit.replace(/s$/, "")} means for ONE ${unit.replace(/s$/, "")}.`, `Divide: ${per * n} ÷ ${n}.`],
-        steps: [`${per * n} ÷ ${n} = ${per} ${rateUnit}`],
+        steps: [
+          st("“Per” means “for each one”.", `We want the number of ${thing} for 1 ${unit.replace(/s$/, "")}.`),
+          st(`Share the ${thing} equally over the ${unit}.`, `${per * n} ÷ ${n} = ${per}`),
+          st("Answer with units.", `${per} ${rateUnit}`),
+          st("Check.", `${per} × ${n} ${unit} = ${per * n} ${thing} ✔`),
+        ],
         traps: traps(F(per), [trap(frac(n, per * n), `That's ${unit} per ${thing.replace(/s$/, "")}. Divide by the ${unit}.`)]),
       };
     }
@@ -134,7 +154,12 @@ const unitRate: Skill = {
         prompt: `A pack of ${n} ${item} costs ${money(price)}. What is the price per ${item.replace(/s$/, "")}?`,
         answer: num(fromDecimal(cents / 100), { pre: "$" }),
         hints: ["Price per item = total price ÷ number of items.", `${money(price)} ÷ ${n}.`],
-        steps: [`${money(price)} ÷ ${n} = ${money(cents / 100)} each`],
+        steps: [
+          st("Price for one = total price ÷ number of items.", `${money(price)} ÷ ${n}`),
+          st("Think in cents to make it easier.", `${money(price)} = ${Math.round(price * 100)} cents, and ${Math.round(price * 100)} ÷ ${n} = ${cents} cents.`),
+          st("Write it in dollars.", `${cents} cents = ${money(cents / 100)} each`),
+          st("Check.", `${n} × ${money(cents / 100)} = ${money(price)} ✔`),
+        ],
       };
     }
     let cents2 = r.int(15, 95);
@@ -151,7 +176,12 @@ const unitRate: Skill = {
       prompt: `Which is the better buy (lower price per item)?`,
       answer: choice(r, better, [[worse, "Compare the price of ONE item in each pack."], ["They cost the same per item", "Divide each price by the number of items to compare."]], true),
       hints: ["Find the price for one item in each pack.", `${money(price)} ÷ ${n} and ${money(price2)} ÷ ${n2}.`],
-      steps: [`${money(price)} ÷ ${n} = ${money(cents / 100)} each`, `${money(price2)} ÷ ${n2} = ${money(cents2 / 100)} each`, `Better buy: ${better}`],
+      steps: [
+        st("The packs have different sizes, so compare the price of ONE item.", "Unit price = total price ÷ number of items."),
+        st(`Pack of ${n}.`, `${money(price)} ÷ ${n}: ${Math.round(price * 100)} cents ÷ ${n} = ${cents} cents = ${money(cents / 100)} each.`),
+        st(`Pack of ${n2}.`, `${money(price2)} ÷ ${n2}: ${Math.round(price2 * 100)} cents ÷ ${n2} = ${cents2} cents = ${money(cents2 / 100)} each.`),
+        st("Compare.", `${money(Math.min(cents, cents2) / 100)} < ${money(Math.max(cents, cents2) / 100)}, so the better buy is ${better}.`),
+      ],
     };
   },
 };
@@ -185,7 +215,7 @@ const percentOf: Skill = {
         prompt: `What is ${p}% of ${base}?`,
         answer: num(ans),
         hints: [`${p}% = ${p === 50 ? "one half" : p === 25 ? "one quarter" : p === 75 ? "three quarters" : p === 10 ? "one tenth" : "one fifth"}.`, `Find that fraction of ${base}.`],
-        steps: [`${p}% of ${base} = {${p}/100} × ${base} = ${ans}`],
+        steps: percentOfSteps(p, base),
         traps: traps(F(ans), [trap(base / p, "That's dividing by the percent. Percent means per 100: multiply by {p/100}.".replace("{p/100}", `{${p}/100}`))]),
       };
     }
@@ -197,7 +227,7 @@ const percentOf: Skill = {
         prompt: `What is ${p}% of ${base}?`,
         answer: num(fromDecimal(ans)),
         hints: [`${p}% = ${p / 100}.`, `Multiply ${p / 100} × ${base}.`],
-        steps: [`${p}% = ${p / 100}`, `${p / 100} × ${base} = ${ans}`],
+        steps: percentOfSteps(p, base),
         traps: traps(fromDecimal(ans), [trap(p * base, "Remember to change the percent to a decimal (divide by 100) first.")]),
       };
     }
@@ -205,13 +235,26 @@ const percentOf: Skill = {
     const p = r.pick([10, 20, 25, 30, 40, 50, 60, 75, 80, 5, 15]);
     const part = (p * whole) / 100;
     if (!Number.isInteger(part)) {
-      return { prompt: `What percent of 40 is 10?`, answer: num(25, { unit: "%" }), hints: ["Write it as a fraction: {10/40}.", "Simplify, then make the denominator 100."], steps: ["{10/40} = {1/4} = {25/100} = 25%"] };
+      return { prompt: `What percent of 40 is 10?`, answer: num(25, { unit: "%" }), hints: ["Write it as a fraction: {10/40}.", "Simplify, then make the denominator 100."], steps: [st("Write the part over the whole.", "{10/40}"), ...simplifySteps(10, 40), st("Make the denominator 100.", "{1/4} = {1 × 25/4 × 25} = {25/100}"), st("Percent means “out of 100”.", "{25/100} = 25%")] };
     }
     return {
       prompt: `${part} is what percent of ${whole}?`,
       answer: num(p, { unit: "%" }),
       hints: [`Write it as a fraction: {${part}/${whole}}.`, `Rewrite with a denominator of 100 (or divide ${part} ÷ ${whole} and multiply by 100).`],
-      steps: [`{${part}/${whole}} = ${round(part / whole, 4)}`, `${round(part / whole, 4)} × 100 = ${p}%`],
+      steps: (() => {
+        const g = (x: number, y: number): number => (y ? g(y, x % y) : x);
+        const k = g(part, whole);
+        const sn = part / k, sd = whole / k;
+        return [
+          st("Write the part over the whole.", `${part} out of ${whole} is ${raw(part, whole)}.`),
+          ...simplifySteps(part, whole),
+          100 % sd === 0
+            ? st("Make the denominator 100.", `100 ÷ ${sd} = ${100 / sd}, so multiply the top and bottom by ${100 / sd}: {${sn} × ${100 / sd}/${sd} × ${100 / sd}} = {${p}/100}.`)
+            : st("Divide to get a decimal.", `${part} ÷ ${whole} = ${round(part / whole, 4)} = {${p}/100}.`),
+          st("Percent means “out of 100”.", `{${p}/100} = ${p}%`),
+          st("Check.", `${p}% of ${whole} = ${part} ✔`),
+        ];
+      })(),
       traps: traps(F(p), [trap(round((whole / part) * 100, 2), `Put the part (${part}) on top and the whole (${whole}) on the bottom.`)]),
     };
   },
@@ -246,7 +289,19 @@ const percentWhole: Skill = {
       prompt: ctx,
       answer: num(whole),
       hints: [`If ${p}% is ${part}, what is ${p >= 10 && p % 10 === 0 ? "10%" : "1%"}?`, `Then scale up to 100%.`],
-      steps: p % 10 === 0 ? [`${p}% → ${part}`, `10% → ${part} ÷ ${p / 10} = ${part / (p / 10)}`, `100% → ${part / (p / 10)} × 10 = ${whole}`] : [`${p}% → ${part}`, `1% → ${part} ÷ ${p} = ${part / p}`, `100% → ${part / p} × 100 = ${whole}`],
+      steps: [
+        st("Write what you know.", `${p}% of the whole is ${part}. We want 100%.`),
+        ...(p === 50
+          ? [st("50% is half.", `If half is ${part}, the whole is 2 × ${part} = ${whole}.`)]
+          : p === 25
+            ? [st("25% is a quarter.", `If a quarter is ${part}, the whole is 4 × ${part} = ${whole}.`)]
+            : p === 75
+              ? [st("75% is three quarters.", `So one quarter is ${part} ÷ 3 = ${part / 3}.`), st("Four quarters make the whole.", `4 × ${part / 3} = ${whole}`)]
+              : p % 10 === 0
+                ? [st("Find 10%.", `${p}% is ${p / 10} groups of 10%, so 10% = ${part} ÷ ${p / 10} = ${part / (p / 10)}.`), st("Find 100%.", `100% is 10 groups of 10%: 10 × ${part / (p / 10)} = ${whole}.`)]
+                : [st("Find 5%.", `${p}% is ${p / 5} groups of 5%, so 5% = ${part} ÷ ${p / 5} = ${part / (p / 5)}.`), st("Find 100%.", `100% is 20 groups of 5%: 20 × ${part / (p / 5)} = ${whole}.`)]),
+        st("Check.", `${p}% of ${whole} = ${p / 100} × ${whole} = ${part} ✔`),
+      ],
       traps: traps(F(whole), [trap(fromDecimal(round((p * part) / 100, 4)), `That's ${p}% of ${part}. Here ${part} is the part; we need the whole.`)]),
     };
   },
@@ -281,7 +336,10 @@ const convert: Skill = {
         prompt: `How many ${small} are in ${n} ${big}?`,
         answer: num(n * k),
         hints: big === "yards" ? ["1 yard = 3 feet and 1 foot = 12 inches.", "So 1 yard = 36 inches."] : ["1 gallon = 4 quarts, 1 quart = 2 pints, 1 pint = 2 cups.", "So 1 gallon = 16 cups."],
-        steps: [`1 ${big.replace(/s$/, "")} = ${k} ${small}`, `${n} × ${k} = ${n * k} ${small}`],
+        steps: [
+          st("Build the conversion fact one step at a time.", big === "yards" ? "1 yard = 3 feet, and each foot = 12 inches, so 1 yard = 3 × 12 = 36 inches." : "1 gallon = 4 quarts, each quart = 2 pints, each pint = 2 cups, so 1 gallon = 4 × 2 × 2 = 16 cups."),
+          st("Bigger unit → smaller unit, so multiply.", `There will be more ${small} than ${big}: ${n} × ${k} = ${n * k} ${small}.`),
+        ],
       };
     }
     const [big, small, k] = r.pick(facts);
@@ -292,7 +350,11 @@ const convert: Skill = {
         prompt: `${n} ${big} = how many ${small}?`,
         answer: num(n * k),
         hints: [`1 ${big.replace(/s$/, "")} = ${k} ${small}.`, `${small} are smaller, so multiply.`],
-        steps: [`${n} × ${k} = ${n * k} ${small}`],
+        steps: [
+          st("Know the conversion fact.", `1 ${big.replace(/s$/, "")} = ${k} ${small}.`),
+          st("Multiply or divide?", `${small[0].toUpperCase() + small.slice(1)} are smaller than ${big}, so it takes MORE of them. Multiply.`),
+          st("Multiply.", `${n} × ${k} = ${n * k} ${small}`),
+        ],
         traps: traps(F(n * k), [trap(frac(n, k), `${small} are smaller units, so there should be MORE of them. Multiply.`)]),
       };
     }
@@ -300,7 +362,12 @@ const convert: Skill = {
       prompt: `${n * k} ${small} = how many ${big}?`,
       answer: num(n),
       hints: [`1 ${big.replace(/s$/, "")} = ${k} ${small}.`, `${big} are bigger, so there will be fewer of them. Divide.`],
-      steps: [`${n * k} ÷ ${k} = ${n} ${big}`],
+      steps: [
+        st("Know the conversion fact.", `1 ${big.replace(/s$/, "")} = ${k} ${small}.`),
+        st("Multiply or divide?", `${big[0].toUpperCase() + big.slice(1)} are bigger than ${small}, so there will be FEWER of them. Divide.`),
+        st("Divide.", `${n * k} ÷ ${k} = ${n} ${big}`),
+        st("Check.", `${n} × ${k} = ${n * k} ${small} ✔`),
+      ],
       traps: traps(F(n), [trap(n * k * k, `${big} are bigger units, so there should be FEWER of them. Divide.`)]),
     };
   },

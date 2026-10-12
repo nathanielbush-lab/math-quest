@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { SessionType } from "./engine/session";
+import { BadgeCelebration } from "./components/Badges";
 import { BADGE_BY_ID, useAppState } from "./store";
 import { Home } from "./screens/Home";
 import { MissionScreen } from "./screens/Mission";
@@ -33,12 +34,10 @@ export default function App() {
     return () => clearTimeout(id);
   }, [toastText]);
 
+  const celebrating = newBadges.length ? BADGE_BY_ID[newBadges[0]] : undefined;
   useEffect(() => {
-    if (!newBadges.length || toastText) return;
-    const b = BADGE_BY_ID[newBadges[0]];
-    popBadge();
-    if (b) setToastText(`${b.icon} New badge: ${b.name}`);
-  }, [newBadges, toastText, popBadge]);
+    if (newBadges.length && !BADGE_BY_ID[newBadges[0]]) popBadge();
+  }, [newBadges, popBadge]);
 
   const inActivity = route.name === "session" || route.name === "mission" || (route.name === "placement" && !!route.topicId);
   const home = () => go({ name: "home" });
@@ -82,7 +81,8 @@ export default function App() {
       )}
       {saveFailed && <div className="feedback warn">Progress couldn't be saved in this browser (private window or storage blocked?). Use Parent → Settings → Download progress file to keep it.</div>}
       {body}
-      {toastText && <div className="toast" role="status">{toastText}</div>}
+      {toastText && !celebrating && <div className="toast" role="status">{toastText}</div>}
+      {celebrating && <BadgeCelebration badge={celebrating} more={newBadges.length - 1} onClose={popBadge} />}
     </div>
   );
 }

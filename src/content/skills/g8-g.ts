@@ -1,6 +1,10 @@
 import { frac, fromDecimal } from "../../lib/rational";
-import { F, choice, ms, num, round, trap, traps } from "../helpers";
+import { F, choice, fr, mixed, ms, num, round, trap, traps } from "../helpers";
 import type { Skill } from "../types";
+import { st } from "../steps";
+
+const par = (v: number) => (v < 0 ? `(${ms(v)})` : String(v));
+const quad = (x: number, y: number) => (x > 0 ? (y > 0 ? "I" : "IV") : y > 0 ? "II" : "III");
 
 const T = "g8-g";
 
@@ -41,11 +45,63 @@ const transform: Skill = {
       default: nx = k * x; ny = k * y; desc = `dilate it by a scale factor of ${k} centered at the origin`; rule = `(${k}x, ${k}y)`;
     }
     const lim = Math.max(8, Math.abs(nx) + 1, Math.abs(ny) + 1);
+    const pt = `(${ms(x)}, ${ms(y)})`;
+    const img = `(${ms(nx)}, ${ms(ny)})`;
+    const transformSteps = (): string[] => {
+      switch (kind) {
+        case "translate":
+          return [
+            st("Left/right changes x; up/down changes y.", `Right is +, left is −, up is +, down is −.`),
+            st("Move x.", `${ms(x)} ${dx > 0 ? "+" : "−"} ${Math.abs(dx)} = ${ms(nx)}`),
+            st("Move y.", `${ms(y)} ${dy > 0 ? "+" : "−"} ${Math.abs(dy)} = ${ms(ny)}`),
+            st("Answer.", `A lands at ${img}.`),
+          ];
+        case "reflect-x":
+          return [
+            st("Reflecting across the x-axis flips the point up ↔ down.", "x stays the same and y changes sign: (x, y) → (x, −y)."),
+            st("Apply it.", `x stays ${ms(x)}; y: ${ms(y)} → ${ms(ny)}`),
+            st("Answer.", `${img}: the same distance (${Math.abs(y)}) from the x-axis, on the other side.`),
+          ];
+        case "reflect-y":
+          return [
+            st("Reflecting across the y-axis flips the point left ↔ right.", "y stays the same and x changes sign: (x, y) → (−x, y)."),
+            st("Apply it.", `x: ${ms(x)} → ${ms(nx)}; y stays ${ms(y)}`),
+            st("Answer.", `${img}: the same distance (${Math.abs(x)}) from the y-axis, on the other side.`),
+          ];
+        case "rotate180":
+          return [
+            st("A half-turn sends the point straight through the origin to the opposite side.", "Both signs flip: (x, y) → (−x, −y)."),
+            st("Apply it.", `x: ${ms(x)} → ${ms(nx)}; y: ${ms(y)} → ${ms(ny)}`),
+            st("Answer and check.", `${img}. A started in Quadrant ${quad(x, y)} and a half-turn lands it in Quadrant ${quad(nx, ny)} ✔`),
+          ];
+        case "rotate90":
+          return [
+            st("Rule for 90° counterclockwise.", "(x, y) → (−y, x): swap the coordinates, then change the sign of the new first one."),
+            st("Swap.", `${pt} → (${ms(y)}, ${ms(x)})`),
+            st("Change the sign of the first.", `(${ms(y)}, ${ms(x)}) → ${img}`),
+            st("Check the quadrant.", `Counterclockwise quarter-turns go I → II → III → IV. A was in Quadrant ${quad(x, y)}, and ${img} is in Quadrant ${quad(nx, ny)} ✔`),
+          ];
+        case "rotate90cw":
+          return [
+            st("Rule for 90° clockwise.", "(x, y) → (y, −x): swap the coordinates, then change the sign of the new second one."),
+            st("Swap.", `${pt} → (${ms(y)}, ${ms(x)})`),
+            st("Change the sign of the second.", `(${ms(y)}, ${ms(x)}) → ${img}`),
+            st("Check the quadrant.", `Clockwise quarter-turns go I → IV → III → II. A was in Quadrant ${quad(x, y)}, and ${img} is in Quadrant ${quad(nx, ny)} ✔`),
+          ];
+        default:
+          return [
+            st(`A dilation by ${k} from the origin multiplies both coordinates by ${k}.`, `(x, y) → (${k}x, ${k}y)`),
+            st("Multiply x.", `${k} × ${par(x)} = ${ms(nx)}`),
+            st("Multiply y.", `${k} × ${par(y)} = ${ms(ny)}`),
+            st("Answer.", `${img}: in the same direction from the origin, ${k} times as far.`),
+          ];
+      }
+    };
     return {
       prompt: `Point A is at (${ms(x)}, ${ms(y)}). Click where A lands if you ${desc}.`,
       answer: { kind: "point", x: nx, y: ny, min: -lim, max: lim, extraPoints: [{ x, y, label: "A" }] },
       hints: [`The rule is (x, y) → ${rule}.`, `Apply it: x = ${ms(x)}, y = ${ms(y)}.`],
-      steps: [`(x, y) → ${rule}`, `(${ms(x)}, ${ms(y)}) → (${ms(nx)}, ${ms(ny)})`],
+      steps: transformSteps(),
     };
   },
 };
@@ -76,7 +132,12 @@ const similarity: Skill = {
         prompt: askNot ? "Which transformation does NOT always produce a congruent figure?" : "Which transformation always produces a congruent figure?",
         answer: choice(r, right, options.filter(([t]) => t !== right).map(([t, rig]) => [t, rig ? "Slides, flips and turns keep the size the same." : "A dilation changes the size."] as [string, string])),
         hints: ["Congruent means same size and shape.", "Which one changes the size?"],
-        steps: ["Translations, reflections and rotations keep size; dilations change it"],
+        steps: [
+          st("Congruent means same size AND same shape.", "So ask: which moves can change the size?"),
+          st("Translations, reflections and rotations", "only slide, flip or turn the figure. The size never changes → always congruent."),
+          st("A dilation", "stretches or shrinks the figure. The shape stays but the size changes → similar, not congruent."),
+          st("Answer.", right),
+        ],
       };
     }
     const k = lv === 2 ? r.int(2, 5) : r.pick([1.5, 2.5, 3, 4]);
@@ -89,10 +150,15 @@ const similarity: Skill = {
       const ts = ps * r.int(3, 8);
       const tree = (ph * ts) / ps;
       return {
-        prompt: `A ${ph} ft tall person casts a ${ps} ft shadow. At the same time, a tree casts a ${ts} ft shadow. How tall is the tree?`,
+        prompt: `A ${ph} ft tall person casts a ${ps} ft shadow. At the same time, a tree casts ${/^(8|11|18)/.test(String(ts)) ? "an" : "a"} ${ts} ft shadow. How tall is the tree?`,
         answer: num(fromDecimal(round(tree, 3)), { tolerance: 0.01 }),
         hints: ["The person and the tree make similar triangles with their shadows.", `The tree's shadow is ${ts} ÷ ${ps} = ${ts / ps} times as long.`],
-        steps: [`Scale factor: ${ts} ÷ ${ps} = ${ts / ps}`, `Tree: ${ph} × ${ts / ps} = ${tree} ft`],
+        steps: [
+          st("Spot the similar triangles.", "The sun's rays hit the person and the tree at the same angle, so (height, shadow) make two similar right triangles."),
+          st("Find the scale factor from the shadows.", `tree's shadow ÷ person's shadow = ${ts} ÷ ${ps} = ${ts / ps}`),
+          st("Scale the height by the same factor.", `${ph} × ${ts / ps} = ${tree} ft`),
+          st("Check the ratios match.", `height ÷ shadow: {${ph}/${ps}} and {${tree}/${ts}} both simplify to ${fr(frac(ph, ps))} ✔`),
+        ],
         traps: traps(fromDecimal(round(tree, 3)), [trap(ph + ts - ps, "Similar figures scale by multiplying, not by adding.")]),
       };
     }
@@ -100,7 +166,12 @@ const similarity: Skill = {
       prompt: `Triangle ABC is similar to triangle DEF. AB = ${a}, BC = ${b}, and DE = ${a * k}. Find EF.`,
       answer: num(fromDecimal(ans)),
       hints: [`Scale factor = DE ÷ AB = ${a * k} ÷ ${a} = ${k}.`, `EF = BC × ${k}.`],
-      steps: [`k = ${a * k} ÷ ${a} = ${k}`, `EF = ${b} × ${k} = ${ans}`],
+      steps: [
+        st("Match corresponding sides.", "ABC ~ DEF, so AB ↔ DE, BC ↔ EF and CA ↔ FD (letters in the same order)."),
+        st("Find the scale factor.", `DE ÷ AB = ${a * k} ÷ ${a} = ${k}`),
+        st("Scale BC to get EF.", `EF = ${b} × ${k} = ${ans}`),
+        st("Check the ratios match.", `${a * k} ÷ ${a} = ${k} and ${ans} ÷ ${b} = ${k} ✔`),
+      ],
       traps: traps(fromDecimal(ans), [trap(b + a * k - a, "Similar figures scale by multiplying, not by adding the same amount.")]),
     };
   },
@@ -133,7 +204,25 @@ const angles8: Skill = {
         prompt: `Two parallel lines are cut by a transversal. One angle is ${a}°. What is the measure of its ${kind} angle?`,
         answer: num(ans),
         hints: [kind === "same-side interior" ? "Same-side interior angles are supplementary." : `${kind[0].toUpperCase() + kind.slice(1)} angles are equal.`],
-        steps: [kind === "same-side interior" ? `180 − ${a} = ${ans}°` : `Equal: ${a}°`],
+        steps:
+          kind === "corresponding"
+            ? [
+                st("Where is it?", "Corresponding angles sit in the same position at each crossing (for example, both above the line and right of the transversal)."),
+                st("Parallel lines → same tilt.", "The transversal crosses both parallel lines at the same angle, so corresponding angles are equal."),
+                st("Answer.", `${a}°`),
+              ]
+            : kind === "alternate interior"
+              ? [
+                  st("Where is it?", "Alternate interior angles are between the parallel lines, on opposite sides of the transversal (they make a Z shape)."),
+                  st("They're equal.", "Each one matches a corresponding angle that is vertical to the other, so they're the same size."),
+                  st("Answer.", `${a}°`),
+                ]
+              : [
+                  st("Where is it?", "Same-side interior angles are between the parallel lines, on the same side of the transversal (a C shape)."),
+                  st("They're supplementary.", "Together they add to 180°."),
+                  st("Subtract.", `180 − ${a} = ${ans}°`),
+                  st("Check.", `${a} + ${ans} = 180 ✔`),
+                ],
         traps: traps(F(ans), [trap(kind === "same-side interior" ? a : 180 - a, kind === "same-side interior" ? "Same-side interior angles add to 180°." : "These angles are equal, not supplementary.")]),
       };
     }
@@ -144,7 +233,12 @@ const angles8: Skill = {
         prompt: `In a triangle, two interior angles are ${p}° and ${q}°. What is the exterior angle at the third vertex?`,
         answer: num(p + q),
         hints: ["Exterior angle = sum of the two remote interior angles.", `${p} + ${q}`],
-        steps: [`${p} + ${q} = ${p + q}°`, `(Check: third angle is ${180 - p - q}°, and 180 − ${180 - p - q} = ${p + q}°)`],
+        steps: [
+          st("Picture it.", "The exterior angle and the third interior angle sit side by side on a straight line, so they add to 180°."),
+          st("Find the third interior angle.", `The angles of a triangle add to 180°: 180 − ${p} − ${q} = ${180 - p - q}°`),
+          st("Find the exterior angle.", `180 − ${180 - p - q} = ${p + q}°`),
+          st("Shortcut for next time.", `Exterior angle = the two remote interior angles added: ${p} + ${q} = ${p + q}° ✔`),
+        ],
         traps: traps(F(p + q), [trap(180 - p - q, "That's the interior angle. The exterior angle is next to it on a straight line.")]),
       };
     }
@@ -159,7 +253,13 @@ const angles8: Skill = {
       prompt: `In a triangle, the two remote interior angles measure (${k1}x)° and ${p2}°. The exterior angle at the third vertex is ${ext}°. What is x?`,
       answer: num(x),
       hints: ["Exterior angle = sum of the two remote interior angles.", `${k1}x + ${p2} = ${ext}`],
-      steps: [`${k1}x + ${p2} = ${ext}`, `${k1}x = ${ext - p2}`, `x = ${x}`],
+      steps: [
+        st("Use the exterior angle rule.", "Exterior angle = sum of the two remote interior angles."),
+        st("Write the equation.", `${k1}x + ${p2} = ${ext}`),
+        st(`Subtract ${p2} from both sides.`, `${k1}x = ${ext} − ${p2} = ${ext - p2}`),
+        st(`Divide both sides by ${k1}.`, `x = ${ext - p2} ÷ ${k1} = ${x}`),
+        st("Check.", `${k1} × ${x} + ${p2} = ${k1 * x} + ${p2} = ${ext} ✔`),
+      ],
       traps: traps(F(x), [trap(frac(180 - ext - p2, k1), "The exterior angle equals the two REMOTE interior angles added together.")]),
     };
   },
@@ -193,7 +293,13 @@ const pythag: Skill = {
         visual: { type: "shape", shape: "righttriangle", labels: { a: String(a), b: String(b), c: "?" } },
         answer: num(c),
         hints: ["a² + b² = c².", `${a}² + ${b}² = ${a * a} + ${b * b} = ${a * a + b * b}`],
-        steps: [`${a * a} + ${b * b} = ${c * c}`, `c = √${c * c} = ${c}`],
+        steps: [
+          st("Use a² + b² = c².", "The legs are a and b; the hypotenuse c is the side across from the right angle."),
+          st("Square the legs.", `${a}² = ${a * a} and ${b}² = ${b * b}`),
+          st("Add.", `${a * a} + ${b * b} = ${c * c}, so c² = ${c * c}`),
+          st("Take the square root.", `c = √${c * c} = ${c}, because ${c} × ${c} = ${c * c}`),
+          st("Sense check.", `${c} is longer than both legs, as the hypotenuse must be ✔`),
+        ],
         traps: traps(F(c), [trap(a + b, "The sides don't simply add. Square, add, then take the square root."), trap(c * c, "Now take the square root.")]),
       };
     }
@@ -204,7 +310,13 @@ const pythag: Skill = {
         visual: { type: "shape", shape: "righttriangle", labels: { a: findA ? "?" : String(a), b: findA ? String(b) : "?", c: String(c) } },
         answer: num(findA ? a : b),
         hints: ["The hypotenuse is c: leg² = c² − (other leg)².", `${c}² − ${findA ? b : a}²`],
-        steps: [`${c * c} − ${(findA ? b : a) ** 2} = ${(findA ? a : b) ** 2}`, `√${(findA ? a : b) ** 2} = ${findA ? a : b}`],
+        steps: [
+          st("Use a² + b² = c² with the hypotenuse c = " + c + ".", `${findA ? b : a}² + ?² = ${c}²`),
+          st("Square what you know.", `${findA ? b : a}² = ${(findA ? b : a) ** 2} and ${c}² = ${c * c}`),
+          st("Subtract to find the missing leg squared.", `?² = ${c * c} − ${(findA ? b : a) ** 2} = ${(findA ? a : b) ** 2}`),
+          st("Take the square root.", `? = √${(findA ? a : b) ** 2} = ${findA ? a : b}`),
+          st("Check.", `${(findA ? b : a) ** 2} + ${(findA ? a : b) ** 2} = ${c * c} ✔`),
+        ],
         traps: traps(F(findA ? a : b), [trap(round(Math.sqrt(c * c + (findA ? b : a) ** 2), 1), "When finding a leg, subtract from the hypotenuse squared.")]),
       };
     }
@@ -215,7 +327,12 @@ const pythag: Skill = {
         prompt: `Do sides ${sides.join(", ")} form a right triangle?`,
         answer: choice(r, right ? "Yes" : "No", [[right ? "No" : "Yes", `Check: ${sides[0]}² + ${sides[1]}² = ${sides[0] ** 2 + sides[1] ** 2} and ${sides[2]}² = ${sides[2] ** 2}.`]], true),
         hints: ["Check whether a² + b² = c² with c the longest side."],
-        steps: [`${sides[0] ** 2} + ${sides[1] ** 2} = ${sides[0] ** 2 + sides[1] ** 2}; ${sides[2]}² = ${sides[2] ** 2}`, right ? "Equal → right triangle" : "Not equal → not a right triangle"],
+        steps: [
+          st("The longest side would have to be the hypotenuse.", `So test whether ${sides[0]}² + ${sides[1]}² = ${sides[2]}².`),
+          st("Left side.", `${sides[0]}² + ${sides[1]}² = ${sides[0] ** 2} + ${sides[1] ** 2} = ${sides[0] ** 2 + sides[1] ** 2}`),
+          st("Right side.", `${sides[2]}² = ${sides[2] ** 2}`),
+          st("Compare.", right ? `${sides[0] ** 2 + sides[1] ** 2} = ${sides[2] ** 2}, so it IS a right triangle. Answer: Yes` : `${sides[0] ** 2 + sides[1] ** 2} ≠ ${sides[2] ** 2}, so it is NOT a right triangle. Answer: No`),
+        ],
       };
     }
     const p = r.int(2, 9);
@@ -225,7 +342,17 @@ const pythag: Skill = {
       prompt: `A ladder leans against a wall. Its foot is ${p} ft from the wall and it reaches ${q} ft up the wall. How long is the ladder, to the nearest tenth of a foot?`,
       answer: num(round(h, 1), { tolerance: 0.051 }),
       hints: ["The wall, ground and ladder make a right triangle; the ladder is the hypotenuse.", `√(${p}² + ${q}²) = √${p * p + q * q}`],
-      steps: [`${p * p} + ${q * q} = ${p * p + q * q}`, `√${p * p + q * q} ≈ ${round(h, 2)} ≈ ${round(h, 1)} ft`],
+      steps: [
+        st("Draw the right triangle.", `The ground (${p} ft) and the wall (${q} ft) are the legs; the ladder is the hypotenuse.`),
+        st("Square the legs and add.", `${p}² + ${q}² = ${p * p} + ${q * q} = ${p * p + q * q}`),
+        ...(Number.isInteger(h)
+          ? [st("Take the square root.", `√${p * p + q * q} = ${h}`)]
+          : [
+              st("Estimate the square root.", `${Math.floor(h)}² = ${Math.floor(h) ** 2} and ${Math.floor(h) + 1}² = ${(Math.floor(h) + 1) ** 2}, so √${p * p + q * q} is between ${Math.floor(h)} and ${Math.floor(h) + 1}.`),
+              st("Use the calculator.", `√${p * p + q * q} ≈ ${round(h, 3)}`),
+            ]),
+        st("Round to the nearest tenth.", `The ladder is about ${round(h, 1)} ft long.`),
+      ],
     };
   },
 };
@@ -260,7 +387,15 @@ const distance: Skill = {
       visual: Math.max(Math.abs(x2), Math.abs(y2), Math.abs(x1), Math.abs(y1)) <= 12 ? { type: "grid", min: -12, max: 12, points: [{ x: x1, y: y1 }, { x: x2, y: y2 }], polygon: [{ x: x1, y: y1 }, { x: x2, y: y1 }, { x: x2, y: y2 }] } : undefined,
       answer: num(lv === 3 ? fromDecimal(round(d, 1)) : F(d), { tolerance: lv === 3 ? 0.051 : undefined }),
       hints: [`Horizontal distance: |${ms(x2)} − (${ms(x1)})| = ${dx}. Vertical: ${dy}.`, `d = √(${dx}² + ${dy}²)`],
-      steps: [`${dx}² + ${dy}² = ${dx * dx + dy * dy}`, `d = √${dx * dx + dy * dy} ${Number.isInteger(d) ? "=" : "≈"} ${round(d, 2)}`],
+      steps: [
+        st("Make a right triangle.", "Draw a horizontal leg and a vertical leg joining the two points. The distance is the hypotenuse."),
+        st("Horizontal leg (change in x).", `${ms(x2)} − ${par(x1)} = ${ms(x2 - x1)}, so the leg is ${dx} long`),
+        st("Vertical leg (change in y).", `${ms(y2)} − ${par(y1)} = ${ms(y2 - y1)}, so the leg is ${dy} long`),
+        st("Square and add.", `${dx}² + ${dy}² = ${dx * dx} + ${dy * dy} = ${dx * dx + dy * dy}`),
+        Number.isInteger(d)
+          ? st("Take the square root.", `d = √${dx * dx + dy * dy} = ${d}`)
+          : st("Take the square root and round.", `d = √${dx * dx + dy * dy} ≈ ${round(d, 3)} ≈ ${round(d, 1)}`),
+      ],
       traps: traps(lv === 3 ? fromDecimal(round(d, 1)) : F(d), [trap(dx + dy, "Distance isn't the horizontal plus vertical distance. Use the Pythagorean theorem.")]),
     };
   },
@@ -296,7 +431,29 @@ const volume8: Skill = {
       visual: { type: "shape", shape: kind as "cylinder" | "cone" | "sphere", labels: kind === "sphere" ? { r: String(rad) } : { r: String(rad), h: String(h) } },
       answer: { kind: "multi", fields: [{ value: coef, post: "π" }] },
       hints: [kind === "cylinder" ? "V = πr²h" : kind === "cone" ? "V = {1/3}πr²h" : "V = {4/3}πr³", kind === "sphere" ? `r³ = ${rad ** 3}` : `r² = ${rad * rad}`],
-      steps: [kind === "cylinder" ? `π × ${rad}² × ${h} = ${rad * rad * h}π` : kind === "cone" ? `{1/3} × π × ${rad}² × ${h} = ${coef.d === 1 ? coef.n : `${coef.n}/${coef.d}`}π` : `{4/3} × π × ${rad}³ = ${coef.d === 1 ? coef.n : `${coef.n}/${coef.d}`}π`],
+      steps:
+        kind === "cylinder"
+          ? [
+              st("Formula.", "V = πr²h: the area of the circular base (πr²) times the height."),
+              st("Square the radius.", `r² = ${rad} × ${rad} = ${rad * rad}`),
+              st("Multiply by the height.", `${rad * rad} × ${h} = ${rad * rad * h}`),
+              st("Answer.", `V = ${rad * rad * h}π`),
+            ]
+          : kind === "cone"
+            ? [
+                st("Formula.", "V = {1/3}πr²h: one third of a cylinder with the same base and height."),
+                st("Square the radius.", `r² = ${rad} × ${rad} = ${rad * rad}`),
+                st("Multiply by the height.", `${rad * rad} × ${h} = ${rad * rad * h} (the matching cylinder would be ${rad * rad * h}π)`),
+                st("Take one third.", `${rad * rad * h} ÷ 3 = ${coef.d === 1 ? coef.n : `{${coef.n}/${coef.d}} = ${mixed(coef)}`}`),
+                st("Answer.", `V = ${fr(coef)}π`),
+              ]
+            : [
+                st("Formula.", "V = {4/3}πr³"),
+                st("Cube the radius.", `r³ = ${rad} × ${rad} × ${rad} = ${rad ** 3}`),
+                st("Multiply by 4.", `4 × ${rad ** 3} = ${4 * rad ** 3}`),
+                st("Divide by 3.", `${4 * rad ** 3} ÷ 3 = ${coef.d === 1 ? coef.n : `{${coef.n}/${coef.d}} = ${mixed(coef)}`}`),
+                st("Answer.", `V = ${fr(coef)}π`),
+              ],
     };
   },
 };

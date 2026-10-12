@@ -75,7 +75,10 @@ export function answerText(a: Answer): string {
   switch (a.kind) {
     case "number": {
       const v = fmtNum(a.value, a.tolerance, a.simplest);
-      if (a.pre === "$") return v.startsWith("-") ? `−$${v.slice(1)}` : `$${v}`;
+      if (a.pre === "$") {
+        const m = Number.isInteger(toNum(a.value)) ? v : Math.abs(toNum(a.value)).toFixed(2);
+        return toNum(a.value) < 0 ? `−$${m.replace("-", "")}` : `$${m}`;
+      }
       return `${a.pre ?? ""}${v.replace(/^-/, "−")}${a.unit ?? ""}`;
     }
     case "multi":

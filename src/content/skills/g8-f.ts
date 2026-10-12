@@ -1,6 +1,7 @@
 import { frac } from "../../lib/rational";
-import { F, NAMES, choice, fr, linear, ms, num, sn, trap, traps } from "../helpers";
+import { F, NAMES, choice, cst, fr, linear, mixed, term, ms, num, sn, trap, traps } from "../helpers";
 import type { Skill } from "../types";
+import { finishSteps, st } from "../steps";
 
 const T = "g8-f";
 
@@ -38,7 +39,11 @@ const functions: Skill = {
       prompt: `Is this relation a function? {${shown.map(([x, y]) => `(${x}, ${ms(y)})`).join(", ")}}`,
       answer: choice(r, isFunc ? "Yes, each input has exactly one output" : `No, the input ${pairs[0][0]} has two outputs`, [[isFunc ? "No, an output repeats" : "Yes, each input has exactly one output", isFunc ? "Repeated OUTPUTS are allowed. Check whether any INPUT repeats." : `Look at x = ${pairs[0][0]}: it appears twice with different y-values.`]], true),
       hints: ["Look at the x-values (inputs). Does any x appear twice?", "If an x appears twice with different y-values, it's not a function."],
-      steps: [isFunc ? "No input repeats → function" : `x = ${pairs[0][0]} has two outputs → not a function`],
+      steps: [
+        st("A function gives exactly ONE output for each input.", "So look at the inputs (the x-values, first in each pair)."),
+        st("List the inputs.", shown.map(([x]) => x).join(", ")),
+        isFunc ? st("Does any input repeat?", "No. Each input has one output, so it IS a function. (Repeated outputs are fine.)") : st("Does any input repeat?", `Yes: x = ${pairs[0][0]} appears with y = ${ms(pairs[0][1])} AND y = ${ms(pairs[pairs.length - 1][1])}. One input with two outputs means it's NOT a function.`),
+      ],
     };
   },
 };
@@ -81,7 +86,14 @@ const slope: Skill = {
         visual: { type: "table", headers: ["x", "y"], rows: table },
         answer: num(mf, { simplest: true }),
         hints: ["Slope = change in y ÷ change in x between any two rows.", `(${y2} − ${y1}) ÷ (${x2} − ${x1})`],
-        steps: [`Δy = ${y2 - y1}, Δx = ${x2 - x1}`, `slope = {${y2 - y1}/${x2 - x1}} = ${fr(mf)}`],
+        steps: [
+          st("Slope = change in y ÷ change in x.", "Use any two rows."),
+          st("Change in y.", `${ms(y2)} − ${sn(y1)} = ${ms(y2 - y1)}`),
+          st("Change in x.", `${ms(x2)} − ${sn(x1)} = ${ms(x2 - x1)}`),
+          st("Divide.", `{${ms(y2 - y1)}/${ms(x2 - x1)}}`),
+          ...finishSteps(y2 - y1, x2 - x1),
+          st("Answer.", `slope = ${ms(fr(mf))}${mf.d !== 1 && Math.abs(mf.n) > mf.d ? ` = ${ms(mixed(mf))}` : ""}`),
+        ],
         traps: traps(mf, [trap(frac(x2 - x1, y2 - y1 || 1), "Slope is rise over run: change in y on TOP.")]),
       };
     }
@@ -90,7 +102,14 @@ const slope: Skill = {
       visual: Math.max(Math.abs(x1), Math.abs(x2), Math.abs(y1), Math.abs(y2)) <= 10 ? { type: "grid", min: -10, max: 10, points: [{ x: x1, y: y1 }, { x: x2, y: y2 }], lines: [{ m: mf.n / mf.d, b: y1 - (mf.n / mf.d) * x1 }] } : undefined,
       answer: num(mf, { simplest: true }),
       hints: ["Slope = (y₂ − y₁) ÷ (x₂ − x₁).", `(${ms(y2)} − ${ms(y1)}) ÷ (${ms(x2)} − ${ms(x1)})`],
-      steps: [`rise = ${ms(y2)} − (${ms(y1)}) = ${ms(y2 - y1)}`, `run = ${ms(x2)} − (${ms(x1)}) = ${ms(x2 - x1)}`, `slope = ${fr(frac(y2 - y1, x2 - x1))}`],
+      steps: [
+        st("Slope = rise ÷ run = (y₂ − y₁) ÷ (x₂ − x₁).", "Subtract in the same order for both."),
+        st("Rise (change in y).", `${ms(y2)} − ${sn(y1)} = ${ms(y2 - y1)}`),
+        st("Run (change in x).", `${ms(x2)} − ${sn(x1)} = ${ms(x2 - x1)}`),
+        st("Divide.", `{${ms(y2 - y1)}/${ms(x2 - x1)}}${(y2 - y1) / (x2 - x1) < 0 ? " (different signs → negative)" : ""}`),
+        ...finishSteps(Math.abs(y2 - y1) * Math.sign((y2 - y1) * (x2 - x1)), Math.abs(x2 - x1)),
+        st("Answer.", `slope = ${ms(fr(mf))}${mf.n < 0 ? ": the line goes down from left to right" : mf.n > 0 ? ": the line goes up from left to right" : ""}`),
+      ],
       traps: traps(mf, [trap(frac(x2 - x1, y2 - y1 || 1), "Slope is rise over run: change in y goes on top."), trap(frac(-(y2 - y1), x2 - x1), "Subtract in the same order for both coordinates.")]),
     };
   },
@@ -125,7 +144,12 @@ const linearModels: Skill = {
         prompt: `${name} has $${start} and saves $${per} each week. Write an equation for the savings y after x weeks.`,
         answer: { kind: "multi", fields: [{ value: F(per), pre: "y =", post: "x" }, { value: F(start), pre: "+" }] },
         hints: ["The amount added each week is the slope m.", "The starting amount is b."],
-        steps: [`m = ${per}, b = ${start}`, `y = ${per}x + ${start}`],
+        steps: [
+          st("Find the rate of change (slope m).", `Savings go up $${per} every week, so m = ${per}.`),
+          st("Find the starting value (b).", `At week 0 there's $${start}, so b = ${start}.`),
+          st("Put them into y = mx + b.", `y = ${per}x + ${start}`),
+          st("Check.", `After 2 weeks: ${per} × 2 + ${start} = ${per * 2 + start}, which is $${start} + 2 × $${per} ✔`),
+        ],
       };
     }
     if (lv === 2) {
@@ -135,7 +159,12 @@ const linearModels: Skill = {
         visual: { type: "table", headers: ["x", "y"], rows: xs.map((x) => [x, m * x + b]) },
         answer: { kind: "multi", fields: [{ value: F(m), pre: "y =", post: "x" }, { value: F(b), pre: "+" }] },
         hints: ["How much does y change each time x goes up by 1? That's m.", "What is y when x = 0? That's b."],
-        steps: [`m = ${ms(m)}`, `b = ${ms(b)} (the y-value at x = 0)`, `y = ${linear(m, b)}`],
+        steps: [
+          st("Find the slope: how much y changes when x goes up by 1.", `${[0, 1, 2, 3].map((x) => ms(m * x + b)).join(" → ")}: y changes by ${ms(m)} each time, so m = ${ms(m)}.`),
+          st("Find b: the y-value when x = 0.", `The table says y = ${ms(b)} when x = 0, so b = ${ms(b)}.`),
+          st("Write the equation.", `y = ${linear(m, b)}`),
+          st("Check another row.", `x = 3: ${ms(m)} × 3${cst(b)} = ${ms(3 * m + b)} ✔`),
+        ],
       };
     }
     const x1 = r.int(1, 4);
@@ -144,7 +173,13 @@ const linearModels: Skill = {
       prompt: `A line passes through (${x1}, ${ms(m * x1 + b)}) and (${x2}, ${ms(m * x2 + b)}). Write its equation.`,
       answer: { kind: "multi", fields: [{ value: F(m), pre: "y =", post: "x" }, { value: F(b), pre: "+" }] },
       hints: ["Find the slope first.", `Then substitute one point into y = ${ms(m)}x + b to find b.`],
-      steps: [`m = (${ms(m * x2 + b)} − ${sn(m * x1 + b)}) ÷ (${x2} − ${x1}) = ${ms(m)}`, `${ms(m * x1 + b)} = ${ms(m)}(${x1}) + b → b = ${ms(b)}`, `y = ${linear(m, b)}`],
+      steps: [
+        st("Find the slope.", `m = (${ms(m * x2 + b)} − ${sn(m * x1 + b)}) ÷ (${x2} − ${x1}) = ${ms(m * (x2 - x1))} ÷ ${x2 - x1} = ${ms(m)}`),
+        st("Use one point to find b.", `Put x = ${x1}, y = ${ms(m * x1 + b)} into y = ${term(m, "x")} + b: ${ms(m * x1 + b)} = ${ms(m)} × ${x1} + b = ${ms(m * x1)} + b.`),
+        st("Solve for b.", `b = ${ms(m * x1 + b)} − ${sn(m * x1)} = ${ms(b)}`),
+        st("Write the equation.", `y = ${linear(m, b)}`),
+        st("Check with the other point.", `${ms(m)} × ${x2}${cst(b)} = ${ms(m * x2 + b)} ✔`),
+      ],
     };
   },
 };
@@ -182,14 +217,21 @@ const compareFunctions: Skill = {
           prompt: ask,
           answer: choice(r, right[0], eqs.filter((e) => !e[1]).map(([t]) => [t, "This has x squared, in a denominator, or in an exponent, so its graph curves."] as [string, string])),
           hints: ["Linear equations can be written y = mx + b.", "Watch out for x², x in an exponent, or x in a denominator."],
-          steps: [`${right[0]} is of the form y = mx + b`],
+          steps: [
+            st("A linear equation can be written y = mx + b.", "x appears only to the first power: not squared, not in a denominator, not in an exponent."),
+            st("Check each choice.", `${right[0]} fits y = mx + b. The others have x², x in a denominator, or x in an exponent, so their graphs curve.`),
+          ],
         };
       }
       return {
         prompt: ask,
         answer: choice(r, `y: ${lin.join(", ")}`, [[`y: ${non.join(", ")}`, "Find the differences between y-values. Are they all the same?"], [`y: ${[b, b + 1, b + 3, b + 6].join(", ")}`, "The differences are 1, 2, 3, not constant."]]),
         hints: ["Find how much y changes each step.", "Linear means the change is the same every step."],
-        steps: [`${lin.join(", ")} goes up by ${m} each step → linear`],
+        steps: [
+          st("Linear means y changes by the SAME amount each time x goes up by 1.", "Find the differences between y-values."),
+          st("Check the linear table.", `${lin.join(", ")}: differences ${lin.slice(1).map((v, i) => v - lin[i]).join(", ")}, all the same ✔`),
+          st("Check the others.", `${non.join(", ")}: differences ${non.slice(1).map((v, i) => v - non[i]).join(", ")}, not the same, so not linear.`),
+        ],
       };
     }
     const mA = r.int(2, 9);
@@ -202,7 +244,11 @@ const compareFunctions: Skill = {
       visual: { type: "table", headers: ["x", "y (B)"], rows: [0, 1, 2, 3].map((x) => [x, mB * x + bB]) },
       answer: choice(r, mA > mB ? `A (rate ${mA})` : `B (rate ${mB})`, [[mA > mB ? `B (rate ${mB})` : `A (rate ${mA})`, "Compare slopes, not starting values."], "They have the same rate"], true),
       hints: ["A's rate is its slope.", "B's rate is how much y goes up per step in the table."],
-      steps: [`A: ${mA} per unit; B: ${mB} per unit`],
+      steps: [
+        st("Rate of change for A.", `In y = ${mA}x + ${bA}, the slope is ${mA}.`),
+        st("Rate of change for B.", `In the table, y goes ${[0, 1, 2, 3].map((x) => mB * x + bB).join(" → ")}: up ${mB} each time.`),
+        st("Compare the rates (not the starting values).", `${Math.max(mA, mB)} > ${Math.min(mA, mB)}, so ${mA > mB ? "A" : "B"} grows faster.`),
+      ],
     };
   },
 };

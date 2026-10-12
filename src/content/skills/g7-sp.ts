@@ -1,6 +1,7 @@
 import { frac, mul } from "../../lib/rational";
-import { F, choice, fr, num, trap, traps } from "../helpers";
+import { F, choice, num, trap, traps } from "../helpers";
 import type { Skill } from "../types";
+import { simplifySteps, st } from "../steps";
 
 const T = "g7-sp";
 
@@ -32,7 +33,11 @@ const sampling: Skill = {
       prompt: `${setting} Which sampling method is most likely to be representative?`,
       answer: choice(r, right, wrong),
       hints: ["Look for a method where everyone has an equal chance of being picked.", "Watch out for groups that might all think the same way."],
-      steps: [`Random selection from the whole population: “${right}”`],
+      steps: [
+        st("A good sample gives EVERYONE in the group an equal chance to be picked.", "That's what random selection from the whole group does."),
+        st("Look for bias in the other choices.", wrong.map(([w, why]) => `“${w}”: ${why}`).join(" ")),
+        st("Answer.", `“${right}”`),
+      ],
     };
   },
 };
@@ -68,14 +73,24 @@ const inference: Skill = {
         prompt: `Two random samples estimate how many of ${N} students ${thing}: one estimates ${ests[0]}, the other ${ests[1]}. Which statement is best?`,
         answer: choice(r, `The true number is probably between about ${ests[0]} and ${ests[1]}; random samples vary a little.`, [["One of the samples must be wrong.", "Random samples naturally give slightly different results."], [`The true number is exactly ${Math.round((ests[0] + ests[1]) / 2)}.`, "Samples give estimates, not exact values."], ["Samples can't tell us anything.", "Random samples give useful estimates."]]),
         hints: ["Do random samples always give exactly the same result?", "Think about variation."],
-        steps: ["Random samples vary; the estimates suggest a range for the true value."],
+        steps: [
+          st("Random samples vary a little.", "Two random samples of the same school almost never give exactly the same result."),
+          st("Use both estimates together.", `The true number is probably somewhere around ${ests[0]} to ${ests[1]}.`),
+          st("Rule out the other choices.", "A different estimate doesn't make a sample wrong, and samples can't give an exact answer."),
+        ],
       };
     }
     return {
       prompt: `In a random sample of ${n} students, ${k} ${thing}. There are ${N} students in the school. About how many students in the school ${thing}?`,
       answer: num(ans),
       hints: [`Find the fraction or percent in the sample: {${k}/${n}}.`, `Take that fraction of ${N}.`],
-      steps: [`{${k}/${n}} = ${pct}%`, `${pct}% of ${N} = ${ans}`],
+      steps: [
+        st("Find the fraction in the sample.", `${k} out of ${n} is {${k}/${n}}.`),
+        ...simplifySteps(k, n),
+        st("Change it to a percent.", `{${k}/${n}} = ${k} ÷ ${n} = ${pct / 100} = ${pct}%`),
+        st("Use the same percent for the whole school.", `${pct}% of ${N} = ${pct / 100} × ${N} = ${ans}`),
+        st("Answer.", `About ${ans} students. It's an estimate, since the sample might not be perfect.`),
+      ],
       traps: traps(F(ans), [trap(k, "That's the sample. Scale up to the whole school."), trap(N - ans, `That's the number who do NOT ${thing}.`)]),
     };
   },
@@ -108,7 +123,11 @@ const compareGroups: Skill = {
         prompt: `Group A has a mean of ${m1} and Group B a mean of ${m2}. Both have a MAD of ${madv}. The difference in means is how many MADs?`,
         answer: num(times),
         hints: [`Difference: ${m2} − ${m1} = ${m2 - m1}.`, `Divide by the MAD: ${m2 - m1} ÷ ${madv}.`],
-        steps: [`${m2 - m1} ÷ ${madv} = ${times}`],
+        steps: [
+          st("Find the difference between the means.", `${m2} − ${m1} = ${m2 - m1}`),
+          st("Divide by the MAD to compare it with the normal spread.", `${m2 - m1} ÷ ${madv} = ${times}`),
+          st("Answer.", `The means are ${times} MAD${times === 1 ? "" : "s"} apart. ${times >= 2 ? "That's a noticeable difference." : "That's small: the groups overlap a lot."}`),
+        ],
         traps: traps(F(times), [trap(m2 - m1, "That's the difference. Divide it by the MAD.")]),
       };
     }
@@ -117,7 +136,11 @@ const compareGroups: Skill = {
       prompt: `Plant heights: Group A mean ${m1} cm, Group B mean ${m2} cm, both with MAD ${madv} cm. Which is the best conclusion?`,
       answer: choice(r, big ? `The difference is ${times} MADs, so Group B's plants are noticeably taller.` : "The difference is only 1 MAD, so the groups overlap a lot.", [[big ? "The groups are about the same because they overlap." : "Group B is clearly much taller.", "Compare the difference to the MAD."], "We can't compare groups with different means."]),
       hints: ["Find the difference in means as a number of MADs.", "About 2 or more MADs → a noticeable difference."],
-      steps: [`(${m2} − ${m1}) ÷ ${madv} = ${times} MADs`],
+      steps: [
+        st("Find the difference between the means.", `${m2} − ${m1} = ${m2 - m1} cm`),
+        st("Compare it with the spread (MAD).", `${m2 - m1} ÷ ${madv} = ${times} MAD${times === 1 ? "" : "s"}`),
+        st("Decide.", times >= 2 ? "2 or more MADs apart means the groups are noticeably different." : "Less than 2 MADs apart means the groups overlap a lot, so the difference isn't convincing."),
+      ],
     };
   },
 };
@@ -152,7 +175,12 @@ const probability: Skill = {
         prompt: `A bag has ${red} red, ${blue} blue${green ? ` and ${green} green` : ""} marbles. You pick one at random. What is P(${ask})?`,
         answer: num(frac(fav, total)),
         hints: ["P = favorable ÷ total.", `Total marbles: ${total}.`],
-        steps: [`P(${ask}) = {${fav}/${total}}${frac(fav, total).d !== total ? ` = ${fr(frac(fav, total))}` : ""}`],
+        steps: [
+          st("Count all the marbles.", `${red} + ${blue}${green ? ` + ${green}` : ""} = ${total}`),
+          st(`Count the ${ask} marbles.`, `${fav}`),
+          st("Probability = favorable outcomes ÷ total outcomes.", `P(${ask}) = {${fav}/${total}}`),
+          ...simplifySteps(fav, total),
+        ],
         traps: traps(frac(fav, total), [trap(frac(fav, total - fav), "Compare to the TOTAL number of marbles, not just the other color.")]),
       };
     }
@@ -164,7 +192,11 @@ const probability: Skill = {
         prompt: `A fair ${sides}-sided number cube is rolled ${trials} times. About how many times would you expect to roll a 3?`,
         answer: num(ans),
         hints: [`P(3) = {1/${sides}}.`, `Expected = ${trials} × {1/${sides}}.`],
-        steps: [`${trials} × {1/${sides}} = ${ans}`],
+        steps: [
+          st("Find the probability of rolling a 3.", `The cube has ${sides} equally likely sides and one of them is 3, so P(3) = {1/${sides}}.`),
+          st("Expected count = number of rolls × probability.", `${trials} × {1/${sides}} = ${trials} ÷ ${sides} = ${ans}`),
+          st("It's an estimate.", `In real rolls you'd get close to ${ans}, but probably not exactly.`),
+        ],
         traps: traps(F(ans), [trap(trials / 2, `There are ${sides} equally likely outcomes, not 2.`)]),
       };
     }
@@ -174,7 +206,11 @@ const probability: Skill = {
       prompt: `A coin is flipped ${flips} times and lands heads ${heads} times. What is the experimental probability of heads?`,
       answer: num(frac(heads, flips)),
       hints: ["Experimental probability = times it happened ÷ total trials.", `{${heads}/${flips}}`],
-      steps: [`{${heads}/${flips}}${frac(heads, flips).d !== flips ? ` = ${fr(frac(heads, flips))}` : ""}`, `(The theoretical probability is {1/2}; experiments vary.)`],
+      steps: [
+        st("Experimental probability = times it happened ÷ number of tries.", `{${heads}/${flips}}`),
+        ...simplifySteps(heads, flips),
+        st("Compare with the theoretical probability.", `A fair coin should land heads {1/2} of the time. Real experiments come out a little different, which is normal.`),
+      ],
       traps: traps(frac(heads, flips), [trap(frac(1, 2), "That's the theoretical probability. Use the actual results.")]),
     };
   },
@@ -209,7 +245,16 @@ const compound: Skill = {
         prompt: `A fair coin is tossed ${n} times. What is the probability of getting exactly ${want} head${want === 1 ? "" : "s"}?`,
         answer: num(frac(ways, total)),
         hints: [`List all ${total} outcomes (like HH, HT, …).`, `Count those with exactly ${want} head${want === 1 ? "" : "s"}.`],
-        steps: [`${total} equally likely outcomes`, `${ways} ${ways === 1 ? "has" : "have"} exactly ${want} head${want === 1 ? "" : "s"}`, `P = {${ways}/${total}}`],
+        steps: (() => {
+          const all = n === 2 ? ["HH", "HT", "TH", "TT"] : ["HHH", "HHT", "HTH", "HTT", "THH", "THT", "TTH", "TTT"];
+          const good = all.filter((o) => o.split("").filter((c) => c === "H").length === want);
+          return [
+            st("List every possible outcome.", `${all.join(", ")}: ${total} equally likely outcomes.`),
+            st(`Find the ones with exactly ${want} head${want === 1 ? "" : "s"}.`, `${good.join(", ")}: that's ${ways}.`),
+            st("Probability = favorable ÷ total.", `P = {${ways}/${total}}`),
+            ...simplifySteps(ways, total),
+          ];
+        })(),
         traps: traps(frac(ways, total), [trap(frac(1, n + 1), `The ${n + 1} possible counts of heads aren't equally likely. List all ${total} outcomes.`)]),
       };
     }
@@ -221,7 +266,12 @@ const compound: Skill = {
         visual: { type: "table", headers: ["+", "1", "2", "3", "4", "5", "6"], rows: [1, 2, 3, 4, 5, 6].map((a) => [a, ...[1, 2, 3, 4, 5, 6].map((b) => a + b)]) },
         answer: num(frac(ways, 36)),
         hints: ["There are 36 equally likely outcomes. Use the table.", `Count the cells that show ${target}.`],
-        steps: [`${ways} cells show ${target}`, `P = {${ways}/36}${frac(ways, 36).d !== 36 ? ` = ${fr(frac(ways, 36))}` : ""}`],
+        steps: [
+          st("Two dice have 6 × 6 = 36 equally likely outcomes.", "The table shows all 36 sums."),
+          st(`Find every pair that adds to ${target}.`, `${[1, 2, 3, 4, 5, 6].filter((x) => target - x >= 1 && target - x <= 6).map((x) => `(${x}, ${target - x})`).join(", ")}: that's ${ways}.`),
+          st("Probability = favorable ÷ total.", `P = {${ways}/36}`),
+          ...simplifySteps(ways, 36),
+        ],
         traps: traps(frac(ways, 36), [trap(frac(1, 11), "The 11 possible sums aren't equally likely. Count outcomes in the table.")]),
       };
     }
@@ -232,7 +282,12 @@ const compound: Skill = {
       prompt: `You ${coinOrSpinner[0]} and spin a spinner with ${sec} equal sections numbered 1 to ${sec}. What is P(${coinOrSpinner[2]} and spinning a 1)?`,
       answer: num(ans),
       hints: [`There are ${coinOrSpinner[1]} × ${sec} = ${coinOrSpinner[1] * sec} equally likely outcomes.`, "Only one of them is the outcome we want (or multiply the two probabilities)."],
-      steps: [`${coinOrSpinner[1]} × ${sec} = ${coinOrSpinner[1] * sec} outcomes`, `P = {1/${coinOrSpinner[1] * sec}}`],
+      steps: [
+        st("Count all the outcomes.", `Each of the ${coinOrSpinner[1]} results of the first part can go with each of the ${sec} spinner results: ${coinOrSpinner[1]} × ${sec} = ${coinOrSpinner[1] * sec}.`),
+        st("Count the winning outcomes.", `Only one: ${coinOrSpinner[2]} AND spinning a 1.`),
+        st("Probability.", `P = {1/${coinOrSpinner[1] * sec}}`),
+        st("Another way: multiply the probabilities.", `{1/${coinOrSpinner[1]}} × {1/${sec}} = {1/${coinOrSpinner[1] * sec}}`),
+      ],
       traps: traps(ans, [trap(frac(sec + coinOrSpinner[1], coinOrSpinner[1] * sec), "For “and” with independent events, multiply the probabilities (don't add).")]),
     };
   },

@@ -2,8 +2,15 @@ import { frac, fromDecimal } from "../../lib/rational";
 import { F, choice, median, num, round, sum, trap, traps } from "../helpers";
 import type { Rng } from "../../lib/rng";
 import type { Skill } from "../types";
+import { st } from "../steps";
 
 const T = "g6-sp";
+
+/** Explains how the median of a sorted list is found. */
+function midText(xs: number[]): string {
+  const h = Math.floor(xs.length / 2);
+  return xs.length % 2 ? `The middle value is ${xs[h]}.` : `The middle two are ${xs[h - 1]} and ${xs[h]}, so (${xs[h - 1]} + ${xs[h]}) ÷ 2 = ${median(xs)}.`;
+}
 
 function dataSet(r: Rng, n: number, lo: number, hi: number): number[] {
   return Array.from({ length: n }, () => r.int(lo, hi));
@@ -45,7 +52,10 @@ const questions: Skill = {
       prompt: askStat ? "Which is a statistical question?" : "Which is NOT a statistical question?",
       answer: choice(r, right, others.map((o) => [o, askStat ? "This has just one answer, so there's no variability." : "This one expects many different answers, so it IS statistical."] as [string, string])),
       hints: ["Would you expect many different answers?", "Statistical questions need data from many people or things."],
-      steps: [`“${right}” ${askStat ? "expects answers that vary" : "has a single answer"}`],
+      steps: [
+        st("Ask yourself: would you expect different answers?", "A statistical question needs data from many people or things, and the answers vary."),
+        st("Check the answer choice.", `“${right}” ${askStat ? "would get many different answers, so it IS statistical." : "has just one answer, so it is NOT statistical."}`),
+      ],
     };
   },
 };
@@ -76,13 +86,18 @@ const center: Skill = {
       const known = dataSet(r, 4, Math.max(1, target - 6), target + 6);
       const missing = target * 5 - sum(known);
       if (missing < 0 || missing > 40) {
-        return { prompt: "Four quiz scores are 8, 6, 9 and 7. What fifth score would make the mean exactly 8?", answer: num(10), hints: ["For a mean of 8 with 5 scores, the total must be 5 × 8 = 40.", "8 + 6 + 9 + 7 = 30."], steps: ["Needed total: 40", "Current total: 30", "40 − 30 = 10"] };
+        return { prompt: "Four quiz scores are 8, 6, 9 and 7. What fifth score would make the mean exactly 8?", answer: num(10), hints: ["For a mean of 8 with 5 scores, the total must be 5 × 8 = 40.", "8 + 6 + 9 + 7 = 30."], steps: [st("Mean × number of values = total.", "For a mean of 8 with 5 scores, the total must be 8 × 5 = 40."), st("Add the four scores you have.", "8 + 6 + 9 + 7 = 30"), st("Find the missing score.", "40 − 30 = 10"), st("Check.", "(30 + 10) ÷ 5 = 8 ✔")] };
       }
       return {
         prompt: `Four values are ${known.join(", ")}. What fifth value would make the mean exactly ${target}?`,
         answer: num(missing),
         hints: [`For a mean of ${target} with 5 values, the total must be 5 × ${target} = ${5 * target}.`, `The four values add to ${sum(known)}.`],
-        steps: [`Needed total: 5 × ${target} = ${5 * target}`, `Current total: ${sum(known)}`, `${5 * target} − ${sum(known)} = ${missing}`],
+        steps: [
+          st("Mean × number of values = total.", `For a mean of ${target} with 5 values, the 5 values must add up to ${target} × 5 = ${5 * target}.`),
+          st("Add the four values you have.", `${known.join(" + ")} = ${sum(known)}`),
+          st("Find the missing value.", `${5 * target} − ${sum(known)} = ${missing}`),
+          st("Check.", `(${sum(known)} + ${missing}) ÷ 5 = ${5 * target} ÷ 5 = ${target} ✔`),
+        ],
         traps: traps(F(missing), [trap(target, "The new value has to balance out the others: find the total needed first.")]),
       };
     }
@@ -101,7 +116,11 @@ const center: Skill = {
         prompt: `Find the mode: ${shuffled.join(", ")}`,
         answer: num(m),
         hints: ["The mode is the value that appears most often.", "Put the values in order so repeats sit next to each other."],
-        steps: [`In order: ${[...data].sort((a, b) => a - b).join(", ")}`, `${m} appears most often`],
+        steps: [
+          st("Put the values in order so repeats sit together.", [...data].sort((a, b) => a - b).join(", ")),
+          st("Count the repeats.", [...new Set(data)].filter((v) => data.filter((x) => x === v).length > 1).map((v) => `${v} appears ${data.filter((x) => x === v).length} times`).join("; ")),
+          st("Answer.", `The mode is ${m}, the value that appears most often.`),
+        ],
       };
     }
     if (which === "mean") {
@@ -114,7 +133,12 @@ const center: Skill = {
         visual: lv === 1 ? { type: "dotplot", values: data, min: 0, max: Math.max(...data) + 2 } : undefined,
         answer: num(mean),
         hints: ["Add all the values.", `Then divide the total by how many values there are (${n}).`],
-        steps: [`Total: ${data.join(" + ")} = ${sum(data)}`, `${sum(data)} ÷ ${n} = ${mean}`],
+        steps: [
+          st("Add all the values.", `${data.join(" + ")} = ${sum(data)}`),
+          st("Count the values.", `There are ${n} values.`),
+          st("Divide the total by the count.", `${sum(data)} ÷ ${n} = ${mean}`),
+          st("Check that it makes sense.", `${mean} is between the smallest value (${Math.min(...data)}) and the largest (${Math.max(...data)}) ✔`),
+        ],
         traps: traps(F(mean), [trap(median(data), "That's the median (middle value). The mean adds and divides."), trap(sum(data), "Now divide the total by the number of values.")]),
       };
     }
@@ -123,7 +147,17 @@ const center: Skill = {
       prompt: `Find the median: ${data.join(", ")}`,
       answer: num(fromDecimal(med)),
       hints: ["Put the values in order first.", n % 2 ? "Find the middle value." : "There are two middle values; find the number halfway between them."],
-      steps: [`In order: ${[...data].sort((a, b) => a - b).join(", ")}`, `Median = ${med}`],
+      steps: (() => {
+        const so = [...data].sort((a, b) => a - b);
+        return [
+          st("Put the values in order.", so.join(", ")),
+          n % 2
+            ? st("Find the middle value.", `There are ${n} values (an odd number), so the middle is value number ${(n + 1) / 2}: ${med}.`)
+            : st("Find the middle two values.", `There are ${n} values (an even number), so the middle is between value ${n / 2} and value ${n / 2 + 1}: ${so[n / 2 - 1]} and ${so[n / 2]}.`),
+          ...(n % 2 ? [] : [st("Find the number halfway between them.", `(${so[n / 2 - 1]} + ${so[n / 2]}) ÷ 2 = ${so[n / 2 - 1] + so[n / 2]} ÷ 2 = ${med}`)]),
+          st("Answer.", `The median is ${med}.`),
+        ];
+      })(),
       traps: traps(fromDecimal(med), [trap(fromDecimal(n % 2 ? data[Math.floor(n / 2)] : (data[n / 2 - 1] + data[n / 2]) / 2), "Put the numbers in order before finding the middle.")]),
     };
   },
@@ -158,7 +192,10 @@ const spread: Skill = {
         prompt: `Find the range: ${data.join(", ")}`,
         answer: num(rg),
         hints: ["Range = greatest value − least value."],
-        steps: [`Greatest: ${Math.max(...data)}, least: ${Math.min(...data)}`, `${Math.max(...data)} − ${Math.min(...data)} = ${rg}`],
+        steps: [
+          st("Find the greatest and least values.", `Greatest: ${Math.max(...data)}. Least: ${Math.min(...data)}.`),
+          st("Subtract.", `Range = greatest − least = ${Math.max(...data)} − ${Math.min(...data)} = ${rg}`),
+        ],
       };
     }
     if (lv === 2) {
@@ -174,7 +211,10 @@ const spread: Skill = {
         visual: { type: "boxplot", ...b, scaleMin: 0, scaleMax: b.max + 2 },
         answer: num(ans),
         hints: ["Read the five numbers: min, Q1, median, Q3, max.", ask === "IQR" ? "IQR = Q3 − Q1 (the length of the box)." : ask === "median" ? "The median is the line inside the box." : "Range = max − min (the whiskers' ends)."],
-        steps: [`min ${b.min}, Q1 ${b.q1}, median ${b.median}, Q3 ${b.q3}, max ${b.max}`, `${ask} = ${ans}`],
+        steps: [
+          st("Read the five numbers from the box plot.", `Left whisker end (min) ${b.min}, left edge of the box (Q1) ${b.q1}, line in the box (median) ${b.median}, right edge of the box (Q3) ${b.q3}, right whisker end (max) ${b.max}.`),
+          ask === "IQR" ? st("IQR = Q3 − Q1 (the length of the box).", `${b.q3} − ${b.q1} = ${ans}`) : ask === "median" ? st("The median is the line inside the box.", `${ans}`) : st("Range = max − min (whisker end to whisker end).", `${b.max} − ${b.min} = ${ans}`),
+        ],
         traps: traps(F(ans), [trap(b.max - b.min, "That's the range. The IQR is just the box: Q3 − Q1."), trap(b.q3 - b.q1, "That's the IQR (length of the box).")]),
       };
     }
@@ -183,7 +223,17 @@ const spread: Skill = {
       prompt: `Find the interquartile range (IQR): ${data.join(", ")}`,
       answer: num(fromDecimal(iqr)),
       hints: ["Order the data and find the median.", `Q1 is the median of the lower half, Q3 of the upper half.${n % 2 ? " With an odd count, leave the median out of both halves." : ""}`],
-      steps: [`In order: ${sorted.join(", ")}`, `Q1 = ${q1}, Q3 = ${q3}`, `IQR = ${q3} − ${q1} = ${iqr}`],
+      steps: (() => {
+        const half = Math.floor(n / 2);
+        const lower = sorted.slice(0, half), upper = sorted.slice(n % 2 ? half + 1 : half);
+        return [
+          st("Put the values in order.", sorted.join(", ")),
+          st("Find the median and split the data in half.", n % 2 ? `There are ${n} values; the median is the middle one, ${sorted[half]}. Leave it out of both halves.` : `There are ${n} values, so split them into two halves of ${half}.`),
+          st("Q1 is the median of the lower half.", `Lower half: ${lower.join(", ")}. ${midText(lower)} Q1 = ${q1}.`),
+          st("Q3 is the median of the upper half.", `Upper half: ${upper.join(", ")}. ${midText(upper)} Q3 = ${q3}.`),
+          st("Subtract.", `IQR = Q3 − Q1 = ${q3} − ${q1} = ${iqr}`),
+        ];
+      })(),
       traps: traps(fromDecimal(iqr), [trap(Math.max(...data) - Math.min(...data), "That's the range. The IQR uses Q1 and Q3.")]),
     };
   },
@@ -221,7 +271,13 @@ const mad: Skill = {
       prompt: `Find the mean absolute deviation (MAD) of ${data.join(", ")}.`,
       answer: num(frac(sum(devs), n), { tolerance: m % 1 ? 0.01 : undefined }),
       hints: [`First find the mean: ${sum(data)} ÷ ${n} = ${mean}.`, `Find each value's distance from ${mean}, then average those distances.`],
-      steps: [`Mean = ${mean}`, `Distances: ${devs.join(", ")}`, `MAD = ${sum(devs)} ÷ ${n} = ${round(m, 2)}`],
+      steps: [
+        st("Find the mean.", `${data.join(" + ")} = ${sum(data)}, and ${sum(data)} ÷ ${n} = ${mean}.`),
+        st("Find how far each value is from the mean.", data.map((d) => `|${d} − ${mean}| = ${Math.abs(d - mean)}`).join(", ")),
+        st("Add the distances.", `${devs.join(" + ")} = ${sum(devs)}`),
+        st("Divide by the number of values.", `${sum(devs)} ÷ ${n} = ${round(m, 2)}`),
+        st("Answer.", `MAD = ${round(m, 2)}: on average, values are about ${round(m, 2)} away from the mean.`),
+      ],
       traps: traps(frac(sum(devs), n), [trap(mean, "That's the mean. MAD is the average DISTANCE from the mean."), trap(sum(devs), `Now divide the total distance by ${n}.`), trap(0, "Use distances (absolute values), so they don't cancel out.")]),
     };
   },
@@ -255,7 +311,11 @@ const chooseMeasure: Skill = {
         prompt: `Data: ${r.shuffle(data).join(", ")}. If you removed the ${outlier}, which would change more?`,
         answer: choice(r, "The mean", [["The median", "The median depends only on the middle values, which barely move."], ["Neither would change", "Removing a value changes the total, so the mean changes."]], true),
         hints: ["The mean uses the size of every value.", "The median just looks at the middle."],
-        steps: [`With ${outlier}: mean ≈ ${mean}, median ${med}`, `Without it: mean ${round(sum(base) / 5, 1)}, median ${median(base)}`],
+        steps: [
+          st("Find the mean and median WITH the outlier.", `Mean = ${sum(data)} ÷ 6 ≈ ${mean}. Median = ${med}.`),
+          st("Find them WITHOUT the outlier.", `Mean = ${sum(base)} ÷ 5 = ${round(sum(base) / 5, 1)}. Median = ${median(base)}.`),
+          st("Compare the changes.", `The mean moved by about ${round(mean - sum(base) / 5, 1)}, but the median moved by only ${round(Math.abs(med - median(base)), 1)}. The mean changes more.`),
+        ],
       };
     }
     if (lv === 2) {
@@ -263,7 +323,12 @@ const chooseMeasure: Skill = {
         prompt: `Daily minutes of exercise: ${r.shuffle(data).join(", ")}. Which measure of center best describes a typical day?`,
         answer: choice(r, `The median (${med})`, [[`The mean (${mean})`, `The mean is pulled up by the outlier ${outlier}. Most values are well below it.`], [`The maximum (${outlier})`, "The maximum isn't a measure of center."]]),
         hints: ["Is there an outlier?", "Outliers pull the mean toward them."],
-        steps: [`${outlier} is an outlier`, `Median ${med} is typical; mean ${mean} is pulled up`],
+        steps: [
+          st("Look for an outlier.", `${outlier} is far above all the other values.`),
+          st("Find the mean and the median.", `Mean = ${sum(data)} ÷ 6 ≈ ${mean}. Median = ${med}.`),
+          st("Which one is typical?", `Most days are between ${Math.min(...base)} and ${Math.max(...base)}. The median (${med}) is right in that range; the mean (${mean}) is pulled up by the outlier.`),
+          st("Answer.", `The median describes a typical day best.`),
+        ],
       };
     }
     const sym = r.chance(0.5);
@@ -271,7 +336,10 @@ const chooseMeasure: Skill = {
       prompt: sym ? "A dot plot of test scores is roughly symmetric with no outliers. Which pair of measures best describes it?" : "A dot plot of house prices has a few very expensive houses far to the right. Which pair of measures best describes it?",
       answer: choice(r, sym ? "Mean and MAD" : "Median and IQR", [[sym ? "Median and IQR" : "Mean and MAD", sym ? "That works, but mean and MAD are the usual choice for symmetric data." : "The expensive outliers would pull the mean and MAD up."], "Mode and range"]),
       hints: ["Is the data symmetric or skewed?", "Symmetric → mean and MAD. Skewed or outliers → median and IQR."],
-      steps: [sym ? "Symmetric data → mean and MAD" : "Skewed/outliers → median and IQR"],
+      steps: [
+        st("Is the data symmetric or lopsided?", sym ? "Roughly symmetric with no outliers." : "Lopsided (skewed) with a few very large values."),
+        st("Choose the matching summary.", sym ? "For symmetric data, the mean and MAD describe it well." : "Outliers pull the mean and MAD, so use the median and IQR, which barely change."),
+      ],
     };
   },
 };

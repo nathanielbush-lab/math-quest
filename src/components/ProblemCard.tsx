@@ -3,6 +3,7 @@ import type { Problem } from "../content/types";
 import { answerText, canonicalResponse, check, type Response } from "../engine/check";
 import { AnswerInput } from "./AnswerInput";
 import { MathText, speak } from "./MathText";
+import { SolutionSteps, scaffoldSteps } from "./SolutionSteps";
 import { Visual } from "./Visual";
 
 export interface ProblemResult {
@@ -50,15 +51,17 @@ export function ProblemCard({
   const [feedback, setFeedback] = useState<{ tone: "good" | "bad" | "warn" | "info"; text: string } | null>(null);
   const [result, setResult] = useState<ProblemResult | null>(null);
   const [showSteps, setShowSteps] = useState(false);
+  const [stepsDone, setStepsDone] = useState(false);
   const [mark, setMark] = useState<{ x: number; y: number; ok: boolean } | null>(null);
   const shownAt = useRef(Date.now());
   const contRef = useRef<HTMLButtonElement>(null);
   const correctText = useMemo(() => answerText(problem.answer), [problem]);
-  const scaffold = guided ? (problem.steps.length > 1 ? problem.steps.slice(0, -1) : problem.hints.slice(0, 1)) : [];
+  const scaffold = useMemo(() => (guided ? scaffoldSteps(problem.steps, problem.hints) : []), [guided, problem]);
 
+  // While the solution is being stepped through, its "Next step" button keeps focus; Continue gets it afterwards.
   useEffect(() => {
-    if (result) contRef.current?.focus();
-  }, [result]);
+    if (result && (!showSteps || stepsDone)) contRef.current?.focus();
+  }, [result, showSteps, stepsDone]);
 
   const submit = (r: Response) => {
     const v = check(problem, r);
@@ -124,14 +127,7 @@ export function ProblemCard({
           <button ref={contRef} className="btn primary" onClick={() => onFinish(result!)}>Continue →</button>
         )}
       </div>
-      {showSteps && (
-        <div style={{ marginTop: 12 }}>
-          <strong>Solution</strong>
-          <ol className="steps">
-            {problem.steps.filter((s, i, all) => s !== all[i - 1]).map((s, i) => <li key={i}><MathText text={s} /></li>)}
-          </ol>
-        </div>
-      )}
+      {showSteps && <SolutionSteps steps={problem.steps} onAllShown={() => setStepsDone(true)} />}
     </div>
   );
 }

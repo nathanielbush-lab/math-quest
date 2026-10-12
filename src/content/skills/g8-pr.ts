@@ -1,6 +1,7 @@
 import { frac } from "../../lib/rational";
 import { F, choice, fr, ms, num, round, trap, traps } from "../helpers";
 import type { Skill } from "../types";
+import { st } from "../steps";
 
 const T = "g8-pr";
 
@@ -36,7 +37,18 @@ const expRules: Skill = {
         prompt: `Find the missing exponent: ${prompt}`,
         answer: num(e),
         hints: [div ? "Dividing powers with the same base: subtract exponents." : "Multiplying powers with the same base: add exponents.", "Write them out if you're not sure and count."],
-        steps: [div ? `${Math.max(m, n)} − ${Math.min(m, n)} = ${e}` : `${m} + ${n} = ${e}`],
+        steps: div
+          ? [
+              st("Write it out.", `${b}^${Math.max(m, n)} ÷ ${b}^${Math.min(m, n)} = (${Array(Math.max(m, n)).fill(b).join(" × ")}) ÷ (${Array(Math.min(m, n)).fill(b).join(" × ")})`),
+              st("Cancel matching factors.", `Each ${b} on the bottom cancels one ${b} on top (${b} ÷ ${b} = 1).`),
+              st("Count what's left.", e === 0 ? `Every ${b} cancels, so only 1 is left: ${b}^0 = 1.` : `${Math.max(m, n)} − ${Math.min(m, n)} = ${e}, so ${e === 1 ? "one factor" : e + " factors"} of ${b} ${e === 1 ? "is" : "are"} left on top.`),
+              st("Answer.", `${b}^${e}, so the missing exponent is ${e}. Shortcut: same base, dividing → subtract the exponents.`),
+            ]
+          : [
+              st("Write it out.", `${b}^${m} × ${b}^${n} = (${Array(m).fill(b).join(" × ")}) × (${Array(n).fill(b).join(" × ")})`),
+              st("Count all the factors.", `${m} + ${n} = ${e} factors of ${b} multiplied together.`),
+              st("Answer.", `${b}^${e}, so the missing exponent is ${e}. Shortcut: same base, multiplying → add the exponents.`),
+            ],
         traps: traps(F(e), [trap(div ? Math.max(m, n) / Math.min(m, n) : m * n, div ? "Subtract the exponents (don't divide them)." : "Add the exponents (don't multiply them).")]),
       };
     }
@@ -47,7 +59,11 @@ const expRules: Skill = {
         prompt: `Find the missing exponent: (${b}^${m})^${n} = ${b}^?`,
         answer: num(m * n),
         hints: [`(${b}^${m})^${n} means ${n} copies of ${b}^${m} multiplied together.`, "Power of a power: multiply the exponents."],
-        steps: [`${m} × ${n} = ${m * n}`],
+        steps: [
+          st("Write it out.", `(${b}^${m})^${n} means ${n} copies of ${b}^${m} multiplied: ${Array(n).fill(`${b}^${m}`).join(" × ")}`),
+          st("Same base, multiplying → add the exponents.", `${Array(n).fill(m).join(" + ")} = ${m * n}`),
+          st("Shortcut.", `Adding ${m} a total of ${n} times is ${m} × ${n} = ${m * n}. Answer: ${b}^${m * n}.`),
+        ],
         traps: traps(F(m * n), [trap(m + n, `You're multiplying ${n} copies of ${b}^${m}, so it's ${m} added ${n} times.`)]),
       };
     }
@@ -59,7 +75,18 @@ const expRules: Skill = {
       prompt: `${bb}^${zero ? 0 : ms(e)} = ? (Write a fraction or decimal.)`,
       answer: num(val),
       hints: [zero ? "Look at the pattern: each time the exponent drops by 1, divide by the base." : "A negative exponent means 1 divided by the positive power.", zero ? `${bb}^1 = ${bb}, so ${bb}^0 = ${bb} ÷ ${bb}.` : `${bb}^${ms(e)} = {1/${bb}^${-e}}`],
-      steps: zero ? [`${bb}^0 = 1`] : [`${bb}^${ms(e)} = {1/${bb}^${-e}} = ${fr(val)}`],
+      steps: zero
+        ? [
+            st("Follow the pattern.", `${bb}^3 = ${bb ** 3}, ${bb}^2 = ${bb ** 2}, ${bb}^1 = ${bb}. Each time the exponent drops by 1, divide by ${bb}.`),
+            st("One more step down.", `${bb}^0 = ${bb} ÷ ${bb} = 1`),
+            st("Answer.", "1 (any nonzero number to the 0 power is 1)"),
+          ]
+        : [
+            st("A negative exponent means 1 divided by the positive power.", `${bb}^${ms(e)} = 1 ÷ ${bb}^${-e}`),
+            ...(-e > 1 ? [st("Work out the power.", `${bb}^${-e} = ${Array(-e).fill(bb).join(" × ")} = ${bb ** -e}`)] : []),
+            st("Answer.", `1 ÷ ${bb ** -e} = ${fr(val)}${bb === 3 ? "" : ` = ${ms(round(1 / bb ** -e, 6))}`}`),
+            st("Check with the pattern.", `${bb}^1 = ${bb}, ${bb}^0 = 1, then keep dividing by ${bb}: ${Array.from({ length: -e }, (_, i) => fr(frac(1, bb ** (i + 1)))).join(", ")}`),
+          ],
       traps: traps(val, zero ? [trap(0, "Any nonzero number to the 0 power is 1. Follow the pattern.")] : [trap(-(bb ** -e), "A negative exponent doesn't make the number negative: it means 1 over the power."), trap(bb * e, "An exponent isn't multiplication by the exponent.")]),
     };
   },
@@ -91,17 +118,26 @@ const roots: Skill = {
         prompt: `√${s * s} = ?`,
         answer: num(s),
         hints: [`What number times itself is ${s * s}?`, `Try ${s - 1} × ${s - 1} and ${s + 1} × ${s + 1}.`],
-        steps: [`${s} × ${s} = ${s * s}, so √${s * s} = ${s}`],
+        steps: [
+          st("Think.", `√${s * s} asks: what number times itself is ${s * s}?`),
+          st("Try nearby numbers.", `${s - 1} × ${s - 1} = ${(s - 1) ** 2} (too small). ${s} × ${s} = ${s * s} ✔`),
+          st("Answer.", `√${s * s} = ${s}`),
+        ],
         traps: traps(F(s), [trap(s * s / 2, "Square root isn't dividing by 2. Find a number that times itself gives this.")]),
       };
     }
     if (lv === 2) {
       const c = r.int(2, 10);
+      const plain = r.chance(0.5);
       return {
-        prompt: r.chance(0.5) ? `∛${c ** 3} = ?` : `A cube has a volume of ${c ** 3} cubic inches. How long is each edge?`,
+        prompt: plain ? `∛${c ** 3} = ?` : `A cube has a volume of ${c ** 3} cubic inches. How long is each edge?`,
         answer: num(c),
         hints: [`What number × itself × itself = ${c ** 3}?`, "Try small numbers: 2³ = 8, 3³ = 27, 4³ = 64, 5³ = 125…"],
-        steps: [`${c} × ${c} × ${c} = ${c ** 3}`],
+        steps: [
+          st("Think.", plain ? `∛${c ** 3} asks: what number × itself × itself is ${c ** 3}?` : `Volume of a cube = edge × edge × edge. So find the number that, used 3 times as a factor, makes ${c ** 3}.`),
+          st("Try nearby numbers.", `${c - 1} × ${c - 1} × ${c - 1} = ${(c - 1) ** 3} (too small). ${c} × ${c} × ${c} = ${c * c} × ${c} = ${c ** 3} ✔`),
+          st("Answer.", plain ? `∛${c ** 3} = ${c}` : `Each edge is ${c} inches.`),
+        ],
         traps: traps(F(c), [trap(c ** 3 / 3, "Cube root isn't dividing by 3.")]),
       };
     }
@@ -114,14 +150,23 @@ const roots: Skill = {
         prompt: `Solve for x (x > 0): x² = ${s * s}`,
         answer: num(s),
         hints: ["Undo squaring with a square root.", `x = √${s * s}`],
-        steps: [`x = √${s * s} = ${s}`, `(−${s} also works, but we want x > 0)`],
+        steps: [
+          st("Undo the squaring.", `x² = ${s * s} means x × x = ${s * s}, so x = √${s * s}.`),
+          st("Find the root.", `${s} × ${s} = ${s * s}, so x = ${s}.`),
+          st("Note.", `(−${s}) × (−${s}) = ${s * s} too, but the problem asks for x > 0.`),
+        ],
       };
     }
     return {
       prompt: `√({${a * a}/${b * b}}) = ?`,
       answer: num(frac(a, b)),
       hints: ["Take the square root of the top and of the bottom.", `√${a * a} and √${b * b}.`],
-      steps: [`√${a * a} = ${a}, √${b * b} = ${b}`, `= ${fr(frac(a, b))}`],
+      steps: [
+        st("Take the root of the top and the bottom separately.", `√({${a * a}/${b * b}}) = √${a * a} over √${b * b}`),
+        st("Top.", `${a} × ${a} = ${a * a}, so √${a * a} = ${a}`),
+        st("Bottom.", `${b} × ${b} = ${b * b}, so √${b * b} = ${b}`),
+        st("Answer and check.", `${fr(frac(a, b))}. Check: {${a}/${b}} × {${a}/${b}} = {${a * a}/${b * b}} ✔`),
+      ],
     };
   },
 };
@@ -155,11 +200,25 @@ const irrational: Skill = {
         prompt: `√${n} is between which two consecutive whole numbers?`,
         answer: { kind: "multi", fields: [{ value: F(lo), pre: "between" }, { value: F(lo + 1), pre: "and" }] },
         hints: [`Find perfect squares just below and above ${n}.`, `${lo}² = ${lo * lo} and ${lo + 1}² = ${(lo + 1) ** 2}.`],
-        steps: [`${lo * lo} < ${n} < ${(lo + 1) ** 2}`, `so ${lo} < √${n} < ${lo + 1}`],
+        steps: [
+          st("List perfect squares near " + n + ".", `${lo}² = ${lo * lo} and ${lo + 1}² = ${(lo + 1) ** 2}`),
+          st("See where " + n + " fits.", `${lo * lo} < ${n} < ${(lo + 1) ** 2}`),
+          st("Take square roots of all three.", `√${lo * lo} < √${n} < √${(lo + 1) ** 2}, so ${lo} < √${n} < ${lo + 1}`),
+          st("Answer.", `√${n} is between ${lo} and ${lo + 1}${n - lo * lo < (lo + 1) ** 2 - n ? ` (closer to ${lo}, since ${n} is nearer ${lo * lo})` : n - lo * lo > (lo + 1) ** 2 - n ? ` (closer to ${lo + 1}, since ${n} is nearer ${(lo + 1) ** 2})` : ""}.`),
+        ],
       };
     }
     if (lv === 2) {
-      const items: [string, boolean][] = [["√" + n, false], ["√" + lo * lo, true], ["π", false], ["0.333… (repeating)", true], ["{3/7}", true], ["√2", false], ["−4.5", true], ["0.1010010001… (pattern never repeats)", false]];
+      const items: [string, boolean, string][] = [
+        ["√" + n, false, `${n} isn't a perfect square, so its root is a never-ending, non-repeating decimal → irrational.`],
+        ["√" + lo * lo, true, `√${lo * lo} = ${lo} because ${lo} × ${lo} = ${lo * lo}. A whole number → rational.`],
+        ["π", false, "π = 3.14159… never ends and never repeats → irrational."],
+        ["0.333… (repeating)", true, "0.333… = {1/3}, a fraction → rational."],
+        ["{3/7}", true, "It's already a fraction → rational."],
+        ["√2", false, "2 isn't a perfect square → irrational."],
+        ["−4.5", true, "−4.5 = −{9/2}, a fraction → rational."],
+        ["0.1010010001… (pattern never repeats)", false, "The groups of 0s keep growing, so no block ever repeats → irrational."],
+      ];
       const askIrr = r.chance(0.5);
       const pool = r.shuffle(items);
       const right = pool.find(([, rat]) => rat !== askIrr)!;
@@ -168,15 +227,28 @@ const irrational: Skill = {
         prompt: `Which number is ${askIrr ? "irrational" : "rational"}?`,
         answer: choice(r, right[0], wrong.map(([t]) => [t, askIrr ? "This can be written as a fraction (or a repeating/ending decimal), so it's rational." : "This decimal never ends or repeats, so it's irrational."] as [string, string])),
         hints: ["Rational numbers can be written as fractions. Their decimals end or repeat.", "Square roots of non-perfect squares and π are irrational."],
-        steps: [`${right[0]} is ${askIrr ? "irrational" : "rational"}`],
+        steps: [
+          st("Know the test.", "Rational = can be written as a fraction (its decimal ends or repeats). Irrational = its decimal goes on forever with no repeating block."),
+          ...[right, ...wrong].map(([t, , why]) => st(`${t}:`, why)),
+          st("Answer.", `${right[0]} is the only ${askIrr ? "irrational" : "rational"} one.`),
+        ],
       };
     }
     const est = Math.sqrt(n);
+    const t1 = Math.floor(est * 10) / 10;
+    const t2 = round(t1 + 0.1, 1);
+    const mid = round(t1 + 0.05, 2);
     return {
       prompt: `Estimate √${n} to the nearest tenth.`,
       answer: num(round(est, 1), { tolerance: 0.051 }),
       hints: [`It's between ${lo} and ${lo + 1}.`, `Try squaring decimals: ${lo}.5² = ${round((lo + 0.5) ** 2, 2)}.`],
-      steps: [`${lo}² = ${lo * lo}, ${lo + 1}² = ${(lo + 1) ** 2}`, `√${n} ≈ ${round(est, 2)}, so about ${round(est, 1)}`],
+      steps: [
+        st("Bracket it with perfect squares.", `${lo}² = ${lo * lo} and ${lo + 1}² = ${(lo + 1) ** 2}, so √${n} is between ${lo} and ${lo + 1}.`),
+        st("Make a first guess.", `${n} is ${n - lo * lo} of the ${2 * lo + 1} steps from ${lo * lo} to ${(lo + 1) ** 2}, so try about ${lo} + {${n - lo * lo}/${2 * lo + 1}} ≈ ${round(lo + (n - lo * lo) / (2 * lo + 1), 1)}.`),
+        st("Square two tenths that trap it.", `${t1}² = ${round(t1 * t1, 2)} and ${t2}² = ${round(t2 * t2, 2)}, and ${round(t1 * t1, 2)} < ${n} < ${round(t2 * t2, 2)}.`),
+        st("Check the halfway point.", `${mid}² = ${round(mid * mid, 4)}. ${n} is ${n < mid * mid ? "below" : "above"} that, so √${n} is closer to ${n < mid * mid ? t1 : t2}.`),
+        st("Answer.", `√${n} ≈ ${round(est, 1)} (a calculator gives ${round(est, 3)}…)`),
+      ],
     };
   },
 };
@@ -209,7 +281,12 @@ const sci: Skill = {
         prompt: `Write ${n.toLocaleString("en-US")} in scientific notation.`,
         answer: { kind: "multi", fields: [{ value: F(ai, 10) }, { value: F(e), pre: "× 10^" }] },
         hints: ["Move the decimal so there's one nonzero digit in front of it.", "Count how many places you moved it: that's the exponent."],
-        steps: [`${n.toLocaleString("en-US")} = ${a} × 10^${e}`],
+        steps: [
+          st("Put the decimal point after the first digit.", `${n.toLocaleString("en-US")} → ${a} (a number from 1 up to 10)`),
+          st("Count how far the point must move back.", `To get from ${a} back to ${n.toLocaleString("en-US")}, the point moves ${e} places to the right, which is × 10^${e}.`),
+          st("Write it.", `${n.toLocaleString("en-US")} = ${a} × 10^${e}`),
+          st("Check.", `10^${e} = ${(10 ** e).toLocaleString("en-US")}, and ${a} × ${(10 ** e).toLocaleString("en-US")} = ${n.toLocaleString("en-US")} ✔`),
+        ],
       };
     }
     if (lv === 2) {
@@ -217,11 +294,17 @@ const sci: Skill = {
       const a = ai / 10;
       const e = r.int(2, 5);
       const n = round(a / 10 ** e, 8);
+      const ns = n.toFixed(e + 1).replace(/0+$/, "");
       return {
-        prompt: `Write ${n.toFixed(e + 1).replace(/0+$/, "")} in scientific notation.`,
+        prompt: `Write ${ns} in scientific notation.`,
         answer: { kind: "multi", fields: [{ value: F(ai, 10) }, { value: F(-e), pre: "× 10^" }] },
         hints: ["Small numbers get a negative exponent.", "Move the decimal right until one nonzero digit is in front."],
-        steps: [`${n} = ${a} × 10^${ms(-e)}`],
+        steps: [
+          st("Move the point right until one nonzero digit is in front.", `${ns} → ${a}`),
+          st("Count the moves.", `The point moved ${e} places to the right.`),
+          st("Small number → negative exponent.", `${ns} is less than 1, so the exponent is negative: ${a} × 10^${ms(-e)}`),
+          st("Check.", `10^${ms(-e)} = {1/${(10 ** e).toLocaleString("en-US")}}, and ${a} ÷ ${(10 ** e).toLocaleString("en-US")} = ${ns} ✔`),
+        ],
       };
     }
     const a = r.int(1, 4);
@@ -233,7 +316,12 @@ const sci: Skill = {
         prompt: `(${a} × 10^${e1}) × (${b} × 10^${e2}) = ? (Answer in scientific notation.)`,
         answer: { kind: "multi", fields: [{ value: F(a * b) }, { value: F(e1 + e2), pre: "× 10^" }] },
         hints: ["Multiply the front numbers.", "Add the exponents of 10."],
-        steps: [`${a} × ${b} = ${a * b}`, `10^${e1} × 10^${e2} = 10^${e1 + e2}`],
+        steps: [
+          st("Regroup (you can multiply in any order).", `(${a} × ${b}) × (10^${e1} × 10^${e2})`),
+          st("Multiply the front numbers.", `${a} × ${b} = ${a * b}`),
+          st("Multiply the powers of 10: add the exponents.", `10^${e1} × 10^${e2} = 10^${e1 + e2}`),
+          st("Answer.", `${a * b} × 10^${e1 + e2} (${a * b} is between 1 and 10, so it's already in scientific notation)`),
+        ],
       };
     }
     const big = Math.max(e1, e2) + 2;
@@ -242,7 +330,12 @@ const sci: Skill = {
       prompt: `About how many times larger is ${a} × 10^${big} than ${a} × 10^${small}? Write your answer as a power of 10.`,
       answer: { kind: "multi", fields: [{ value: F(big - small), pre: "10^" }] },
       hints: ["The front numbers are the same, so compare the powers of 10.", `10^${big} ÷ 10^${small}`],
-      steps: [`10^${big} ÷ 10^${small} = 10^${big - small}`],
+      steps: [
+        st("The front numbers match.", `Both start with ${a}, so only the powers of 10 matter.`),
+        st("How many times larger? Divide.", `10^${big} ÷ 10^${small}: dividing powers of the same base → subtract the exponents.`),
+        st("Subtract.", `${big} − ${small} = ${big - small}, so 10^${big - small}`),
+        st("What that means.", `10^${big - small} = ${(10 ** (big - small)).toLocaleString("en-US")}, so it's ${(10 ** (big - small)).toLocaleString("en-US")} times as large.`),
+      ],
     };
   },
 };

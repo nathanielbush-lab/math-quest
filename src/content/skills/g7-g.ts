@@ -1,6 +1,7 @@
 import { frac, fromDecimal } from "../../lib/rational";
-import { F, choice, cst, num, round, trap, traps } from "../helpers";
+import { F, choice, cst, ms, num, round, sn, trap, traps } from "../helpers";
 import type { Skill } from "../types";
+import { piTimes, st } from "../steps";
 
 const T = "g7-g";
 
@@ -31,7 +32,11 @@ const scale: Skill = {
         prompt: `On a scale drawing, 1 ${unit[0]} represents ${s} ${unit[1]}. A wall is ${d} ${unit[0]} long on the drawing. How long is the real wall, in ${unit[1]}?`,
         answer: num(d * s),
         hints: [`Each ${unit[0]} stands for ${s} ${unit[1]}.`, `${d} × ${s}`],
-        steps: [`${d} × ${s} = ${d * s} ${unit[1]}`],
+        steps: [
+          st("Read the scale.", `Every 1 ${unit[0]} on the drawing stands for ${s} ${unit[1]} in real life.`),
+          st("Drawing → real life: multiply.", `${d} ${unit[0]} × ${s} = ${d * s} ${unit[1]}`),
+          st("Answer.", `The real wall is ${d * s} ${unit[1]} long.`),
+        ],
         traps: traps(F(d * s), [trap(frac(d, s), "The real object is bigger, so multiply by the scale.")]),
       };
     }
@@ -39,10 +44,14 @@ const scale: Skill = {
       const real = s * r.int(2, 15) + (r.chance(0.3) ? s / 2 : 0);
       const ans = real / s;
       return {
-        prompt: `A map scale is 1 ${unit[0]} : ${s} ${unit[1]}. Two places are ${real} ${unit[1]} apart in real life. How far apart are they on the map, in ${unit[0]}?`,
+        prompt: `A map scale is 1 ${unit[0]} : ${s} ${unit[1]}. Two places are ${real} ${unit[1]} apart in real life. How far apart are they on the map, in ${unit[0] === "in" ? "inches" : "centimeters"}?`,
         answer: num(fromDecimal(ans)),
         hints: ["The map distance is smaller, so divide by the scale.", `${real} ÷ ${s}`],
-        steps: [`${real} ÷ ${s} = ${ans} ${unit[0]}`],
+        steps: [
+          st("Read the scale.", `1 ${unit[0]} on the map = ${s} ${unit[1]} in real life.`),
+          st("Real life → map: divide.", `How many ${s}s are in ${real}? ${real} ÷ ${s} = ${ans}`),
+          st("Check.", `${ans} ${unit[0]} × ${s} = ${real} ${unit[1]} ✔`),
+        ],
         traps: traps(fromDecimal(ans), [trap(real * s, "The map distance is smaller than the real distance, so divide.")]),
       };
     }
@@ -53,7 +62,11 @@ const scale: Skill = {
       prompt: `A ${l} cm by ${w} cm rectangle is enlarged with a scale factor of ${k}. What is the area of the new rectangle, in square cm?`,
       answer: num(l * w * k * k),
       hints: [`The new sides are ${l * k} cm and ${w * k} cm.`, "Multiply the new sides."],
-      steps: [`New sides: ${l} × ${k} = ${l * k}, ${w} × ${k} = ${w * k}`, `Area: ${l * k} × ${w * k} = ${l * w * k * k} cm²`, `That's ${k}² = ${k * k} times the original area of ${l * w}`],
+      steps: [
+        st("Scale each side.", `${l} × ${k} = ${l * k} cm and ${w} × ${k} = ${w * k} cm`),
+        st("Find the new area.", `${l * k} × ${w * k} = ${l * w * k * k} cm²`),
+        st("Compare with the original area.", `Original: ${l} × ${w} = ${l * w}. ${l * w * k * k} ÷ ${l * w} = ${k * k} = ${k}². Area grows by the scale factor SQUARED because both length and width grew.`),
+      ],
       traps: traps(F(l * w * k * k), [trap(l * w * k, "Both the length AND the width are scaled, so area grows by the scale factor squared.")]),
     };
   },
@@ -85,7 +98,12 @@ const triangles: Skill = {
         prompt: `Two angles of a triangle measure ${a}° and ${b}°. What is the third angle?`,
         answer: num(180 - a - b),
         hints: ["The three angles of a triangle add to 180°.", `180 − ${a} − ${b}`],
-        steps: [`180 − ${a} − ${b} = ${180 - a - b}°`],
+        steps: [
+          st("The angles in a triangle add up to 180°.", ""),
+          st("Add the two angles you know.", `${a} + ${b} = ${a + b}`),
+          st("Subtract from 180°.", `180 − ${a + b} = ${180 - a - b}°`),
+          st("Check.", `${a} + ${b} + ${180 - a - b} = 180 ✔`),
+        ],
         traps: traps(F(180 - a - b), [trap(360 - a - b, "Triangles add to 180°, not 360°.")]),
       };
     }
@@ -97,7 +115,12 @@ const triangles: Skill = {
         prompt: `Two sides of a triangle are ${a} and ${b}. The third side must be greater than what number?`,
         answer: num(Math.abs(a - b)),
         hints: ["The third side plus the shorter side must be more than the longer side.", `It must be more than ${Math.max(a, b)} − ${Math.min(a, b)}.`],
-        steps: [`Greater than ${Math.max(a, b)} − ${Math.min(a, b)} = ${Math.abs(a - b)}`, `(and less than ${a} + ${b} = ${a + b})`],
+        steps: [
+          st("Triangle rule.", "Any two sides must add up to MORE than the third side, or they can't meet."),
+          st("The third side plus the shorter side must beat the longer side.", `third + ${Math.min(a, b)} > ${Math.max(a, b)}, so third > ${Math.max(a, b)} − ${Math.min(a, b)} = ${Math.abs(a - b)}.`),
+          st("And the two given sides must beat the third side.", `third < ${a} + ${b} = ${a + b}.`),
+          st("Answer.", `The third side must be greater than ${Math.abs(a - b)} (and less than ${a + b}).`),
+        ],
         traps: traps(F(Math.abs(a - b)), [trap(a + b, `That's the upper limit. The third side must be LESS than ${a + b}, and greater than the difference.`)]),
       };
     }
@@ -111,7 +134,12 @@ const triangles: Skill = {
       prompt: `Can sides of length ${sides.join(", ")} form a triangle?`,
       answer: choice(r, ok ? "Yes" : "No", [[ok ? "No" : "Yes", `Add the two shorter sides: ${sorted[0]} + ${sorted[1]} = ${sorted[0] + sorted[1]}. Is that more than ${sorted[2]}?`]], true),
       hints: ["Add the two shorter sides.", "Is the sum MORE than the longest side?"],
-      steps: [`${sorted[0]} + ${sorted[1]} = ${sorted[0] + sorted[1]} ${sorted[0] + sorted[1] > sorted[2] ? ">" : "≤"} ${sorted[2]}`, ok ? "Yes, it's a triangle" : "No triangle"],
+      steps: [
+        st("Find the longest side.", `${sorted[2]} is the longest; the two shorter sides are ${sorted[0]} and ${sorted[1]}.`),
+        st("Add the two shorter sides.", `${sorted[0]} + ${sorted[1]} = ${sorted[0] + sorted[1]}`),
+        st("Compare with the longest side.", `${sorted[0] + sorted[1]} ${sorted[0] + sorted[1] > sorted[2] ? ">" : "≤"} ${sorted[2]}. ${ok ? "The short sides are long enough to meet." : "The short sides are too short to meet, so they can't close up into a triangle."}`),
+        st("Answer.", ok ? "Yes, it's a triangle." : "No, it can't be a triangle."),
+      ],
     };
   },
 };
@@ -145,7 +173,12 @@ const circles: Skill = {
         prompt: `Find the circumference of a circle with ${given} cm. Use π ≈ 3.14.`,
         answer: num(fromDecimal(C), { tolerance: 0.05 }),
         hints: ["C = πd (or 2πr).", giveD ? `d = ${2 * rad}` : `d = 2 × ${rad} = ${2 * rad}`],
-        steps: [`C = 3.14 × ${2 * rad} = ${C} cm`],
+        steps: [
+          st("Use the circumference formula.", "C = π × diameter, with π ≈ 3.14."),
+          st(giveD ? "The diameter is given." : "Find the diameter.", giveD ? `d = ${2 * rad} cm` : `The diameter is twice the radius: d = 2 × ${rad} = ${2 * rad} cm.`),
+          st("Multiply.", piTimes(2 * rad)),
+          st("Answer with units.", `C ≈ ${C} cm`),
+        ],
         traps: traps(fromDecimal(C), [trap(fromDecimal(round(3.14 * rad, 2)), "Use the diameter (2 × radius) for circumference."), trap(fromDecimal(round(3.14 * rad * rad, 2)), "That's the area. Circumference is the distance around.")]),
       };
     }
@@ -155,7 +188,13 @@ const circles: Skill = {
         prompt: `Find the area of a circle with ${given} m. Use π ≈ 3.14.`,
         answer: num(fromDecimal(A), { tolerance: 0.05 }),
         hints: ["A = πr².", giveD ? `First halve the diameter: r = ${rad}.` : `r² = ${rad * rad}`],
-        steps: [`r = ${rad}`, `A = 3.14 × ${rad}² = 3.14 × ${rad * rad} = ${A} m²`],
+        steps: [
+          st("Use the area formula.", "A = π × r², with π ≈ 3.14. It uses the RADIUS."),
+          st(giveD ? "Find the radius." : "The radius is given.", giveD ? `The radius is half the diameter: ${2 * rad} ÷ 2 = ${rad} m.` : `r = ${rad} m`),
+          st("Square the radius.", `${rad}² = ${rad} × ${rad} = ${rad * rad}`),
+          st("Multiply by π.", piTimes(rad * rad)),
+          st("Answer with units.", `A ≈ ${A} m²`),
+        ],
         traps: traps(fromDecimal(A), [trap(fromDecimal(round(3.14 * 4 * rad * rad, 2)), "Use the radius, not the diameter, in A = πr²."), trap(fromDecimal(round(2 * 3.14 * rad, 2)), "That's the circumference. Area uses r².")]),
       };
     }
@@ -164,7 +203,12 @@ const circles: Skill = {
       prompt: `A circular track has a circumference of ${C} m. What is its radius? (π ≈ 3.14)`,
       answer: num(rad, { tolerance: 0.05 }),
       hints: ["C = 2πr, so r = C ÷ (2π).", `${C} ÷ 6.28`],
-      steps: [`2π ≈ 6.28`, `r = ${C} ÷ 6.28 = ${rad} m`],
+      steps: [
+        st("Start from the formula.", "C = 2 × π × r, so r = C ÷ (2 × π)."),
+        st("Find 2π.", "2 × 3.14 = 6.28"),
+        st("Divide.", `${C} ÷ 6.28: multiply both by 100 to get ${Math.round(C * 100)} ÷ 628 = ${rad}.`),
+        st("Check.", `2 × 3.14 × ${rad} = ${C} ✔`),
+      ],
       traps: traps(F(rad), [trap(2 * rad, "That's the diameter. The radius is half of it.")]),
     };
   },
@@ -199,7 +243,9 @@ const angles: Skill = {
         prompt: kind === "vertical" ? `Two lines cross. One angle is ${a}°. What is the angle vertically opposite it?` : `Two angles are ${kind}. One is ${a}°. What is the other?`,
         answer: num(ans),
         hints: [kind === "complementary" ? "Complementary angles add to 90°." : kind === "supplementary" ? "Supplementary angles add to 180°." : "Vertical angles are equal."],
-        steps: [kind === "vertical" ? `Vertical angles are equal: ${a}°` : `${kind === "complementary" ? 90 : 180} − ${a} = ${ans}°`],
+        steps: kind === "vertical"
+          ? [st("Vertical angles are the angles straight across from each other where two lines cross.", ""), st("Vertical angles are always equal.", `So the angle is ${a}°.`)]
+          : [st(kind === "complementary" ? "Complementary angles add up to 90° (a right angle)." : "Supplementary angles add up to 180° (a straight line).", ""), st("Subtract the angle you know.", `${kind === "complementary" ? 90 : 180} − ${a} = ${ans}°`), st("Check.", `${a} + ${ans} = ${kind === "complementary" ? 90 : 180} ✔`)],
         traps: traps(F(ans), [trap(kind === "complementary" ? 180 - a : 90 - a, kind === "complementary" ? "Complementary means 90°." : "Supplementary means 180°.")]),
       };
     }
@@ -209,7 +255,11 @@ const angles: Skill = {
         prompt: `Two lines cross, making four angles. One angle is ${a}°. What is the angle right next to it (adjacent, on the same straight line)?`,
         answer: num(180 - a),
         hints: ["Adjacent angles on a straight line are supplementary.", `180 − ${a}`],
-        steps: [`180 − ${a} = ${180 - a}°`],
+        steps: [
+          st("Adjacent angles on a straight line are supplementary.", "Together they make a straight line, 180°."),
+          st("Subtract.", `180 − ${a} = ${180 - a}°`),
+          st("Notice.", `The angle across from ${a}° (vertical angle) is also ${a}°, and the one across from ${180 - a}° is ${180 - a}°.`),
+        ],
         traps: traps(F(180 - a), [trap(a, "That's the vertical (opposite) angle. Adjacent angles add to 180°.")]),
       };
     }
@@ -228,7 +278,13 @@ const angles: Skill = {
       prompt: `Angles of (${e1})° and (${e2})° are ${total === 90 ? "complementary" : "supplementary"}. What is x?`,
       answer: num(x),
       hints: [`They add to ${total}°.`, `Combine like terms: ${p + q}x${cst(c + d)} = ${total}`],
-      steps: [`(${e1}) + (${e2}) = ${total}`, `${p + q}x${cst(c + d)} = ${total}`, `${p + q}x = ${total - c - d}`, `x = ${x}`, `Check: the angles are ${p * x + c}° and ${q * x + d}°`],
+      steps: [
+        st(`${total === 90 ? "Complementary" : "Supplementary"} angles add to ${total}°.`, `(${e1}) + (${e2}) = ${total}`),
+        st("Combine like terms.", `${p}x + ${q}x = ${p + q}x, and ${ms(c)} + ${sn(d)} = ${ms(c + d)}: ${p + q}x${cst(c + d)} = ${total}`),
+        ...(c + d !== 0 ? [st(`${c + d > 0 ? "Subtract" : "Add"} ${Math.abs(c + d)} on both sides.`, `${p + q}x = ${total - c - d}`)] : []),
+        st(`Divide both sides by ${p + q}.`, `x = ${total - c - d} ÷ ${p + q} = ${x}`),
+        st("Check.", `The angles are ${p * x + c}° and ${q * x + d}°, and ${p * x + c} + ${q * x + d} = ${total} ✔`),
+      ],
     };
   },
 };
@@ -260,7 +316,12 @@ const areaVolume: Skill = {
         prompt: `A triangular prism has a triangular base with base ${b} cm and height ${h} cm. The prism is ${L} cm long. What is its volume?`,
         answer: num(baseArea * L),
         hints: ["Volume = area of the triangle × length of the prism.", `Triangle area: {1/2} × ${b} × ${h} = ${baseArea}.`],
-        steps: [`Base area = ${baseArea} cm²`, `V = ${baseArea} × ${L} = ${baseArea * L} cm³`],
+        steps: [
+          st("Volume of any prism = area of the base × length.", "The prism is a stack of identical triangles."),
+          st("Area of the triangle base.", `{1/2} × ${b} × ${h} = ${b * h} ÷ 2 = ${baseArea} cm²`),
+          st("Multiply by the length of the prism.", `${baseArea} × ${L} = ${baseArea * L}`),
+          st("Answer with units.", `${baseArea * L} cm³ (cubic centimeters)`),
+        ],
         traps: traps(F(baseArea * L), [trap(b * h * L, "The base is a triangle, so its area needs the {1/2}.")]),
       };
     }
@@ -273,7 +334,11 @@ const areaVolume: Skill = {
       prompt: `A block is a ${l} × ${w} × ${hh} rectangular prism with a ${cut} × ${cut} × ${hh} square hole cut all the way through it (top to bottom). What volume of material is left?`,
       answer: num(V),
       hints: ["Find the volume of the whole block and of the hole.", "Subtract."],
-      steps: [`Block: ${l} × ${w} × ${hh} = ${l * w * hh}`, `Hole: ${cut} × ${cut} × ${hh} = ${cut * cut * hh}`, `${l * w * hh} − ${cut * cut * hh} = ${V}`],
+      steps: [
+        st("Volume of the whole block.", `${l} × ${w} × ${hh} = ${l * w} × ${hh} = ${l * w * hh}`),
+        st("Volume of the hole.", `It's a ${cut} × ${cut} square going all ${hh} units through: ${cut} × ${cut} × ${hh} = ${cut * cut * hh}`),
+        st("Subtract the hole.", `${l * w * hh} − ${cut * cut * hh} = ${V} cubic units`),
+      ],
     };
   },
 };

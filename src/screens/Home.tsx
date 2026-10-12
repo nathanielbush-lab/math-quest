@@ -2,7 +2,8 @@ import { MISSIONS } from "../content/challenges";
 import { SKILLS, TOPICS } from "../content";
 import { previewToday } from "../engine/session";
 import { daysBetween, today, type AppState } from "../engine/state";
-import { BADGE_BY_ID, monthFocus } from "../store";
+import { monthFocus } from "../store";
+import { TrophyShelf } from "../components/Badges";
 import { LevelBar, LevelLegend } from "../ui";
 import type { Route } from "../App";
 
@@ -36,6 +37,8 @@ export function Home({ state, go }: { state: AppState; go: (r: Route) => void })
           <span className="muted small">{week}/4 sessions this week</span>
         </div>
       </div>
+
+      <TrophyShelf state={state} />
 
       {placementDone < TOPICS.length && (
         <div className="card row">
@@ -101,15 +104,6 @@ export function Home({ state, go }: { state: AppState; go: (r: Route) => void })
           );
         })}
       </div>
-
-      {state.badges.length > 0 && (
-        <>
-          <h2 style={{ marginTop: 28 }}>🏅 Badges</h2>
-          <div className="pill-list">
-            {state.badges.map((b) => BADGE_BY_ID[b] && <span key={b} className="chip">{BADGE_BY_ID[b].icon} {BADGE_BY_ID[b].name}</span>)}
-          </div>
-        </>
-      )}
 
       <div className="card tight" style={{ marginTop: 28 }}>
         <strong>{month.title}</strong>

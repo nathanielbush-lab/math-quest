@@ -1,6 +1,7 @@
 import { frac, fromDecimal } from "../../lib/rational";
 import { choice, fr, num, round, trap, traps } from "../helpers";
 import type { Skill } from "../types";
+import { simplifySteps, st } from "../steps";
 
 const T = "g8-sp";
 
@@ -32,13 +33,22 @@ const scatter: Skill = {
       return { x, y: Math.max(2, Math.round(base + noise)) };
     });
     if (lv === 3) {
-      const pairs: [string, string, boolean][] = [["hours of exercise", "resting heart rate", false], ["shoe size", "reading level (for kids ages 5 to 15)", false], ["hours studying", "test score", true]];
-      const [a, b] = r.pick(pairs);
+      const pairs: [string, string, string][] = [
+        ["hours of exercise", "resting heart rate", "People who exercise more might also differ in other ways (age, diet, sleep) that affect heart rate. The study alone can't separate these."],
+        ["shoe size", "reading level (for kids ages 5 to 15)", "Age! Older kids have bigger feet AND read better. Bigger shoes don't make anyone read better."],
+        ["hours studying", "test score", "Studying probably does help, but students who study more may also be more interested in the subject. Only an experiment could prove the cause."],
+      ];
+      const [a, b, other] = r.pick(pairs);
       return {
         prompt: `A study finds a strong association between ${a} and ${b}. Which conclusion is best?`,
         answer: choice(r, "They are related, but this alone doesn't prove one causes the other.", [[`Increasing ${a} definitely causes a change in ${b}.`, "Association alone doesn't prove causation."], ["There's no relationship.", "A strong association is a relationship."]]),
         hints: ["Does an association prove causation?", "Could a third factor explain both? (For shoe size and reading: age!)"],
-        steps: ["Association ≠ causation"],
+        steps: [
+          st("Association means a pattern.", `As ${a} changes, ${b.replace(/ \(.*\)/, "")} tends to change too.`),
+          st("Causation means one thing makes the other happen.", "A pattern in data alone can't prove that."),
+          st("Look for another explanation.", other),
+          st("Answer.", "They are related, but this alone doesn't prove one causes the other."),
+        ],
       };
     }
     const labels: Record<string, string> = { positive: "Positive association", negative: "Negative association", none: "No association" };
@@ -47,7 +57,15 @@ const scatter: Skill = {
       visual: { type: "scatter", points: pts, xLabel: "x", yLabel: "y" },
       answer: choice(r, labels[type], Object.entries(labels).filter(([k]) => k !== type).map(([, v]) => [v, "Look at the overall trend from left to right."] as [string, string]), true),
       hints: ["Look at the trend from left to right.", "Rising → positive, falling → negative, scattered everywhere → none."],
-      steps: [labels[type]],
+      steps: [
+        st("Read the graph from left to right.", "Watch what the y-values do as x gets bigger."),
+        st("Compare the two ends.", `The 4 leftmost points average y ≈ ${Math.round(pts.slice(0, 4).reduce((t, q) => t + q.y, 0) / 4)}; the 4 rightmost average y ≈ ${Math.round(pts.slice(-4).reduce((t, q) => t + q.y, 0) / 4)}.`),
+        st(
+          "Describe the trend.",
+          type === "positive" ? "The points rise: as x increases, y tends to increase." : type === "negative" ? "The points fall: as x increases, y tends to decrease." : "There's no clear rise or fall: the points are scattered all over, and the ends don't differ much compared with the spread.",
+        ),
+        st("Answer.", labels[type]),
+      ],
     };
   },
 };
@@ -82,14 +100,24 @@ const lineFit: Skill = {
         visual: lv === 1 ? { type: "scatter", points: [1, 3, 5, 7, 9, 11].map((xx) => ({ x: xx, y: Math.round(m * xx + b + r.int(-3, 3)) })), xLabel: ctx[0], yLabel: ctx[1], line: { m, b } } : undefined,
         answer: num(fromDecimal(ans)),
         hints: [`Substitute x = ${x}.`, `${m} × ${x} + ${b}`],
-        steps: [`${m}(${x}) + ${b} = ${ans}`],
+        steps: [
+          st("The line of fit is the prediction rule.", `y = ${m}x + ${b}`),
+          st(`Substitute x = ${x}.`, `y = ${m} × ${x} + ${b}`),
+          st("Multiply first.", `${m} × ${x} = ${round(m * x, 2)}`),
+          st("Then add.", `${round(m * x, 2)} + ${b} = ${ans}`),
+          st("Answer in context.", `When x = ${x}, the predicted ${ctx[1].replace(/ \(.*\)/, "")} is about ${ans} ${ctx[3]}.`),
+        ],
       };
     }
     return {
       prompt: `The line of fit for ${ctx[1]} vs. ${ctx[0]} is y = ${m}x + ${b}. What does the slope tell you?`,
       answer: choice(r, `For each extra ${ctx[2]}, the ${ctx[1].replace(/ \(.*\)/, "")} goes up by about ${m} ${ctx[3]}.`, [[`The ${ctx[1].replace(/ \(.*\)/, "")} starts at ${m} ${ctx[3]}.`, "The starting value is the y-intercept, b."], [`The ${ctx[1].replace(/ \(.*\)/, "")} is always ${b} ${ctx[3]}.`, "The slope is a rate of change."]]),
       hints: ["Slope = change in y per 1 unit of x."],
-      steps: [`slope ${m} = change in ${ctx[1]} per unit of ${ctx[0]}`],
+      steps: [
+        st("In y = mx + b, the slope m is the rate of change.", "It tells how much y changes when x goes up by 1."),
+        st(`Here m = ${m}.`, `So each extra ${ctx[2]} adds about ${m} ${ctx[3]} to the ${ctx[1].replace(/ \(.*\)/, "")}.`),
+        st("Don't mix it up with b.", `b = ${b} is the starting value (the prediction when x = 0), not the rate.`),
+      ],
     };
   },
 };
@@ -123,7 +151,11 @@ const twoWay: Skill = {
         visual,
         answer: num(c),
         hints: ["Find the row, then the column.", "Read the cell where they meet."],
-        steps: [`${c}`],
+        steps: [
+          st("Find the row.", `"${rowB}" is the second row of numbers.`),
+          st("Find the column.", `"${colA}" is the first column of numbers.`),
+          st("Read the cell where they meet.", `${c}`),
+        ],
       };
     }
     if (lv === 2) {
@@ -132,7 +164,14 @@ const twoWay: Skill = {
         visual,
         answer: num(frac(a, a + b)),
         hints: [`Use the ${rowA} row total as the denominator: ${a + b}.`, `{${a}/${a + b}}`],
-        steps: [`{${a}/${a + b}}${frac(a, a + b).d !== a + b ? ` = ${fr(frac(a, a + b))}` : ""}`],
+        steps: [
+          st("Which group is the whole?", `"Of the ${rowA} students", so the bottom of the fraction is the ${rowA} row total.`),
+          st("Row total.", `${a} + ${b} = ${a + b}`),
+          st("The part.", `${rowA} students in "${colA}": ${a}`),
+          st("Write the fraction.", `{${a}/${a + b}}`),
+          ...(frac(a, a + b).d !== a + b ? simplifySteps(a, a + b) : []),
+          st("Answer.", `${fr(frac(a, a + b))} (about ${round((100 * a) / (a + b), 1)}%)`),
+        ],
         traps: traps(frac(a, a + b), [trap(frac(a, a + c), `That's out of the ${colA} column total. The question asks out of the ${rowA} row.`), trap(frac(a, a + b + c + d), "That's out of everyone. Use the row total.")]),
       };
     }
@@ -144,7 +183,12 @@ const twoWay: Skill = {
       visual,
       answer: choice(r, diff < 0.005 ? "About the same" : pA > pB ? `${rowA} (${round(pA * 100, 1)}%)` : `${rowB} (${round(pB * 100, 1)}%)`, [[pA > pB ? `${rowB} (${round(pB * 100, 1)}%)` : `${rowA} (${round(pA * 100, 1)}%)`, "Divide by each ROW total, then compare."], ...(diff < 0.005 ? [] : [["About the same", "Compute each percent: are they close?"] as [string, string]])]),
       hints: [`${rowA}: {${a}/${a + b}}. ${rowB}: {${c}/${c + d}}.`, "Turn each into a percent and compare."],
-      steps: [`${rowA}: ${round(pA * 100, 1)}%`, `${rowB}: ${round(pB * 100, 1)}%`],
+      steps: [
+        st("Use each ROW total.", "The groups are different sizes, so compare percents, not counts."),
+        st(`${rowA}.`, `{${a}/${a + b}} = ${a} ÷ ${a + b} ≈ ${round(pA, 3)} = ${round(pA * 100, 1)}%`),
+        st(`${rowB}.`, `{${c}/${c + d}} = ${c} ÷ ${c + d} ≈ ${round(pB, 3)} = ${round(pB * 100, 1)}%`),
+        st("Compare.", diff < 0.005 ? "The percents are almost equal, so about the same." : `${round(Math.max(pA, pB) * 100, 1)}% > ${round(Math.min(pA, pB) * 100, 1)}%, so ${pA > pB ? rowA : rowB} has the higher percent.`),
+      ],
     };
   },
 };

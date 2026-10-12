@@ -7,26 +7,55 @@ export interface Badge {
   id: string;
   icon: string;
   name: string;
+  /** How to earn it, phrased for her ("Get 3 days in a row"). Shown on locked badges and in the celebration. */
+  how: string;
   test: (s: AppState) => boolean;
+  /** [done, goal] for the "next badge" nudge. */
+  progress: (s: AppState) => [number, number];
 }
 
 const lv = (s: AppState, min: number) => Object.values(s.skills).filter((x) => x.level >= min).length;
+const count = (n: number, goal: number): [number, number] => [Math.min(n, goal), goal];
+const atLeast = (id: string, icon: string, name: string, how: string, n: (s: AppState) => number, goal: number): Badge => ({
+  id,
+  icon,
+  name,
+  how,
+  test: (s) => n(s) >= goal,
+  progress: (s) => count(n(s), goal),
+});
 
 export const BADGES: Badge[] = [
-  { id: "first-correct", icon: "🌱", name: "First right answer", test: (s) => Object.values(s.skills).some((x) => x.correct > 0) },
-  { id: "first-ready", icon: "🔓", name: "Unlocked a new skill", test: (s) => Object.values(s.skills).some((x) => x.ready && !x.placed) },
-  { id: "independent-1", icon: "🦉", name: "First Independent skill", test: (s) => lv(s, 3) >= 1 },
-  { id: "independent-10", icon: "🏅", name: "10 Independent skills", test: (s) => lv(s, 3) >= 10 },
-  { id: "independent-25", icon: "🏆", name: "25 Independent skills", test: (s) => lv(s, 3) >= 25 },
-  { id: "explainer", icon: "🎤", name: "Can explain & apply", test: (s) => lv(s, 4) >= 1 },
-  { id: "explainer-5", icon: "👩‍🏫", name: "Explained 5 skills", test: (s) => lv(s, 4) >= 5 },
-  { id: "streak-3", icon: "🔥", name: "3-day streak", test: (s) => s.streak.count >= 3 },
-  { id: "streak-7", icon: "☄️", name: "7-day streak", test: (s) => s.streak.count >= 7 },
-  { id: "mistake-fixer", icon: "🛠️", name: "Fixed 5 old mistakes", test: (s) => s.mistakes.filter((m) => m.resolved).length >= 5 },
-  { id: "placement", icon: "🧭", name: "Found my starting point", test: (s) => Object.keys(s.placement).length >= 5 },
-  ...TOPICS.map((t) => ({ id: `topic-${t.id}`, icon: t.icon, name: `Topic star: ${t.title}`, test: (s: AppState) => SKILLS.filter((k) => k.topic === t.id).every((k) => s.skills[k.id]?.ready) })),
-  ...MISSIONS.map((m) => ({ id: `mission-${m.id}`, icon: "🚩", name: `Mission: ${m.title}`, test: (s: AppState) => !!s.missions[m.id]?.done })),
+  atLeast("first-correct", "🌱", "First right answer", "Answer a question correctly", (s) => Object.values(s.skills).filter((x) => x.correct > 0).length, 1),
+  atLeast("first-ready", "🔓", "Unlocked a new skill", "Practice a new skill until it unlocks the next ones", (s) => Object.values(s.skills).filter((x) => x.ready && !x.placed).length, 1),
+  atLeast("independent-1", "🦉", "First Independent skill", "Pass a review of a skill on a later day", (s) => lv(s, 3), 1),
+  atLeast("independent-10", "🏅", "10 Independent skills", "Reach Independent on 10 skills", (s) => lv(s, 3), 10),
+  atLeast("independent-25", "🏆", "25 Independent skills", "Reach Independent on 25 skills", (s) => lv(s, 3), 25),
+  atLeast("explainer", "🎤", "Can explain & apply", "Explain a skill in your own words (and pass the check-back)", (s) => lv(s, 4), 1),
+  atLeast("explainer-5", "👩‍🏫", "Explained 5 skills", "Reach “Can explain & apply” on 5 skills", (s) => lv(s, 4), 5),
+  atLeast("streak-3", "🔥", "3-day streak", "Do a quest 3 days in a row", (s) => s.streak.count, 3),
+  atLeast("streak-7", "☄️", "7-day streak", "Do a quest 7 days in a row", (s) => s.streak.count, 7),
+  atLeast("mistake-fixer", "🛠️", "Fixed 5 old mistakes", "Get 5 questions right from your mistake journal", (s) => s.mistakes.filter((m) => m.resolved).length, 5),
+  atLeast("placement", "🧭", "Found my starting point", "Finish the starting-point check for 5 topics", (s) => Object.keys(s.placement).length, 5),
+  ...TOPICS.map((t) => {
+    const skills = SKILLS.filter((k) => k.topic === t.id);
+    return atLeast(`topic-${t.id}`, t.icon, `Topic star: ${t.title}`, `Unlock every skill in ${t.title}`, (s) => skills.filter((k) => s.skills[k.id]?.ready).length, skills.length);
+  }),
+  ...MISSIONS.map((m) => atLeast(`mission-${m.id}`, "🚩", `Mission: ${m.title}`, `Complete the “${m.title}” stage challenge`, (s) => (s.missions[m.id]?.done ? 1 : 0), 1)),
 ];
+
+/** The locked badge she's closest to, for a "next badge" nudge. */
+export function nextBadge(s: AppState): { badge: Badge; done: number; goal: number } | null {
+  let best: { badge: Badge; done: number; goal: number } | null = null;
+  for (const b of BADGES) {
+    if (s.badges.includes(b.id)) continue;
+    const [done, goal] = b.progress(s);
+    if (done >= goal) continue;
+    const frac = done / goal;
+    if (!best || frac > best.done / best.goal || (frac === best.done / best.goal && goal - done < best.goal - best.done)) best = { badge: b, done, goal };
+  }
+  return best;
+}
 
 export const BADGE_BY_ID = Object.fromEntries(BADGES.map((b) => [b.id, b]));
 

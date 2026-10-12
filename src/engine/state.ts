@@ -1,4 +1,5 @@
 import type { Level } from "../content/types";
+import type { PriorRound } from "../grading/types";
 
 export type MasteryLevel = 0 | 1 | 2 | 3 | 4;
 
@@ -65,6 +66,10 @@ export interface Explanation {
   feedback?: string;
   parentNote?: string;
   gradedBy?: "claude" | "parent";
+  /** Every draft and the feedback on it, oldest first (present when she revised with Claude's feedback). */
+  rounds?: PriorRound[];
+  howToImprove?: string;
+  modelExplanation?: string;
 }
 
 export interface SessionLog {
