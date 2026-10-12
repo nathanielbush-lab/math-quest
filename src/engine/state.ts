@@ -102,6 +102,8 @@ export interface Settings {
   tutorDailyLimit: number;
   /** The app's look: bright and game-like, or warm and illustrated. */
   skin: "playful" | "storybook" | "classic";
+  /** Light or dark screen. "auto" follows the computer's own setting. */
+  appearance?: "auto" | "light" | "dark";
 }
 
 /** One answered question, kept for the parent report and for reviewing how the app is working. */

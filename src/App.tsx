@@ -59,6 +59,11 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.skin = skin;
   }, [skin]);
+  const appearance = state.settings.appearance ?? "auto";
+  useEffect(() => {
+    if (appearance === "auto") delete document.documentElement.dataset.appearance;
+    else document.documentElement.dataset.appearance = appearance;
+  }, [appearance]);
 
   const onHome = route.name === "home" && !!state.settings.studentName;
   // First visit to the home page: walk her through it once.

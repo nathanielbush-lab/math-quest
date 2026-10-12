@@ -318,6 +318,18 @@ function SettingsTab({ state, mutate, replace }: { state: AppState; mutate: (fn:
             </button>
           ))}
         </div>
+        <div className="field" style={{ marginTop: 14 }}>
+          <span className="small" style={{ fontWeight: 800 }}>Light or dark</span>
+          <div className="appearance-pick" role="radiogroup" aria-label="Light or dark">
+            {([
+              ["light", "Light"],
+              ["dark", "Dark"],
+              ["auto", "Match this computer"],
+            ] as const).map(([id, name]) => (
+              <button key={id} type="button" role="radio" aria-checked={(st.appearance ?? "auto") === id} className={(st.appearance ?? "auto") === id ? "on" : ""} onClick={() => set("appearance", id)}>{name}</button>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="card">
