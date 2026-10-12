@@ -7,6 +7,7 @@ import { BADGE_BY_ID, useAppState } from "./store";
 import { Home, type HomeTab } from "./screens/Home";
 import { Assessment, type AssessKind } from "./screens/Assessment";
 import { Avatar } from "./components/Shop";
+import { TutorProvider } from "./components/Tutor";
 import { currentStreak } from "./engine/mastery";
 import { starBalance } from "./engine/state";
 import { MissionScreen } from "./screens/Mission";
@@ -95,6 +96,7 @@ export default function App() {
   }
 
   return (
+    <TutorProvider state={state} mutate={mutate}>
     <div className="app">
       {!inActivity && (
         <div className="topbar">
@@ -107,14 +109,15 @@ export default function App() {
             <span className="chip" title={`stars to spend (${state.xp} earned in all)`}>⭐ {starBalance(state)}</span>
           </span>
           {onHome && <button className="btn ghost" title="Show me around" aria-label="Show me around" onClick={() => { go({ name: "home", tab: "today" }); setTouring(true); }}>❓</button>}
-          {route.name !== "parent" && <button className="btn ghost" data-tour="parent" onClick={() => go({ name: "parent" })}>👪 Parent</button>}
+          {route.name !== "parent" && <button className="btn ghost" data-tour="parent" onClick={() => go({ name: "parent" })}>🍎 Teacher</button>}
         </div>
       )}
-      {saveFailed && <div className="feedback warn">Progress couldn't be saved in this browser (private window or storage blocked?). Use Parent → Settings → Download progress file to keep it.</div>}
+      {saveFailed && <div className="feedback warn">Progress couldn't be saved in this browser (private window or storage blocked?). Use Teacher corner → Settings → Download progress file to keep it.</div>}
       {body}
       {toastText && !celebrating && <div className="toast" role="status">{toastText}</div>}
       {showTour && (route.tab ?? "today") === "today" && <Tour steps={HOME_TOUR} onDone={endTour} />}
       {celebrating && <BadgeCelebration badge={celebrating} more={newBadges.length - 1} onClose={popBadge} />}
     </div>
+    </TutorProvider>
   );
 }

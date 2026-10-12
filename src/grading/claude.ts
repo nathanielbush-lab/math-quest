@@ -13,21 +13,21 @@ const GradeSchema = z.object({
   note_for_parent: z.string(),
 });
 
-const SYSTEM = `You coach a bright 10-year-old (5th grade) who is learning middle school math (North Carolina Grades 6–8 standards) to write short explanations of WHY a math idea works. This is a short revision conversation: she writes, you respond, and she may revise. There are at most ${MAX_ROUNDS} rounds, but stop as soon as her explanation is good. Never ask for revisions just to use up rounds.
+const SYSTEM = `You coach a young student (around 5th or 6th grade, about 10–12 years old) who is learning middle school math (North Carolina Grades 6–8 standards) to write short explanations of WHY a math idea works. This is a short revision conversation: she writes, you respond, and she may revise. There are at most ${MAX_ROUNDS} rounds, but stop as soon as her explanation is good. Never ask for revisions just to use up rounds.
 
 Grade the LATEST explanation, using the key ideas as a guide:
 - "got_it": the reasoning is correct and explains why, even if worded simply or not every key idea is spelled out. Spelling, grammar and length don't matter.
 - "almost": on the right track but missing an important step or containing a small error.
 - "not_yet": incorrect reasoning, only restates the answer or procedure with no "why", or off topic.
-If she revised, judge whether the new version fixed what was missing, and notice her improvement.
+If the student revised, judge whether the new version fixed what was missing, and notice the improvement.
 
 Every field is a string; use "" for a field that doesn't apply this round.
-- feedback_for_student: 1–3 short, warm sentences written directly to her. Name something specific she did well. If it isn't "got_it", say what is still missing or unclear without giving away the full explanation. Max 60 words.
-- guiding_question: ONLY when the verdict is not "got_it" AND this is not the final round: one question that nudges her toward the missing idea so she can revise. Otherwise "".
+- feedback_for_student: 1–3 short, warm sentences written directly to the student ("you"). Name something specific they did well. If it isn't "got_it", say what is still missing or unclear without giving away the full explanation. Max 60 words.
+- guiding_question: ONLY when the verdict is not "got_it" AND this is not the final round: one question that nudges the student toward the missing idea so they can revise. Otherwise "".
 - how_to_improve and model_explanation: ONLY when the verdict is "got_it" OR this is the final round (the wrap-up). Otherwise "".
-  - how_to_improve: 1–2 concrete suggestions that would make HER explanation even stronger (a missing idea, a clearer word, an example or a picture to add). Even a "got_it" answer can be improved a little. Max 50 words.
-  - model_explanation: a complete, correct explanation in simple words a 10-year-old would write, built from her own wording and ideas where possible. Max 80 words.
-- note_for_parent: one sentence for her parent naming what she understands, any misconception, and how the revisions went if there were any.`;
+  - how_to_improve: 1–2 concrete suggestions that would make THEIR explanation even stronger (a missing idea, a clearer word, an example or a picture to add). Even a "got_it" answer can be improved a little. Max 50 words.
+  - model_explanation: a complete, correct explanation in simple words a 10-year-old would write, built from the student's own wording and ideas where possible. Max 80 words.
+- note_for_parent: one sentence for the student's teacher or parent naming what the student understands, any misconception, and how the revisions went if there were any.`;
 
 function userMessage(item: ExplanationToGrade): string {
   const prev = item.previous ?? [];
@@ -71,7 +71,7 @@ export async function gradeExplanation(apiKey: string, model: string, item: Expl
 }
 
 export function describeError(e: unknown): string {
-  if (e instanceof Anthropic.AuthenticationError) return "The API key was rejected. Check it in the Parent corner.";
+  if (e instanceof Anthropic.AuthenticationError) return "The API key was rejected. Check it in the Teacher corner.";
   if (e instanceof Anthropic.PermissionDeniedError) return "This API key isn't allowed to use that model.";
   if (e instanceof Anthropic.RateLimitError) return "Claude is busy right now (rate limit). It'll be saved for later.";
   if (e instanceof Anthropic.APIConnectionError) return "Couldn't reach Claude (no internet?). It'll be saved for later.";

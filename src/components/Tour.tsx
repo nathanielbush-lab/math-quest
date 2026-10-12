@@ -13,7 +13,7 @@ export const HOME_TOUR: TourStep[] = [
   { target: "[data-tour=nextbadge]", title: "Badges", text: "You earn badges as you go. This shows the one you're closest to next." },
   { target: "[data-tour=tabs]", title: "Tabs", text: "My Map shows every topic and how far you've come. Trophies has all your badges. Missions has big real-world projects that unlock as you learn." },
   { target: "[data-tour=stats]", title: "Stars and streaks", text: "⭐ Stars add up for everything you do. 🔥 shows how many days in a row you've done a quest." },
-  { target: "[data-tour=parent]", title: "For your grown-up", text: "This button is for your grown-up, to see your progress and change settings." },
+  { target: "[data-tour=parent]", title: "For your teacher or grown-up", text: "The Teacher button is for your teacher or grown-up, to see your progress and change settings." },
   { title: "You're ready! 🚀", text: "Mistakes are part of learning. Hints and step-by-step solutions are always there to help. You can see this tour again with the ❓ button at the top." },
 ];
 

@@ -59,13 +59,13 @@ export async function grade(apiKey: string, model: string, item: ExplanationToGr
 export function reviewPrompt(items: (ExplanationToGrade & { id: string; date: string })[]): string {
   const body = items
     .map((it, i) => {
-      const drafts = (it.previous ?? []).map((p, j) => `Draft ${j + 1}: """${p.response}"""\nFeedback she got: ${p.feedback}${p.guidingQuestion ? ` ${p.guidingQuestion}` : ""}`).join("\n");
-      return `### ${i + 1}. ${it.skillTitle} (${it.date})\nQuestion: ${it.prompt}\nKey ideas: ${it.keyIdeas.join("; ")}\nStrong answer example: ${it.exemplar}\n${drafts ? drafts + "\n" : ""}Her ${drafts ? "latest " : ""}explanation: """${it.response}"""`;
+      const drafts = (it.previous ?? []).map((p, j) => `Draft ${j + 1}: """${p.response}"""\nFeedback given: ${p.feedback}${p.guidingQuestion ? ` ${p.guidingQuestion}` : ""}`).join("\n");
+      return `### ${i + 1}. ${it.skillTitle} (${it.date})\nQuestion: ${it.prompt}\nKey ideas: ${it.keyIdeas.join("; ")}\nStrong answer example: ${it.exemplar}\n${drafts ? drafts + "\n" : ""}Student's ${drafts ? "latest " : ""}explanation: """${it.response}"""`;
     })
     .join("\n\n");
-  return `My 5th-grade daughter is learning middle school math with a practice app. Please grade each written explanation below.
+  return `A young student (around 5th or 6th grade) is learning middle school math with a practice app. Please grade each written explanation below.
 
-For each one, say GOT IT, ALMOST or NOT YET (GOT IT = correct reasoning that explains why, even if simply worded; ignore spelling). Then give one warm sentence of feedback I can read to her. If it isn't GOT IT, add one guiding question she could use to revise it. Finally, give one concrete suggestion for making it even stronger and a short model explanation in a 10-year-old's words. Keep it short. A table is fine.
+For each one, say GOT IT, ALMOST or NOT YET (GOT IT = correct reasoning that explains why, even if simply worded; ignore spelling). Then give one warm sentence of feedback I can read to the student. If it isn't GOT IT, add one guiding question she could use to revise it. Finally, give one concrete suggestion for making it even stronger and a short model explanation in a young student's words. Keep it short. A table is fine.
 
 ${body}`;
 }

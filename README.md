@@ -46,7 +46,7 @@ The first time she reaches the home page, a short guided tour shows her around (
 ### Stage challenges
 The three stage challenges from the roadmap unlock as she reaches the relevant skills: **plan a small party** (Grade 6), **design a board game** (Grade 7, with a dice simulator) and **compare bike-rental plans** (Grade 8, with graphing).
 
-## Parent corner (👪 button, optional PIN)
+## Teacher corner (🍎 Teacher button, optional PIN)
 - **Overview:** time and sessions this week, skills ready, pace toward your target date, this month's roadmap focus, and skills that are currently tricky.
 - **Tracker:** the roadmap's progress tracker filled in with dates for each level and the next recheck. Printable.
 - **Explanations:** her written explanations, with Claude's feedback if grading is on. Mark them *Got it* or *Needs revision* yourself, or **Copy pending for a Claude chat** to paste them into claude.ai.
@@ -55,13 +55,13 @@ The three stage challenges from the roadmap unlock as she reaches the relevant s
 
 ### Claude grading (optional)
 Paste an Anthropic API key (from platform.claude.com) in **Settings**. Written explanations are then graded by **Claude Haiku 5.5**, at well under a cent each. Use **Test it** to confirm the key works.
-- **Revision rounds:** if her explanation isn't there yet, Claude says what's missing and asks one guiding question, and she revises. It stops as soon as the explanation is good, and after at most 3 rounds. At the end she sees how to make it even stronger and a model explanation. She can also stop early with **I'm done, show me**. The Parent corner keeps every draft and the feedback on it.
+- **Revision rounds:** if her explanation isn't there yet, Claude says what's missing and asks one guiding question, and she revises. It stops as soon as the explanation is good, and after at most 3 rounds. At the end she sees how to make it even stronger and a model explanation. She can also stop early with **I'm done, show me**. The Teacher corner keeps every draft and the feedback on it.
 - The key is stored only in this browser and sent only to Anthropic.
 - Create a separate key with a low monthly spend limit, because anyone using the browser could find it.
-- Without a key, explanations wait for you in the Parent corner.
+- Without a key, explanations wait for you in the Teacher corner.
 
 ### Moving between computers / backup
-Progress lives in each browser. To switch computers, go to **Parent corner → Settings → Download progress file** on the computer she used last, move the file (email, USB stick, or a cloud folder), then use **Load progress file** on the other computer. The app warns you if the file is older than what's already there. A download is also a good weekly backup. The API key isn't included in the file.
+Progress lives in each browser. To switch computers, go to **Teacher corner → Settings → Download progress file** on the computer she used last, move the file (email, USB stick, or a cloud folder), then use **Load progress file** on the other computer. The app warns you if the file is older than what's already there. A download is also a good weekly backup. The API key isn't included in the file.
 
 ## Hosting on GitHub Pages
 The workflow in `.github/workflows/deploy.yml` tests, builds and deploys on every push to `main`. To turn it on: repository **Settings → Pages → Source: GitHub Actions**. On a free GitHub plan, Pages needs a public repository. The repo contains no personal information; her progress never leaves her computer. If you'd rather keep the repo private, use the offline file.

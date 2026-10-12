@@ -85,9 +85,10 @@ p { margin: 0 0 0.75em; }
 .btn.ghost { background: transparent; border: 1px solid var(--line); }
 .btn.big { font-size: 1.15rem; padding: 14px 26px; border-radius: 14px; }
 .btn.link { background: none; padding: 0; color: var(--primary); text-decoration: underline; font-weight: 600; }
-.hero { background: linear-gradient(135deg, var(--primary), #8a5cf0); color: #fff; border: none; }
+/* Shop themes override --primary, --hero-2 and --hero-btn-ink. */
+.hero { background: linear-gradient(135deg, var(--primary), var(--hero-2, #8a5cf0)); color: #fff; border: none; }
 .hero .muted { color: rgba(255, 255, 255, 0.85); }
-.hero .btn.primary { background: #fff; color: #3f31b8; }
+.hero .btn.primary { background: #fff; color: var(--hero-btn-ink, #3f31b8); }
 .stage { display: flex; gap: 8px; margin-bottom: 12px; }
 .stage span { padding: 4px 12px; border-radius: 999px; font-size: 0.85rem; font-weight: 700; background: var(--surface-2); color: var(--ink-2); }
 .stage span.on { background: var(--primary); color: var(--primary-ink); }

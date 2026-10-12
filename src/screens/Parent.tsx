@@ -17,7 +17,7 @@ export function Parent({ state, mutate, replace, onExit }: { state: AppState; mu
   if (!unlocked) {
     return (
       <div className="card" style={{ maxWidth: 380, margin: "40px auto" }}>
-        <h2>👪 Parent corner</h2>
+        <h2>🍎 Teacher corner</h2>
         <form onSubmit={(e) => { e.preventDefault(); if (pin === state.settings.parentPin) setUnlocked(true); else setPin(""); }}>
           <div className="field">
             <label htmlFor="pin">PIN</label>
@@ -32,7 +32,7 @@ export function Parent({ state, mutate, replace, onExit }: { state: AppState; mu
   return (
     <div>
       <div className="row" style={{ marginBottom: 12 }}>
-        <h1 className="grow" style={{ margin: 0 }}>👪 Parent corner</h1>
+        <h1 className="grow" style={{ margin: 0 }}>🍎 Teacher corner</h1>
         <button className="btn" onClick={onExit}>← Back</button>
       </div>
       <div className="tabs">
@@ -78,7 +78,7 @@ function Overview({ state }: { state: AppState }) {
       <div className="card">
         <strong>{month.title}</strong>
         <p className="small muted">{month.text}</p>
-        <p className="small muted" style={{ margin: 0 }}>Suggested rhythm from the roadmap: 5 min review, 15–20 min learning and practice, 10 min on an unfamiliar problem; about four sessions a week, adjusted to her attention and enjoyment.</p>
+        <p className="small muted" style={{ margin: 0 }}>Suggested rhythm from the roadmap: 5 min review, 15–20 min learning and practice, 10 min on an unfamiliar problem; about four sessions a week, adjusted to the student's attention and enjoyment.</p>
       </div>
       {struggling.length > 0 && (
         <div className="card">
@@ -182,25 +182,25 @@ function Explanations({ state, mutate }: { state: AppState; mutate: (fn: (s: App
   return (
     <div>
       <div className="card tight">
-        <p className="small" style={{ marginTop: 0 }}>Written explanations are part of the top level, “Can explain and apply”. {state.settings.apiKey ? "Claude grades them automatically when she submits; you can re-grade or override any of them." : "Add an API key in Settings to have Claude grade them automatically, or copy them into a Claude chat."}</p>
+        <p className="small" style={{ marginTop: 0 }}>Written explanations are part of the top level, “Can explain and apply”. {state.settings.apiKey ? "Claude grades them automatically when the student submits; you can re-grade or override any of them." : "Add an API key in Settings to have Claude grade them automatically, or copy them into a Claude chat."}</p>
         <div className="row">
           <button className="btn" disabled={!pending.length} onClick={copy}>📋 Copy {pending.length} pending for a Claude chat</button>
         </div>
         {msg && <div className="feedback info">{msg}</div>}
         {showText && <textarea readOnly value={showText} />}
       </div>
-      {!list.length && <p className="muted">No explanations yet. They appear after she's solid on a skill (at the end of a daily quest).</p>}
+      {!list.length && <p className="muted">No explanations yet. They appear once the student is solid on a skill (at the end of a daily quest).</p>}
       {list.map((e) => (
         <div key={e.id} className="card tight">
           <div className="row">
             <strong className="grow">{SKILL_BY_ID[e.skillId]?.title}</strong>
-            <span className="chip">{e.status === "pending" ? "⏳ Pending" : e.status === "pass" ? "✅ Got it" : "✏️ Revise"}{e.gradedBy ? ` · ${e.gradedBy}` : ""}</span>
+            <span className="chip">{e.status === "pending" ? "⏳ Pending" : e.status === "pass" ? "✅ Got it" : "✏️ Revise"}{e.gradedBy ? ` · ${e.gradedBy === "parent" ? "teacher" : "Claude"}` : ""}</span>
             <span className="small muted">{fmtDate(e.date)}</span>
           </div>
           <p className="small muted" style={{ margin: "6px 0" }}>{e.prompt}</p>
           {e.rounds && e.rounds.length > 1 && (
             <details className="small">
-              <summary>She revised it {e.rounds.length - 1} time{e.rounds.length > 2 ? "s" : ""} with Claude's feedback: see every draft</summary>
+              <summary>Revised {e.rounds.length - 1} time{e.rounds.length > 2 ? "s" : ""} with Claude's feedback: see every draft</summary>
               {e.rounds.slice(0, -1).map((r, i) => (
                 <div key={i} style={{ margin: "6px 0" }}>
                   <blockquote className="draft"><span className="muted">Draft {i + 1} · {r.verdict === "got_it" ? "got it" : r.verdict === "almost" ? "almost" : "not yet"}</span><br />{r.response}</blockquote>
@@ -210,9 +210,9 @@ function Explanations({ state, mutate }: { state: AppState; mutate: (fn: (s: App
             </details>
           )}
           <blockquote className="draft">{e.rounds && e.rounds.length > 1 && <><span className="small muted">Final draft</span><br /></>}{e.response}</blockquote>
-          {e.feedback && <p className="small"><strong>Feedback to her:</strong> {e.feedback}</p>}
-          {e.howToImprove && <p className="small"><strong>How she could make it stronger:</strong> {e.howToImprove}</p>}
-          {e.modelExplanation && <p className="small"><strong>Model explanation she was shown:</strong> {e.modelExplanation}</p>}
+          {e.feedback && <p className="small"><strong>Feedback to the student:</strong> {e.feedback}</p>}
+          {e.howToImprove && <p className="small"><strong>How to make it stronger:</strong> {e.howToImprove}</p>}
+          {e.modelExplanation && <p className="small"><strong>Model explanation shown to the student:</strong> {e.modelExplanation}</p>}
           {e.parentNote && <p className="small"><strong>Note for you:</strong> {e.parentNote}</p>}
           <details className="small"><summary>What a strong answer includes</summary><ul>{e.keyIdeas.map((k) => <li key={k}>{k}</li>)}</ul><p><em>Example:</em> {e.exemplar}</p></details>
           <div className="row" style={{ marginTop: 8 }}>
@@ -232,7 +232,7 @@ function Mistakes({ state }: { state: AppState }) {
   const rows = [...by.entries()].sort((a, b) => b[1].length - a[1].length);
   return (
     <div>
-      <p className="muted small">Questions she missed or needed help with. Open ones come back in warm-ups and the mistake journal with fresh numbers.</p>
+      <p className="muted small">Questions the student missed or needed help with. Open ones come back in warm-ups and the mistake journal with fresh numbers.</p>
       {!rows.length && <p className="muted">Nothing here yet.</p>}
       {rows.map(([skillId, list]) => (
         <div key={skillId} className="card tight">
@@ -241,7 +241,7 @@ function Mistakes({ state }: { state: AppState }) {
             <span className="small muted">{list.filter((m) => !m.resolved).length} open · {list.length} total</span>
           </div>
           <table className="data" style={{ marginTop: 6 }}>
-            <thead><tr><th>Date</th><th>Question</th><th>Her answer</th><th>Correct</th><th></th></tr></thead>
+            <thead><tr><th>Date</th><th>Question</th><th>Their answer</th><th>Correct</th><th></th></tr></thead>
             <tbody>
               {list.slice(-4).reverse().map((m) => (
                 <tr key={m.id}><td>{fmtDate(m.date)}</td><td>{m.prompt.replace(/\{([^{}/]+)\/([^{}]+)\}/g, "$1/$2")}</td><td>{m.given}</td><td>{m.correct}</td><td>{m.resolved ? "✓ fixed" : ""}</td></tr>
@@ -306,7 +306,7 @@ function SettingsTab({ state, mutate, replace }: { state: AppState; mutate: (fn:
             {[2, 3, 4, 5, 6, 7].map((n) => <option key={n} value={n}>{n} quests a week{n === 4 ? " (the roadmap's suggestion)" : ""}</option>)}
           </select>
         </div>
-        <div className="field" style={{ marginTop: 12 }}><label htmlFor="pin2">Parent PIN (optional, keeps this corner private)</label><input id="pin2" type="password" inputMode="numeric" value={st.parentPin ?? ""} onChange={(e) => set("parentPin", e.target.value || undefined)} /></div>
+        <div className="field" style={{ marginTop: 12 }}><label htmlFor="pin2">Teacher PIN (optional, keeps this corner private)</label><input id="pin2" type="password" inputMode="numeric" value={st.parentPin ?? ""} onChange={(e) => set("parentPin", e.target.value || undefined)} /></div>
       </div>
 
       <div className="card">
