@@ -50,7 +50,7 @@ export const LEVEL_MEANING = [
 export function LevelGuide() {
   return (
     <details className="level-guide">
-      <summary className="small">What do the colors mean?</summary>
+      <summary className="small">What do the progress colors mean?</summary>
       <ul>
         {[1, 2, 3, 4].map((l) => (
           <li key={l} className="small"><span className="lv-dot" style={{ background: LEVEL_COLORS[l] }} /> <strong>{LEVEL_NAMES[l]}:</strong> {LEVEL_MEANING[l]}</li>

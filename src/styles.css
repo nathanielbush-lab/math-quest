@@ -417,6 +417,18 @@ textarea { width: 100%; min-height: 120px; resize: vertical; }
 /* Level labels */
 .level-summary { display: flex; flex-wrap: wrap; gap: 4px 10px; }
 .level-guide { margin: 4px 0 8px; }
+.card-key { display: flex; flex-direction: column; gap: 12px; margin-bottom: 8px; }
+.key-part { display: flex; flex-direction: column; gap: 8px; }
+.key-part + .key-part { border-top: 1px solid var(--line); padding-top: 12px; }
+.key-head { display: flex; align-items: center; gap: 12px; }
+.key-sample-card { flex: none; width: 54px; height: 38px; border-radius: 10px; border: 2px solid var(--line); border-top: 7px solid var(--topic); background: var(--surface); display: grid; place-items: center; }
+.key-sample-card .fam-badge { width: 22px; height: 22px; border-radius: 7px; background: var(--topic-soft); color: var(--topic-ink); display: grid; place-items: center; }
+.key-sample-bar { flex: none; width: 54px; margin: 0; padding: 12px 8px; }
+.fam-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.fam-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 6px; border-radius: 99px; background: var(--topic-soft); color: var(--topic-ink); border-left: 4px solid var(--topic); font-size: 0.85rem; font-weight: 700; }
+.progress-box { background: var(--surface-2); border-radius: 12px; padding: 8px 10px; margin-bottom: 6px; }
+.progress-row { display: flex; align-items: center; gap: 8px; }
+.progress-label { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-2); }
 .level-guide summary { cursor: pointer; color: var(--primary); font-weight: 700; }
 .level-guide ul { list-style: none; padding-left: 4px; margin: 6px 0; }
 .level-guide li { margin: 3px 0; }

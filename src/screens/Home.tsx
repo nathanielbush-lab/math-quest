@@ -208,7 +208,7 @@ function MapTab({ state, go, mutate }: { state: AppState; go: (r: Route) => void
         {placementDone < TOPICS.length && <button className="btn" onClick={() => go({ name: "placement" })}><Icon name="compass" /> Check what I already know ({placementDone}/{TOPICS.length})</button>}
       </div>
       {view === "trail" && <TrailMap counts={counts} here={here} onTopic={(topicId) => go({ name: "topic", topicId })} onFinale={() => go({ name: "assess" })} />}
-      {view === "list" && <><LevelLegend /><LevelGuide /></>}
+      {view === "list" && <CardKey />}
       {view === "list" && grades.map((g) => (
         <div key={g}>
           <div className="grade-label">{g === 5 ? "Warm-up foundations" : `Grade ${g}`}</div>
@@ -222,8 +222,10 @@ function MapTab({ state, go, mutate }: { state: AppState; go: (r: Route) => void
                     <strong className="grow">{t.title}</strong>
                     {c.ready === c.total && <span title="every skill unlocked"><Icon name="star" /></span>}
                   </div>
-                  <LevelBar counts={c.counts} total={c.total} />
-                  <div style={{ marginTop: 6 }}><LevelSummary counts={c.counts} total={c.total} /></div>
+                  <div className="progress-box">
+                    <div className="progress-row"><span className="progress-label">Progress</span><div className="grow"><LevelBar counts={c.counts} total={c.total} /></div></div>
+                    <div style={{ marginTop: 6 }}><LevelSummary counts={c.counts} total={c.total} /></div>
+                  </div>
                   <div className="small muted" style={{ marginTop: 2 }}>{c.ready} of {c.total} skills unlocked{t.strand === "shapes-data" ? " · shapes & data" : ""}</div>
                 </div>
               );
@@ -234,6 +236,43 @@ function MapTab({ state, go, mutate }: { state: AppState; go: (r: Route) => void
       <div className="card tight" style={{ marginTop: 28 }}>
         <strong>{month.title}</strong>
         <p className="small muted" style={{ margin: 0 }}>{month.text}</p>
+      </div>
+    </div>
+  );
+}
+
+const FAMILY_NAMES: [TopicFamily, string][] = [
+  ["fractions", "Fractions"],
+  ["ratios", "Ratios & percents"],
+  ["algebra", "Algebra"],
+  ["number", "Number systems"],
+  ["geometry", "Geometry"],
+  ["data", "Data & chance"],
+];
+
+/** How to read a topic card: its color is the kind of math; the bar's colors are progress. */
+function CardKey() {
+  return (
+    <div className="card tight card-key">
+      <h3 style={{ margin: 0 }}>How to read a card</h3>
+      <div className="key-part">
+        <div className="key-head">
+          <span className="key-sample-card fam-fractions" aria-hidden="true"><span className="fam-badge"><FamilyIcon family="fractions" size={16} /></span></span>
+          <span><strong>The stripe and icon</strong> show the <strong>kind of math</strong>.</span>
+        </div>
+        <div className="fam-chips">
+          {FAMILY_NAMES.map(([f, name]) => (
+            <span key={f} className={`fam-chip fam-${f}`}><FamilyIcon family={f} size={16} />{name}</span>
+          ))}
+        </div>
+      </div>
+      <div className="key-part">
+        <div className="key-head">
+          <span className="key-sample-bar progress-box" aria-hidden="true"><LevelBar counts={[1, 1, 1, 1, 1]} total={5} /></span>
+          <span><strong>The progress bar</strong> (in the shaded box) shows <strong>how far you've gotten</strong> in that topic's skills. Its colors are the same for every kind of math.</span>
+        </div>
+        <LevelLegend />
+        <LevelGuide />
       </div>
     </div>
   );
