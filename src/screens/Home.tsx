@@ -204,7 +204,7 @@ function MapTab({ state, go, mutate }: { state: AppState; go: (r: Route) => void
             <button key={id} type="button" role="radio" aria-checked={view === id} className={view === id ? "on" : ""} onClick={() => mutate((s) => { s.settings.mapView = id; })}><Icon name={icon} size={18} /> {name}</button>
           ))}
         </div>
-        <span className="grow small muted">{view === "trail" ? "Each stop is a topic. Its ring fills as you unlock skills, and a star means every skill is unlocked." : ""}</span>
+        <span className="grow small muted">{view === "trail" ? "Each stop is a topic. Its ring fills as you unlock skills, and a star means every skill is unlocked. Tap a landmark to find the math hiding in it!" : ""}</span>
         {placementDone < TOPICS.length && <button className="btn" onClick={() => go({ name: "placement" })}><Icon name="compass" /> Check what I already know ({placementDone}/{TOPICS.length})</button>}
       </div>
       {view === "trail" && <TrailMap counts={counts} here={here} onTopic={(topicId) => go({ name: "topic", topicId })} onFinale={() => go({ name: "assess" })} />}

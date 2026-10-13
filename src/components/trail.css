@@ -10,6 +10,9 @@
   --map-flower: #ff7aa8; --map-flower-2: #ffc531; --map-sun: #ffd451; --map-wood: #c99560; --map-plank: #a2723f;
   --map-flag: #ff6b57; --map-dot: #ffffff; --map-stem: #4f9c4a;
   --map-ink: transparent; --map-ink-w: 0; --map-line: #6b5a4a;
+  --map-bunny: #ffffff; --map-bird: #5aa9e6; --map-fish: #ff9a4d; --map-frog: #5fc46a; --map-beak: #ff9a3d; --map-eye: #2b2440;
+  --map-wall: #f3e3c3; --map-door: #7a5236; --map-sign: #fffaf0; --map-text: #2b2440; --map-dirt: #ead3ad; --map-lemonade: #ffe066;
+  --map-cube: #ffb46b; --map-cube-top: #ffd29c; --map-cube-side: #e8914a; --map-wing: rgba(255, 255, 255, 0.85); --map-snail: #e9c6a0;
 }
 :root[data-skin="storybook"] {
   --map-meadow: #ece4c2; --map-meadow-2: #d9d6a4; --map-meadow-3: #a9bb83;
@@ -20,6 +23,9 @@
   --map-flower: #c8553d; --map-flower-2: #e8b83a; --map-sun: #e8b83a; --map-wood: #c48a52; --map-plank: #8a5a34;
   --map-flag: #c8553d; --map-dot: #fff9ec; --map-stem: #5e8a5d;
   --map-ink: var(--edge); --map-ink-w: 2px; --map-line: var(--edge);
+  --map-bunny: #fff9ec; --map-bird: #6f9fb8; --map-fish: #d9874a; --map-frog: #7ea173; --map-beak: #e8a03a; --map-eye: #3b2f22;
+  --map-wall: #f1e2c4; --map-door: #6b4528; --map-sign: #fff9ec; --map-text: #3b2f22; --map-dirt: #e4cfa6; --map-lemonade: #f0d26a;
+  --map-cube: #e6a066; --map-cube-top: #f2c592; --map-cube-side: #c97f45; --map-wing: rgba(255, 249, 236, 0.85); --map-snail: #dcbf98;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -30,6 +36,9 @@
     --map-path: #3f3a5e; --map-path-edge: #2c2848; --map-path-dash: #6f68a0;
     --map-flower: #e0608c; --map-flower-2: #e0a82a; --map-sun: #e8c860; --map-wood: #7a5a3c; --map-plank: #4f3a26;
     --map-flag: #ff7a68; --map-dot: #f3e9ff; --map-stem: #3c7a46; --map-line: #b9b3d8;
+    --map-bunny: #e9e6f5; --map-bird: #4f8fd0; --map-fish: #e58a45; --map-frog: #3f9a52; --map-beak: #e88a35; --map-eye: #14162a;
+    --map-wall: #8d82b8; --map-door: #2a2440; --map-sign: #e9e6f5; --map-text: #1f1c33; --map-dirt: #3a3050; --map-lemonade: #e0c050;
+    --map-cube: #c27a45; --map-cube-top: #d99a62; --map-cube-side: #9c5e33; --map-wing: rgba(233, 230, 245, 0.7); --map-snail: #a88a6a;
   }
   :root[data-skin="storybook"] {
     --map-meadow: #29281d; --map-meadow-2: #34362a; --map-meadow-3: #4a5a3a;
@@ -39,6 +48,9 @@
     --map-path: #4a3e2e; --map-path-edge: var(--edge); --map-path-dash: #7a6a52;
     --map-flower: #d9765e; --map-flower-2: #d9a93a; --map-sun: #d9a93a; --map-wood: #7a5a3a; --map-plank: #4f3a26;
     --map-flag: #e07a62; --map-dot: #f2e6d0; --map-stem: #4d6b4a; --map-line: var(--edge);
+    --map-bunny: #e8dcc4; --map-bird: #5a8aa0; --map-fish: #c47a42; --map-frog: #5e8a5d; --map-beak: #d9a03a; --map-eye: #1d1914;
+    --map-wall: #8a7558; --map-door: #2a2118; --map-sign: #e8dcc4; --map-text: #2a2118; --map-dirt: #3d3226; --map-lemonade: #d9b84f;
+    --map-cube: #a8703f; --map-cube-top: #c48a52; --map-cube-side: #845530; --map-wing: rgba(232, 220, 196, 0.7); --map-snail: #8f7658;
   }
 }
 
@@ -83,6 +95,56 @@
 .trail-dash { fill: none; stroke: var(--map-path-dash); stroke-width: 3; stroke-dasharray: 2 12; stroke-linecap: round; }
 :root[data-skin="storybook"] .trail-edge { stroke-width: 32; }
 
+/* Landmark and animal parts. */
+.m-bunny { fill: var(--map-bunny); }
+.m-bird { fill: var(--map-bird); }
+.m-fish { fill: var(--map-fish); }
+.m-frog { fill: var(--map-frog); }
+.m-beak { fill: var(--map-beak); }
+.m-eye { fill: var(--map-eye); }
+.m-wall { fill: var(--map-wall); }
+.m-door { fill: var(--map-door); }
+.m-sign { fill: var(--map-sign); }
+.m-dirt { fill: var(--map-dirt); }
+.m-lemonade { fill: var(--map-lemonade); }
+.m-cube { fill: var(--map-cube); }
+.m-cube-top { fill: var(--map-cube-top); }
+.m-cube-side { fill: var(--map-cube-side); }
+.m-wing { fill: var(--map-wing); }
+.m-snail { fill: var(--map-snail); }
+.m-plank-fill { fill: var(--map-plank); }
+.m-check { fill: none; stroke: var(--map-snow); stroke-width: 2; opacity: 0.7; }
+.m-slice { fill: none; stroke: var(--map-wood); stroke-width: 1.4; }
+.m-grid { fill: none; stroke: var(--map-cube-side); stroke-width: 1.2; }
+.m-root { fill: none; stroke: var(--map-trunk); stroke-width: 2.4; stroke-linejoin: round; }
+.m-cable { fill: none; stroke: var(--map-line); stroke-width: 2; }
+.m-wheel { fill: none; stroke: var(--map-wood); stroke-width: 4.5; }
+.m-spoke { fill: none; stroke: var(--map-wood); stroke-width: 2.2; }
+.m-arc { fill: none; stroke: var(--map-flag); stroke-width: 2.2; }
+.m-horn, .m-shell { fill: none; stroke: var(--map-trunk); stroke-width: 1.8; stroke-linecap: round; }
+.m-hop { fill: none; stroke: var(--map-line); stroke-width: 1.6; stroke-dasharray: 3 4; opacity: 0.8; }
+.m-soar { fill: none; stroke: var(--map-line); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.m-reflect { opacity: 0.38; }
+.m-ink-line.thin { stroke-width: 1.6; }
+.m-text { font-family: var(--font-body); font-weight: 800; font-size: 10px; fill: var(--map-text); }
+.m-text.big { font-size: 13px; font-style: italic; }
+.m-text.on-grass, .m-text.on-water, .m-text.on-rock { fill: var(--ink); }
+.m-text.on-water { fill: var(--ink); paint-order: stroke; stroke: var(--map-water); stroke-width: 3px; }
+.sight-on { filter: drop-shadow(0 0 6px var(--primary)); }
+
+@keyframes m-flutter { 0%, 100% { transform: translateY(0) scaleX(1); } 50% { transform: translateY(-4px) scaleX(0.75); } }
+@keyframes m-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(2px); } }
+.m-flutter { animation: m-flutter 1.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.m-bob { animation: m-bob 2.4s ease-in-out infinite; }
+
+/* Tap a landmark to see the math hiding in it. */
+.trail-sight { position: absolute; border: 2px dashed transparent; border-radius: 16px; background: transparent; cursor: pointer; padding: 0; }
+.trail-sight:hover, .trail-sight.on { border-color: color-mix(in srgb, var(--primary) 55%, transparent); }
+.trail-sight:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+.sight-bubble { position: absolute; z-index: 3; display: flex; flex-direction: column; gap: 3px; background: var(--surface); color: var(--ink); border: var(--card-border); box-shadow: var(--card-shadow); border-radius: 16px; padding: 10px 34px 11px 14px; line-height: 1.4; font-size: 0.95rem; }
+.sight-bubble strong { font-family: var(--font-display); font-size: 1.05rem; }
+.sight-close { position: absolute; top: 6px; right: 6px; border: none; background: none; color: var(--ink-2); padding: 4px; cursor: pointer; border-radius: 8px; display: grid; place-items: center; }
+
 /* Welcome sign for each land; the trail runs right through it. */
 .trail-sign { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; text-align: center; background: var(--surface); border: var(--card-border); box-shadow: var(--card-shadow); border-radius: 16px; padding: 6px 16px 7px; width: max-content; max-width: min(92%, 320px); }
 .sign-sub { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
@@ -112,9 +174,8 @@
 .trail-stop.right .stop-label { align-items: flex-end; }
 .here-tag { align-self: flex-start; margin-top: 3px; background: var(--primary); color: var(--primary-ink); border-radius: 99px; padding: 1px 9px; font-size: 0.75rem; font-weight: 800; }
 .trail-stop.right .here-tag { align-self: flex-end; }
-.here-mark { position: absolute; top: 4px; display: block; }
-.trail-stop.left .here-mark { left: -46px; }
-.trail-stop.right .here-mark { right: -46px; }
+/* The owl perches on top of today's stop. */
+.here-mark { position: absolute; top: -40px; left: 50%; transform: translateX(-50%); display: block; pointer-events: none; }
 .here-mark .icon { color: var(--primary); }
 .trail-stop:focus-visible { outline: none; }
 .trail-stop:focus-visible .stop-node { outline: 3px solid var(--primary); outline-offset: 2px; border-radius: 50%; }
@@ -133,4 +194,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .stop-node { transition: none; }
+  .m-flutter, .m-bob { animation: none; }
 }

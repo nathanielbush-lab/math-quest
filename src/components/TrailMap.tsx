@@ -2,6 +2,7 @@
 // to Horizons Peak. Positions are worked out in pixels from the map's width, so the drawing never
 // stretches and the stops stay readable on a phone.
 import { useLayoutEffect, useRef, useState } from "react";
+import { Critter, SIGHTS } from "./trailSights";
 import { TOPICS } from "../content";
 import { familyOf } from "../content/topics";
 import { FamilyIcon, Icon } from "./Icon";
@@ -55,6 +56,7 @@ function xAt(a: Pt, b: Pt, y: number) {
 export function TrailMap({ counts, here, onTopic, onFinale }: { counts: Record<string, Counts>; here?: string; onTopic: (id: string) => void; onFinale: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const [W, setW] = useState(0);
+  const [open, setOpen] = useState<string | null>(null);
   const skin = useSkin();
   useLayoutEffect(() => {
     const el = ref.current;
@@ -67,7 +69,8 @@ export function TrailMap({ counts, here, onTopic, onFinale }: { counts: Record<s
 
   if (!W) return <div ref={ref} className="trail-map" style={{ height: 600 }} />;
 
-  const side = Math.max(88, Math.round(W / 2 - Math.min(W * 0.26, 230)));
+  // On a phone the stops sit a little inward, so each one has room for its landmark on the outside.
+  const side = W < 600 ? Math.round(Math.min(Math.max(W * 0.36, 112), 132)) : Math.round(W / 2 - Math.min(W * 0.26, 230));
   const labelW = (x: number, left: boolean) => Math.min(230, left ? W - (x + NODE + 8) - 10 : x - NODE - 8 - 10);
 
   // Lay out the lands, signs and stops from top to bottom.
@@ -92,33 +95,54 @@ export function TrailMap({ counts, here, onTopic, onFinale }: { counts: Record<s
   const trail = points.slice(1).reduce((d, p, n) => `${d} ${seg(points[n], p)}`, `M ${points[0].x} ${points[0].y}`);
 
   // Scenery in the open spaces: at the edges between stops, beside stops, and past the labels.
-  const decor: { x: number; y: number; land: Land; kind: number; s: number }[] = [];
+  const decor: { x: number; y: number; land: Land; kind: number; s: number; critter?: boolean }[] = [];
   lands.forEach((l, li) => {
     l.stops.forEach((s, j) => {
       const r = (k: number) => rand(li * 31 + j, k);
       const mid = s.y + ROW / 2;
       if (j < l.stops.length - 1 || W >= 600) {
         decor.push({ x: W * (0.07 + r(1) * 0.05), y: mid + (r(2) - 0.5) * 20, land: l.land, kind: Math.floor(r(3) * 3), s: 0.9 });
-        decor.push({ x: W * (0.88 + r(4) * 0.05), y: mid + (r(5) - 0.5) * 20, land: l.land, kind: Math.floor(r(6) * 3), s: 0.9 });
+        const critter = (l.land === "woods" && j === 1) || (l.land === "river" && j === 2);
+        decor.push({ x: W * (0.88 + r(4) * 0.05), y: mid + (r(5) - 0.5) * 20, land: l.land, kind: Math.floor(r(6) * 3), s: 0.9, critter });
         if (W >= 600) {
           decor.push({ x: W * (0.2 + r(7) * 0.06), y: mid + 8, land: l.land, kind: Math.floor(r(8) * 3), s: 1 });
           decor.push({ x: W * (0.74 + r(9) * 0.06), y: mid - 4, land: l.land, kind: Math.floor(r(10) * 3), s: 1 });
         }
       }
-      const outer = s.left ? s.x - NODE : W - (s.x + NODE);
-      if (outer >= 44 && s.topic.id !== here) decor.push({ x: s.left ? outer / 2 : W - outer / 2, y: s.y + 12, land: l.land, kind: Math.floor(r(11) * 3), s: Math.min(1, outer / 70) });
       const end = s.left ? s.x + NODE + 8 + labelW(s.x, true) : s.x - NODE - 8 - labelW(s.x, false);
       const room = s.left ? W - end : end;
       if (room >= 70) decor.push({ x: s.left ? end + room / 2 : room / 2, y: s.y + 6, land: l.land, kind: Math.floor(r(12) * 3), s: 1.1 });
     });
   });
 
+  // A landmark beside every stop, on the outside of the bend.
+  const sights = lands.flatMap((l) =>
+    l.stops.map((s) => {
+      const outer = s.left ? s.x - NODE : W - s.x - NODE;
+      const sc = Math.max(0.66, Math.min(1.3, (outer - 4) / 92));
+      return { id: s.topic.id, cx: s.left ? outer / 2 : W - outer / 2, cy: s.y + 2, sc };
+    }),
+  );
+  const meadow = lands[0], peaks = lands[lands.length - 1];
+  const critters = [
+    { land: "meadow" as const, x: Math.max(28, W * 0.12), y: meadow.y0 + 40 },
+    { land: "peaks" as const, x: W - Math.max(40, W * 0.1), y: peaks.y0 + 16 },
+  ];
+  const openSight = sights.find((x) => x.id === open);
+  const bw = Math.min(260, W - 16);
+
   const river = lands.find((l) => l.land === "river")!;
   const bridgeTop = river.y0 + RIVER_TOP, bridgeBottom = river.y0 + RIVER_BOTTOM;
   const bx1 = xAt(river.sign, river.stops[0], bridgeTop), bx2 = xAt(river.sign, river.stops[0], bridgeBottom);
 
   return (
-    <div ref={ref} className="trail-map" style={{ height: H }}>
+    <div
+      ref={ref}
+      className="trail-map"
+      style={{ height: H }}
+      onClick={(e) => { if (!(e.target as HTMLElement).closest(".trail-sight, .sight-bubble")) setOpen(null); }}
+      onKeyDown={(e) => { if (e.key === "Escape") setOpen(null); }}
+    >
       <svg className="trail-art" width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
         {lands.map((l, li) => (
           <path key={l.land} className={`land-${l.land}`} d={landShape(W, li === 0 ? l.y0 : l.y0 - 12, (li === lands.length - 1 ? H : l.y1) + 2, li)} />
@@ -131,7 +155,15 @@ export function TrailMap({ counts, here, onTopic, onFinale }: { counts: Record<s
         <Summit x={finale.peak.x} y={finale.y0} />
         {decor.map((d, n) => (
           <g key={n} transform={`translate(${d.x.toFixed(1)} ${d.y.toFixed(1)}) scale(${d.s})`}>
-            <Decor land={d.land} kind={d.kind} />
+            {d.critter ? <Critter land={d.land} /> : <Decor land={d.land} kind={d.kind} />}
+          </g>
+        ))}
+        {critters.map((c) => (
+          <g key={c.land} transform={`translate(${c.x.toFixed(1)} ${c.y.toFixed(1)})`}><Critter land={c.land} /></g>
+        ))}
+        {sights.map((x) => (
+          <g key={x.id} className={open === x.id ? "sight-on" : ""} transform={`translate(${x.cx.toFixed(1)} ${x.cy.toFixed(1)}) scale(${x.sc.toFixed(2)})`}>
+            {SIGHTS[x.id]?.art}
           </g>
         ))}
         <path className="trail-edge" d={trail} />
@@ -175,25 +207,44 @@ export function TrailMap({ counts, here, onTopic, onFinale }: { counts: Record<s
                 </svg>
                 <span className="stop-disc"><FamilyIcon family={fam} size={28} /></span>
                 {done && <span className="stop-star"><Icon name="star" size={24} /></span>}
+                {isHere && (
+                  <span className="here-mark" aria-hidden="true">
+                    {skin === "classic" ? <Icon name="flag" size={30} /> : <Owl size={40} className="bob" />}
+                  </span>
+                )}
               </span>
               <span className="stop-label" style={{ maxWidth: lw }}>
                 <strong>{s.topic.title}</strong>
                 <span className="small">{c.ready} of {c.total} skills unlocked</span>
                 {isHere && <span className="here-tag">You are here</span>}
               </span>
-              {isHere && (
-                <span className="here-mark" aria-hidden="true">
-                  {skin === "classic" ? <Icon name="flag" size={30} /> : <Owl size={42} className="bob" />}
-                </span>
-              )}
             </button>
           );
         }),
       )}
 
+      {sights.map((x) => SIGHTS[x.id] && (
+        <button
+          key={x.id}
+          type="button"
+          className={`trail-sight ${open === x.id ? "on" : ""}`}
+          style={{ left: x.cx - 46 * x.sc, top: x.cy - 42 * x.sc, width: 92 * x.sc, height: 84 * x.sc }}
+          aria-label={`${SIGHTS[x.id].name}: find the math`}
+          aria-expanded={open === x.id}
+          onClick={() => setOpen(open === x.id ? null : x.id)}
+        />
+      ))}
+      {openSight && (
+        <div className="sight-bubble" role="status" style={{ width: bw, left: Math.max(8, Math.min(W - bw - 8, openSight.cx - bw / 2)), top: openSight.cy + 42 * openSight.sc + 4 }}>
+          <button type="button" className="sight-close" aria-label="Close" onClick={() => setOpen(null)}><Icon name="x" size={16} /></button>
+          <strong>{SIGHTS[openSight.id].name}</strong>
+          <span>{SIGHTS[openSight.id].caption}</span>
+        </div>
+      )}
+
       <button type="button" className="trail-finale" style={{ left: W / 2, top: finale.end.y + 6 }} onClick={onFinale}>
         <Icon name="trophy" size={22} />
-        <span><strong>Horizons Peak</strong><span className="small">Practice for the screener</span></span>
+        <span><strong>Horizons Castle</strong><span className="small">Practice for the screener</span></span>
       </button>
     </div>
   );
@@ -264,14 +315,37 @@ function Mountain({ x, base, h, w }: { x: number; base: number; h: number; w: nu
   );
 }
 
-/** Horizons Peak: the big mountain at the end of the trail, with a flag on top. */
+/** Horizons Peak: the big mountain at the end of the trail, with Horizons Castle on top. */
 function Summit({ x, y }: { x: number; y: number }) {
+  const I = "m-ink";
+  const crenels = (x0: number, x1: number, top: number) => {
+    let d = `M ${x0} ${top + 6}`;
+    for (let cx = x0, k = 0; cx < x1; cx += 6, k++) d += k % 2 ? ` V ${top + 6} H ${Math.min(cx + 6, x1)}` : ` V ${top} H ${Math.min(cx + 6, x1)}`;
+    return `${d} V ${top + 6}`;
+  };
   return (
     <g transform={`translate(${x} ${y})`}>
-      <path className="m-rock-2 m-ink" d="M -170 180 L -60 70 L -20 100 L 0 40 L 40 92 L 70 64 L 170 180 Z" />
-      <path className="m-snow m-ink" d="M -14 60 L 0 40 L 16 62 L 6 58 L -2 66 Z" />
-      <path className="m-ink-line" d="M 0 40 V 2" />
-      <path className="m-flag m-ink" d="M 0 4 L 30 12 L 0 21 Z" />
+      <path className={`m-rock-2 ${I}`} d="M -170 180 L -70 82 L -40 104 L 0 54 L 40 100 L 72 74 L 170 180 Z" />
+      <path className={`m-snow ${I}`} d="M -24 72 L 0 54 L 24 72 L 10 68 L 0 76 L -10 68 Z" />
+      {/* Horizons Castle */}
+      <g transform="translate(0 2)">
+        <rect className={`m-wall ${I}`} x={-26} y={28} width={52} height={36} />
+        <path className={`m-wall ${I}`} d={`${crenels(-26, 26, 22)} Z`} />
+        <rect className={`m-wall ${I}`} x={-40} y={14} width={16} height={50} />
+        <rect className={`m-wall ${I}`} x={24} y={14} width={16} height={50} />
+        <path className={`m-flower ${I}`} d="M -43 14 L -32 -8 L -21 14 Z" />
+        <path className={`m-flower ${I}`} d="M 21 14 L 32 -8 L 43 14 Z" />
+        <rect className={`m-wall ${I}`} x={-8} y={4} width={16} height={24} />
+        <path className={`m-bird ${I}`} d="M -11 4 L 0 -14 L 11 4 Z" />
+        <path className="m-ink-line thin" d="M -32 -8 V -18 M 32 -8 V -18 M 0 -14 V -26" />
+        <path className={`m-flag ${I}`} d="M -32 -18 L -22 -15 L -32 -12 Z" />
+        <path className={`m-flag ${I}`} d="M 32 -18 L 42 -15 L 32 -12 Z" />
+        <path className={`m-flower-2 ${I}`} d="M 0 -26 L 12 -22 L 0 -18 Z" />
+        <path className="m-door" d="M -8 64 V 48 A 8 8 0 0 1 8 48 V 64 Z" />
+        <rect className="m-door" x={-34} y={26} width={4} height={8} rx={2} />
+        <rect className="m-door" x={30} y={26} width={4} height={8} rx={2} />
+        <rect className="m-door" x={-2} y={12} width={4} height={7} rx={2} />
+      </g>
     </g>
   );
 }
