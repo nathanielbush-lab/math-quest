@@ -11,6 +11,7 @@ import { BADGES, monthFocus } from "../store";
 import { TrophyPeek, TrophyRoom } from "../components/Badges";
 import { Avatar, ShopTab } from "../components/Shop";
 import { AssessCards } from "../components/AssessCards";
+import { TrailMap } from "../components/TrailMap";
 import { questDaysThisWeek } from "../engine/mastery";
 import { LevelBar, LevelGuide, LevelLegend, LevelSummary, fmtDate } from "../ui";
 import type { Route } from "../App";
@@ -79,7 +80,7 @@ export function Home({ state, go, tab = "today", mutate }: { state: AppState; go
         ))}
       </div>
       {tab === "today" && <Today state={state} go={go} setTab={setTab} mutate={mutate} />}
-      {tab === "map" && <MapTab state={state} go={go} />}
+      {tab === "map" && <MapTab state={state} go={go} mutate={mutate} />}
       {tab === "trophies" && <TrophyRoom state={state} />}
       {tab === "missions" && <MissionsTab state={state} go={go} />}
       {tab === "shop" && <ShopTab state={state} mutate={mutate} />}
@@ -181,27 +182,39 @@ function Today({ state, go, setTab, mutate }: { state: AppState; go: (r: Route) 
   );
 }
 
-function MapTab({ state, go }: { state: AppState; go: (r: Route) => void }) {
+function MapTab({ state, go, mutate }: { state: AppState; go: (r: Route) => void; mutate: (fn: (s: AppState) => void) => void }) {
   const grades = [5, 6, 7, 8] as const;
   const placementDone = Object.keys(state.placement).length;
   const month = monthFocus();
   const ready = SKILLS.filter((s) => state.skills[s.id]?.ready).length;
+  const skin = useSkin();
+  const view = state.settings.mapView ?? (skin === "classic" ? "list" : "trail");
+  const counts = Object.fromEntries(TOPICS.map((t) => [t.id, topicCounts(state, t.id)]));
+  // "You are here": the topic of today's first focus skill, or the first topic not finished yet.
+  const here = previewToday(state).focus[0]?.topic ?? TOPICS.find((t) => counts[t.id].ready < counts[t.id].total)?.id;
   return (
     <div>
       <div className="row" style={{ marginBottom: 4 }}>
         <h2 className="grow" style={{ margin: 0 }}>Your math map</h2>
         <span className="small muted">{ready} of {SKILLS.length} skills unlocked</span>
       </div>
-      <div className="row" style={{ alignItems: "flex-start" }}>
-        <div className="grow"><LevelLegend /><LevelGuide /></div>
+      <div className="map-toolbar">
+        <div className="seg" role="radiogroup" aria-label="Map view">
+          {([["trail", "Trail", "map"], ["list", "List", "clipboard"]] as const).map(([id, name, icon]) => (
+            <button key={id} type="button" role="radio" aria-checked={view === id} className={view === id ? "on" : ""} onClick={() => mutate((s) => { s.settings.mapView = id; })}><Icon name={icon} size={18} /> {name}</button>
+          ))}
+        </div>
+        <span className="grow small muted">{view === "trail" ? "Each stop is a topic. Its ring fills as you unlock skills, and a star means every skill is unlocked." : ""}</span>
         {placementDone < TOPICS.length && <button className="btn" onClick={() => go({ name: "placement" })}><Icon name="compass" /> Check what I already know ({placementDone}/{TOPICS.length})</button>}
       </div>
-      {grades.map((g) => (
+      {view === "trail" && <TrailMap counts={counts} here={here} onTopic={(topicId) => go({ name: "topic", topicId })} onFinale={() => go({ name: "assess" })} />}
+      {view === "list" && <><LevelLegend /><LevelGuide /></>}
+      {view === "list" && grades.map((g) => (
         <div key={g}>
           <div className="grade-label">{g === 5 ? "Warm-up foundations" : `Grade ${g}`}</div>
           <div className="grid2">
             {TOPICS.filter((t) => t.grade === g).map((t) => {
-              const c = topicCounts(state, t.id);
+              const c = counts[t.id];
               return (
                 <div key={t.id} className={`card tight topic-tile fam-${familyOf(t.id)}`} onClick={() => go({ name: "topic", topicId: t.id })} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && go({ name: "topic", topicId: t.id })}>
                   <div className="row" style={{ marginBottom: 8 }}>

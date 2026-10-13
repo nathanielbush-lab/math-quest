@@ -16,7 +16,7 @@ Everything runs in the browser. There's no account and no server, and progress i
 
 The first time the student reaches the home page, a short guided tour shows them around (replay it with the ❓ button). The home page has five tabs:
 - **Today:** what they did last time, today's quest as three steps (warm-up → learn → challenge) with one big start button, the weekly goal (🎯 dots), the next badge, screener practice (or the monthly checkpoint when it's due), and the mistake journal when there's something in it. The starting-point card can be put away with **Not now**.
-- **My Map:** every topic with its progress bar spelled out in words ("2 practicing · 1 exploring"), plus **What do the colors mean?**
+- **My Map:** an illustrated trail through four lands (Warm-up Meadow, Whispering Woods for Grade 6, Riverlands for Grade 7, Summit Peaks for Grade 8) ending at Horizons Peak, which opens screener practice. Each topic is a stop whose ring fills as skills unlock, a star marks a finished topic, and the owl shows "You are here". A **Trail / List** switch shows the original list instead: every topic with its progress bar spelled out in words ("2 practicing · 1 exploring"), plus **What do the colors mean?** Classic opens on the list.
 - **Trophies:** earned badges, the next one, and every locked badge with how to earn it.
 - **Missions:** the three stage challenges (a dot on the tab means one is ready to play).
 - **Shop:** spend stars on avatars (cats included), color themes and streak freezes.

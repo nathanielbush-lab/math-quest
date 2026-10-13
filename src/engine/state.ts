@@ -104,6 +104,8 @@ export interface Settings {
   skin: "playful" | "storybook" | "classic";
   /** Light or dark screen. "auto" follows the computer's own setting. */
   appearance?: "auto" | "light" | "dark";
+  /** My Map as an illustrated trail or as the plain list of topic cards. */
+  mapView?: "trail" | "list";
 }
 
 /** One answered question, kept for the parent report and for reviewing how the app is working. */

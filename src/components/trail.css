@@ -1,0 +1,136 @@
+/* ---------- My Map: the illustrated trail ----------
+   Scenery colors are tokens so each skin (and dark mode) can repaint the whole map. Classic and
+   Playful share the bright set; Storybook gets paper colors and ink outlines. */
+:root {
+  --map-meadow: #dcf3c8; --map-meadow-2: #c2e8a3; --map-meadow-3: #8fd07a;
+  --map-woods: #cdebc4; --map-tree: #4fae6a; --map-tree-2: #2f8f52; --map-trunk: #a7744a;
+  --map-river: #d6eef5; --map-water: #7cc6ea; --map-ripple: #e7f6fd;
+  --map-peaks: #e6e3f7; --map-rock: #aaa3d6; --map-rock-2: #9088c6; --map-snow: #ffffff; --map-stone: #c3bfdc; --map-pebble: #b9c9cf;
+  --map-path: #fbe6b8; --map-path-edge: #e8c98c; --map-path-dash: #fffaf0;
+  --map-flower: #ff7aa8; --map-flower-2: #ffc531; --map-sun: #ffd451; --map-wood: #c99560; --map-plank: #a2723f;
+  --map-flag: #ff6b57; --map-dot: #ffffff; --map-stem: #4f9c4a;
+  --map-ink: transparent; --map-ink-w: 0; --map-line: #6b5a4a;
+}
+:root[data-skin="storybook"] {
+  --map-meadow: #ece4c2; --map-meadow-2: #d9d6a4; --map-meadow-3: #a9bb83;
+  --map-woods: #dfe0bd; --map-tree: #7ea173; --map-tree-2: #5e8a5d; --map-trunk: #8a5a34;
+  --map-river: #dfe6d8; --map-water: #9cc3c9; --map-ripple: #eef4ee;
+  --map-peaks: #ebe0cc; --map-rock: #b9a98f; --map-rock-2: #a08f76; --map-snow: #fff9ec; --map-stone: #cbbca1; --map-pebble: #bdbfb0;
+  --map-path: #f7e6c2; --map-path-edge: var(--edge); --map-path-dash: #fffaf0;
+  --map-flower: #c8553d; --map-flower-2: #e8b83a; --map-sun: #e8b83a; --map-wood: #c48a52; --map-plank: #8a5a34;
+  --map-flag: #c8553d; --map-dot: #fff9ec; --map-stem: #5e8a5d;
+  --map-ink: var(--edge); --map-ink-w: 2px; --map-line: var(--edge);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --map-meadow: #1c2d27; --map-meadow-2: #23402f; --map-meadow-3: #2f5a3c;
+    --map-woods: #18291f; --map-tree: #2f6b47; --map-tree-2: #235638; --map-trunk: #6a4a32;
+    --map-river: #16263a; --map-water: #2b5b84; --map-ripple: #4a7fae;
+    --map-peaks: #201f3a; --map-rock: #4a4682; --map-rock-2: #3b3770; --map-snow: #d9dcf5; --map-stone: #3a3866; --map-pebble: #33506a;
+    --map-path: #3f3a5e; --map-path-edge: #2c2848; --map-path-dash: #6f68a0;
+    --map-flower: #e0608c; --map-flower-2: #e0a82a; --map-sun: #e8c860; --map-wood: #7a5a3c; --map-plank: #4f3a26;
+    --map-flag: #ff7a68; --map-dot: #f3e9ff; --map-stem: #3c7a46; --map-line: #b9b3d8;
+  }
+  :root[data-skin="storybook"] {
+    --map-meadow: #29281d; --map-meadow-2: #34362a; --map-meadow-3: #4a5a3a;
+    --map-woods: #222920; --map-tree: #4d6b4a; --map-tree-2: #3c5a3a; --map-trunk: #6b4a2e;
+    --map-river: #1f2a2a; --map-water: #3d6470; --map-ripple: #6d97a0;
+    --map-peaks: #2c2620; --map-rock: #6b5e4c; --map-rock-2: #574c3d; --map-snow: #e8dcc4; --map-stone: #4d4436; --map-pebble: #47504a;
+    --map-path: #4a3e2e; --map-path-edge: var(--edge); --map-path-dash: #7a6a52;
+    --map-flower: #d9765e; --map-flower-2: #d9a93a; --map-sun: #d9a93a; --map-wood: #7a5a3a; --map-plank: #4f3a26;
+    --map-flag: #e07a62; --map-dot: #f2e6d0; --map-stem: #4d6b4a; --map-line: var(--edge);
+  }
+}
+
+.map-toolbar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin: 10px 0 14px; }
+.map-toolbar .grow { min-width: 200px; }
+
+.trail-map { position: relative; border-radius: var(--radius, 22px); overflow: hidden; border: var(--card-border); box-shadow: var(--card-shadow); background: var(--map-meadow); margin-bottom: 18px; }
+.trail-art { position: absolute; inset: 0; display: block; }
+
+.land-meadow { fill: var(--map-meadow); }
+.land-woods { fill: var(--map-woods); }
+.land-river { fill: var(--map-river); }
+.land-peaks { fill: var(--map-peaks); }
+.m-meadow-2 { fill: var(--map-meadow-2); }
+.m-meadow-3 { fill: var(--map-meadow-3); }
+.m-tree { fill: var(--map-tree); }
+.m-tree-2 { fill: var(--map-tree-2); }
+.m-trunk { fill: var(--map-trunk); }
+.m-water { fill: var(--map-water); }
+.m-ripple { fill: none; stroke: var(--map-ripple); stroke-width: 2.5; stroke-linecap: round; }
+.m-rock { fill: var(--map-rock); }
+.m-rock-2 { fill: var(--map-rock-2); }
+.m-snow { fill: var(--map-snow); }
+.m-stone { fill: var(--map-stone); }
+.m-pebble { fill: var(--map-pebble); }
+.m-open { fill: none; }
+.m-flower { fill: var(--map-flower); }
+.m-flower-2 { fill: var(--map-flower-2); }
+.m-sun { fill: var(--map-sun); }
+.m-wood { fill: var(--map-wood); }
+.m-plank { fill: none; stroke: var(--map-plank); stroke-width: 1.6; }
+.m-flag { fill: var(--map-flag); }
+.m-dot { fill: var(--map-dot); }
+.m-cap-stem { fill: var(--map-dot); }
+.m-stem, .m-reed { fill: none; stroke: var(--map-stem); stroke-width: 2.4; stroke-linecap: round; }
+.m-reed { stroke-width: 3; }
+.m-ink-line { fill: none; stroke: var(--map-line); stroke-width: 3; stroke-linecap: round; }
+.m-ink { stroke: var(--map-ink); stroke-width: var(--map-ink-w); stroke-linejoin: round; }
+
+.trail-edge { fill: none; stroke: var(--map-path-edge); stroke-width: 34; stroke-linecap: round; }
+.trail-path { fill: none; stroke: var(--map-path); stroke-width: 28; stroke-linecap: round; }
+.trail-dash { fill: none; stroke: var(--map-path-dash); stroke-width: 3; stroke-dasharray: 2 12; stroke-linecap: round; }
+:root[data-skin="storybook"] .trail-edge { stroke-width: 32; }
+
+/* Welcome sign for each land; the trail runs right through it. */
+.trail-sign { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; text-align: center; background: var(--surface); border: var(--card-border); box-shadow: var(--card-shadow); border-radius: 16px; padding: 6px 16px 7px; width: max-content; max-width: min(92%, 320px); }
+.sign-sub { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
+.sign-name { font-family: var(--font-display); font-weight: 700; font-size: 1.2rem; line-height: 1.15; }
+.sign-count { font-size: 0.78rem; color: var(--ink-2); font-weight: 700; }
+
+/* A stop: ring + disc, with its label on the inside of the bend. */
+.trail-stop { position: absolute; display: flex; align-items: center; gap: 8px; padding: 0; border: none; background: none; color: var(--ink); cursor: pointer; text-align: left; font: inherit; }
+.trail-stop.right { flex-direction: row-reverse; text-align: right; }
+.stop-node { position: relative; width: 80px; height: 80px; flex: none; display: grid; place-items: center; transition: transform 0.12s; }
+.trail-stop:hover .stop-node { transform: scale(1.06); }
+.trail-stop:active .stop-node { transform: scale(0.97); }
+.stop-ring { position: absolute; inset: 0; }
+.ring-track { fill: var(--surface); stroke: var(--line); stroke-width: 7; }
+.ring-fill { fill: none; stroke: var(--topic); stroke-width: 7; stroke-linecap: round; }
+.stop-disc { width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; background: var(--topic-soft); color: var(--topic-ink); position: relative; }
+.trail-stop.started .stop-disc { background: var(--topic); color: #fff; }
+.stop-star { position: absolute; top: -6px; right: -6px; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.15)); }
+:root[data-skin="storybook"] .stop-disc { border: 2px solid var(--edge); }
+:root[data-skin="storybook"] .ring-track { stroke: var(--edge); stroke-width: 2; }
+:root[data-skin="storybook"] .ring-fill { stroke-width: 6; stroke-linecap: butt; }
+
+.stop-label { display: flex; flex-direction: column; gap: 1px; background: color-mix(in srgb, var(--surface) 88%, transparent); border-radius: 12px; padding: 6px 10px; line-height: 1.2; }
+.stop-label strong { font-family: var(--font-display); font-weight: 700; font-size: 1rem; }
+.stop-label .small { color: var(--ink-2); font-weight: 700; }
+:root[data-skin="storybook"] .stop-label { border: 1.5px solid var(--edge); }
+.trail-stop.right .stop-label { align-items: flex-end; }
+.here-tag { align-self: flex-start; margin-top: 3px; background: var(--primary); color: var(--primary-ink); border-radius: 99px; padding: 1px 9px; font-size: 0.75rem; font-weight: 800; }
+.trail-stop.right .here-tag { align-self: flex-end; }
+.here-mark { position: absolute; top: 4px; display: block; }
+.trail-stop.left .here-mark { left: -46px; }
+.trail-stop.right .here-mark { right: -46px; }
+.here-mark .icon { color: var(--primary); }
+.trail-stop:focus-visible { outline: none; }
+.trail-stop:focus-visible .stop-node { outline: 3px solid var(--primary); outline-offset: 2px; border-radius: 50%; }
+
+.trail-finale { position: absolute; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 10px; background: var(--surface); color: var(--ink); border: var(--btn-border, var(--card-border)); box-shadow: var(--btn-shadow, var(--card-shadow)); border-radius: 16px; padding: 9px 18px; cursor: pointer; text-align: left; font: inherit; white-space: nowrap; }
+.trail-finale > span { display: flex; flex-direction: column; line-height: 1.2; }
+.trail-finale strong { font-family: var(--font-display); font-size: 1.1rem; }
+.trail-finale .small { color: var(--ink-2); font-weight: 700; }
+.trail-finale .icon { color: var(--primary); }
+.trail-finale:active { transform: translateX(-50%) var(--btn-press, translateY(2px)); }
+
+/* View switch (Trail / List) shares the look of the settings pill switch. */
+.seg { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; border: 2px solid var(--line); border-radius: 14px; background: var(--surface-2); }
+.seg button { display: inline-flex; align-items: center; gap: 6px; border: none; background: transparent; padding: 7px 14px; border-radius: 10px; font-weight: 700; color: var(--ink-2); cursor: pointer; }
+.seg button.on { background: var(--primary); color: var(--primary-ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .stop-node { transition: none; }
+}
