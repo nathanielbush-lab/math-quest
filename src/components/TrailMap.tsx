@@ -325,10 +325,13 @@ function Summit({ x, y }: { x: number; y: number }) {
   };
   return (
     <g transform={`translate(${x} ${y})`}>
-      <path className={`m-rock-2 ${I}`} d="M -170 180 L -70 82 L -40 104 L 0 54 L 40 100 L 72 74 L 170 180 Z" />
-      <path className={`m-snow ${I}`} d="M -24 72 L 0 54 L 24 72 L 10 68 L 0 76 L -10 68 Z" />
-      {/* Horizons Castle */}
-      <g transform="translate(0 2)">
+      <path className={`m-rock-2 ${I}`} d="M -170 180 L -70 82 L -40 104 L 0 30 L 40 96 L 72 72 L 170 180 Z" />
+      <path className={`m-snow ${I}`} d="M -10.8 50 L 0 30 L 12 50 L 5 46 L 0 53 L -5 46 Z" />
+      {/* A grassy foothill in front of the mountain, with Horizons Castle on it and a lane down to the trail. */}
+      <path className={`m-meadow-3 ${I}`} d="M -158 182 C -146 150 -122 140 -86 140 C -52 140 -30 150 -18 182 Z" />
+      <path className="trail-edge" style={{ strokeWidth: 13 }} d="M -86 141 C -86 166 -44 178 -4 178" />
+      <path className="trail-path" style={{ strokeWidth: 8 }} d="M -86 141 C -86 166 -44 178 -4 178" />
+      <g transform="translate(-86 76)">
         <rect className={`m-wall ${I}`} x={-26} y={28} width={52} height={36} />
         <path className={`m-wall ${I}`} d={`${crenels(-26, 26, 22)} Z`} />
         <rect className={`m-wall ${I}`} x={-40} y={14} width={16} height={50} />
