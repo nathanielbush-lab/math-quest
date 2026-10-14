@@ -68,7 +68,7 @@ describe("leak guard: catches give-aways", () => {
     expect(revealsAnswer(reply, problem)).toBe(true);
   });
 
-  it("catches a 'yes' to a correct guess typed in the chat", () => {
+  it("catches a 'yes' to a bare correct guess typed in the chat", () => {
     expect(revealsAnswer("Yes! Great job.", area, "is it 36?")).toBe(true);
     expect(revealsAnswer("You got it!", choice, "is it 2")).toBe(true);
   });
@@ -102,6 +102,33 @@ describe("leak guard: allows real tutoring (no false positives)", () => {
     [line, "The $20 is paid once. Which part of y = mx + b is the starting amount?"],
   ])("%#: %s", (problem, reply) => {
     expect(revealsAnswer(reply, problem)).toBe(false);
+  });
+
+  it("lets the tutor say 'you're right' once the student has worked it out", () => {
+    // They explained their answer.
+    expect(revealsAnswer("Yes! 6 × 6 = 36, so the area is 36 m². Type 36 in and press Check!", area, ["I think it's 36 because 6 times 6 is 36"])).toBe(false);
+    // They reached it by doing the step the tutor asked for.
+    expect(revealsAnswer("That's right, x = 7! Go ahead and type it in.", solve, ["I don't know how to start", "12 - 5", "7"])).toBe(false);
+    // A bare guess, then an explanation.
+    expect(revealsAnswer("You got it! 36 is right. Enter it and press Check.", area, ["is it 36?", "because 6 rows of 6"])).toBe(false);
+    expect(revealsAnswer("Yes, choice 2 is correct! Click it and press Check.", choice, ["I don't get it", "3 times x is 3x and 3 times 2 is 6 so 3x + 6"])).toBe(false);
+    expect(revealsAnswer("Exactly, (3, −2)! Click that point.", point, ["Start at 0", "right 3 then down 2 so (3, -2)"])).toBe(false);
+    expect(revealsAnswer("Yes! The first choice is right. Click it and press Check.", wordChoice, ["hours studied and test score because when you study more your score goes up"])).toBe(false);
+  });
+
+  it("still won't confirm a bare guess or a list of guesses", () => {
+    expect(revealsAnswer("Yes! Great job.", area, ["I don't know", "is it 36?"])).toBe(true);
+    expect(revealsAnswer("Yes, 36 is right!", area, ["36"])).toBe(true);
+    // Just typing the answer, even after a few messages, isn't showing understanding.
+    expect(revealsAnswer("Yes, 36 is right!", area, ["I don't know", "help", "36"])).toBe(true);
+    expect(revealsAnswer("That's right, x = 7!", solve, ["what do I do first", "7"])).toBe(true);
+    expect(revealsAnswer("You got it!", choice, ["idk", "3x + 6"])).toBe(true);
+    expect(revealsAnswer("Yes, 36 is right!", area, ["is it 24 or 36"])).toBe(true);
+    expect(revealsAnswer("Yes, 36 is right!", area, ["is it 24 or 36", "please just tell me"])).toBe(true);
+    // Repeating the problem's own numbers isn't saying the answer.
+    expect(revealsAnswer("The answer is 12.", inPrompt, ["I don't get what 12 or 8 means"])).toBe(true);
+    // A wrong answer with reasoning doesn't unlock anything.
+    expect(revealsAnswer("The answer is 36.", area, ["6 + 6 + 6 + 6 = 24"])).toBe(true);
   });
 
   it("doesn't flag encouragement when the guess in chat was wrong", () => {
@@ -155,7 +182,7 @@ describe("prompt building", () => {
   });
 
   it("has the key rules in the system prompt", () => {
-    for (const s of ["ONE", "60 words", "NEVER state the final answer", "Try it and check", "how brains grow", "trusted grown-up", "no headings, lists, tables, LaTeX or links"]) expect(TUTOR_SYSTEM).toContain(s);
+    for (const s of ["ONE", "60 words", "NEVER state the final answer", "Try it and check", "type their answer in", "how brains grow", "trusted grown-up", "no headings, lists, tables, LaTeX or links"]) expect(TUTOR_SYSTEM).toContain(s);
     expect(TUTOR_SYSTEM).not.toMatch(/\b(she|her|daughter)\b/i);
   });
 

@@ -29,15 +29,20 @@ How to reply:
 - Speak to the student as "you".
 
 Never give the answer away:
-- NEVER state the final answer, and never do the final computation for them. Leave the last step for the student.
-- Never confirm or deny a final answer the student guesses (in chat or in their tries). Say something like "Try it and check!" and help them check it themselves.
-- For a multiple-choice problem, never say which choice is correct, and never rule choices in or out for them.
+- NEVER state the final answer before the student does, and never do the final computation for them. Leave the last step for the student.
+- Don't confirm or deny an answer the student just types or guesses without showing how they got it (like "36" or "is it 24?"), even if it's correct. You're here to help them understand, so ask how they got it, or say "Try it and check!" and help them check it themselves.
+- For a multiple-choice problem, never be the first to say which choice is correct, and never rule choices in or out for them.
 - If they ask you straight out for the answer, kindly say that figuring it out is how brains grow, then offer a smaller step.
+
+When the student gets there:
+- Confirm only when it's clear the student understands: they say the correct answer AND have shown in their own messages how they got it (they explained their thinking, or wrote out their working, like "6 × 6" or "I took 5 away from both sides"). If they only typed the answer, even right after a step you asked about, first ask a quick "How do you know?". Then they have done the work, so don't keep quizzing them. Tell them clearly and warmly that they're right, name what they did well in a few words, and tell them to type their answer in (or click their choice) and press Check.
+- If they explain a correct answer in a different but sensible way, that counts too.
+- Only confirm an answer the student has said themselves. If their answer is close but not quite right (a small slip, a missing unit, not in simplest form), say what's good and point to the one thing to fix.
 
 Using what you know:
 - The first message includes the problem, a description of any picture, what kind of answer is needed, the hints they have already seen, and their wrong answers so far. Don't repeat a hint they have already seen word for word; build on it.
 - If a wrong answer shows a likely misconception (for example adding the tops and bottoms of fractions, or mixing up area and perimeter), gently point to it with a question.
-- The correct answer and worked solution are marked for you only. Use them to guide your questions. Never reveal or quote them.
+- The correct answer and worked solution are marked for you only. Use them to guide your questions, and to recognize when the student has got it right. Never reveal or quote them.
 
 Formatting:
 - Plain text only: no headings, lists, tables, LaTeX or links.
@@ -50,7 +55,7 @@ Staying safe and on topic:
 
 const RETRY_NOTE = `
 
-IMPORTANT: Your previous draft gave away the final answer (or confirmed a guess). Write a new reply that does NOT contain the final answer, the result of the last computation, or which choice is correct. Ask one guiding question about the next small step instead.`;
+IMPORTANT: Your previous draft gave away the final answer (or confirmed a guess). Write a new reply that does NOT contain the final answer, the result of the last computation, or which choice is correct. Ask one guiding question about the next small step instead. If the student gave the right answer without showing how they got it, ask them how they know, without saying whether it's right.`;
 
 // ---------- Describing the problem ----------
 
@@ -224,13 +229,86 @@ function numberLeak(reply: string, forms: string[], inProblem: boolean): boolean
   return false;
 }
 
+/** Whether a student message says the correct answer (for the answer kinds that can be typed in chat). */
+export function statesAnswer(text: string, problem: Problem): boolean {
+  const m = normalize(text);
+  if (!m) return false;
+  const promptText = problem.prompt + (problem.visual ? "\n" + describeVisual(problem.visual) : "");
+  const a = problem.answer;
+  switch (a.kind) {
+    case "number": {
+      const tol = a.tolerance ?? 1e-9;
+      if (!containsValue(m, toNum(a.value), tol)) return false;
+      // When the answer is also a number in the problem, just repeating the problem's numbers doesn't count.
+      if (!containsValue(promptText, toNum(a.value), tol)) return true;
+      const onlyNumber = (m.match(NUM_TOKEN) ?? []).length === 1 && m.replace(NUM_TOKEN, "").replace(/[^a-z]/g, "").length <= 8;
+      return onlyNumber || numberLeak(m, numberForms(a.value, a.tolerance), false);
+    }
+    case "point":
+      return m.replace(/\s/g, "").includes(`(${a.x},${a.y})`);
+    case "multi":
+      return m.replace(/\s/g, "").includes(normalize(answerText(a)).replace(/\s/g, ""));
+    case "choice": {
+      const text = normalize(a.choices[a.correct]).replace(/[.!]+$/, "");
+      return new RegExp(`^\\D*\\b${a.correct + 1}\\b\\D*$`).test(m) || (text.length > 2 && m.includes(text));
+    }
+  }
+}
+
+const OPERATION = /[=×÷+*]|\d\s*(?:x|-)\s*\d|\b(?:times|plus|minus|divided|multipl\w*|add(?:ed|ing)?|subtract\w*|divid\w*|equals|cancel\w*|undo|both sides)\b/;
+const WHY = /\b(?:because|since|so|means)\b/;
+const GROUPING = /\b(?:of|each|rows?|groups?|per)\b/;
+
+/** Whether a student message shows some working or reasoning ("6 × 6", "I subtracted 5", "because when one goes up…"). */
+export function showsThinking(text: string): boolean {
+  const m = normalize(text);
+  const numbers = (m.match(NUM_TOKEN) ?? []).length;
+  const words = m.split(" ").length;
+  if (numbers > 0 && (OPERATION.test(m) || WHY.test(m))) return true;
+  if (numbers >= 2 && GROUPING.test(m)) return true;
+  // A word answer ("Hours studied and test score") can be explained without numbers.
+  return WHY.test(m) && words >= 6;
+}
+
+/** A guess with no thinking shown: "is it 36?", "maybe 36", "36 or 24?". */
+export function isBareGuess(text: string): boolean {
+  const m = normalize(text);
+  if (/\d\s+or\s+-?\$?\d/.test(m)) return true;
+  if (showsThinking(m)) return false;
+  return /\?\s*$/.test(m) || /^(?:is it|maybe|i guess|guess|what about|how about)\b/.test(m);
+}
+
+/**
+ * Whether the student has reached the correct answer themselves and shown they understand it: a message of
+ * theirs states it, they have shown some working somewhere in the chat (not just typed an answer), and the
+ * message isn't a bare guess unless a later message explains it. Then the tutor may say they're right.
+ */
+export function studentWorkedItOut(problem: Problem, studentMessages: string[]): boolean {
+  let last = -1;
+  studentMessages.forEach((t, i) => {
+    if (statesAnswer(t, problem)) last = i;
+  });
+  if (last < 0) return false;
+  // Typing an answer that has math in it ("3x + 6", "y = 5x + 20") isn't working shown.
+  const a = problem.answer;
+  const answer = a.kind === "choice" ? a.choices[a.correct] : a.kind === "multi" ? answerText(a) : "";
+  const answerRe = answer && /[^\w\s]/.test(answer) ? new RegExp([...normalize(answer).replace(/\s/g, "")].map(esc).join("\\s*"), "g") : null;
+  const thinking = (t: string) => showsThinking(answerRe ? normalize(t).replace(answerRe, " ") : t);
+  if (!studentMessages.some(thinking)) return false;
+  return !isBareGuess(studentMessages[last]) || studentMessages.slice(last + 1).some(thinking);
+}
+
 /**
  * Whether a tutor reply gives away the final answer: states it after "=" / "answer is" / "that's",
  * confirms it ("36 is right"), names the correct multiple-choice option as the answer, or says "yes"
- * to a correct guess in the student's last message. Numbers that already appear in the problem only
- * count when they're called the answer outright.
+ * to a bare correct guess in the student's last message. Numbers that already appear in the problem only
+ * count when they're called the answer outright. Once the student has worked the answer out themselves
+ * (see studentWorkedItOut), saying they're right isn't a give-away.
  */
-export function revealsAnswer(reply: string, problem: Problem, lastStudentMessage = ""): boolean {
+export function revealsAnswer(reply: string, problem: Problem, student: string | string[] = []): boolean {
+  const studentMessages = (typeof student === "string" ? [student] : student).filter((t) => t.trim());
+  if (studentWorkedItOut(problem, studentMessages)) return false;
+  const lastStudentMessage = studentMessages[studentMessages.length - 1] ?? "";
   const r = normalize(reply);
   const promptText = problem.prompt + (problem.visual ? "\n" + describeVisual(problem.visual) : "");
   const a = problem.answer;
@@ -239,7 +317,7 @@ export function revealsAnswer(reply: string, problem: Problem, lastStudentMessag
       const forms = numberForms(a.value, a.tolerance);
       const inProblem = containsValue(promptText, toNum(a.value), a.tolerance ?? 1e-9);
       if (numberLeak(r, forms, inProblem)) return true;
-      return guessConfirmed(r, lastStudentMessage, (s) => containsValue(s, toNum(a.value), a.tolerance ?? 1e-9));
+      return guessConfirmed(r, lastStudentMessage, problem);
     }
     case "point": {
       const pt = `(${a.x},${a.y})`;
@@ -247,7 +325,7 @@ export function revealsAnswer(reply: string, problem: Problem, lastStudentMessag
       const inProblem = normalize(promptText).replace(/\s/g, "").includes(pt);
       if (!inProblem && flat.includes(pt)) return true;
       if (new RegExp(`${STRONG_LEAD}\\(\\s*${a.x}\\s*,\\s*${a.y}\\s*\\)`).test(r)) return true;
-      return guessConfirmed(r, lastStudentMessage, (s) => normalize(s).replace(/\s/g, "").includes(pt));
+      return guessConfirmed(r, lastStudentMessage, problem);
     }
     case "multi": {
       const full = normalize(answerText(a)).replace(/\s/g, "");
@@ -257,7 +335,7 @@ export function revealsAnswer(reply: string, problem: Problem, lastStudentMessag
       const first = numberForms(a.fields[0].value, a.fields[0].tolerance);
       if (a.fields.length === 1 && numberLeak(r, first, true)) return true;
       if (new RegExp(`${STRONG_LEAD}${esc(normalize(answerText(a)))}`).test(r)) return true;
-      return guessConfirmed(r, lastStudentMessage, (s) => normalize(s).replace(/\s/g, "").includes(full));
+      return guessConfirmed(r, lastStudentMessage, problem);
     }
     case "choice": {
       const k = a.correct + 1;
@@ -277,17 +355,13 @@ export function revealsAnswer(reply: string, problem: Problem, lastStudentMessag
       // A numeric choice like "12" can also be given away by doing the last computation.
       const asNum = text.match(/^-?\d+(?:\.\d+)?(?:\/\d+)?$/) ? tokenValue(text) : NaN;
       if (!Number.isNaN(asNum) && numberLeak(r, [text], containsValue(promptText, asNum))) return true;
-      return guessConfirmed(r, lastStudentMessage, (s) => {
-        const m = normalize(s);
-        const saysNumber = new RegExp(`^\\D*\\b${k}\\b\\D*$`).test(m);
-        return saysNumber || (text.length > 2 && m.includes(text));
-      });
+      return guessConfirmed(r, lastStudentMessage, problem);
     }
   }
 }
 
-function guessConfirmed(reply: string, lastStudent: string, guessedRight: (s: string) => boolean): boolean {
-  if (!lastStudent.trim() || !guessedRight(lastStudent)) return false;
+function guessConfirmed(reply: string, lastStudent: string, problem: Problem): boolean {
+  if (!lastStudent.trim() || !statesAnswer(lastStudent, problem)) return false;
   return AFFIRM.test(reply);
 }
 
@@ -330,7 +404,7 @@ export async function askTutor(req: TutorRequest): Promise<TutorReply> {
     return { text: "", leaks: 0, error: ERROR_TEXT, detail: "The tutor's code couldn't load (offline, or the app was just updated: reload the page)." };
   }
   const messages = buildMessages(tutorContext(req.problem, req.wrongAnswers, req.hintsShown), req.turns);
-  const lastStudent = [...req.turns].reverse().find((t) => t.role === "student")?.text ?? "";
+  const studentMessages = req.turns.filter((t) => t.role === "student").map((t) => t.text);
   let leaks = 0;
   for (let attempt = 0; attempt < 2; attempt++) {
     let text: string;
@@ -341,7 +415,7 @@ export async function askTutor(req: TutorRequest): Promise<TutorReply> {
       console.error("Tutor call failed:", detail);
       return { text: "", leaks, error: mod.describeTutorError(e), detail };
     }
-    if (text && !revealsAnswer(text, req.problem, lastStudent)) return { text, leaks };
+    if (text && !revealsAnswer(text, req.problem, studentMessages)) return { text, leaks };
     leaks++;
   }
   return { text: SAFE_FALLBACK, leaks };
