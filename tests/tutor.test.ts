@@ -109,6 +109,9 @@ describe("leak guard: allows real tutoring (no false positives)", () => {
     expect(revealsAnswer("Yes! 6 × 6 = 36, so the area is 36 m². Type 36 in and press Check!", area, ["I think it's 36 because 6 times 6 is 36"])).toBe(false);
     // They reached it by doing the step the tutor asked for.
     expect(revealsAnswer("That's right, x = 7! Go ahead and type it in.", solve, ["I don't know how to start", "12 - 5", "7"])).toBe(false);
+    // They answered the one computation the tutor set up.
+    expect(revealsAnswer("Yes, 36! You've got it, so type 36 in and press Check.", area, [{ role: "student", text: "I don't know how to start" }, { role: "tutor", text: "There are 6 rows with 6 squares in each. What is 6 × 6?" }, { role: "student", text: "36" }])).toBe(false);
+    expect(revealsAnswer("Right, x = 7! Enter it and press Check.", solve, [{ role: "student", text: "help" }, { role: "tutor", text: "Take 5 away from both sides. What is 12 − 5?" }, { role: "student", text: "7?" }])).toBe(false);
     // A bare guess, then an explanation.
     expect(revealsAnswer("You got it! 36 is right. Enter it and press Check.", area, ["is it 36?", "because 6 rows of 6"])).toBe(false);
     expect(revealsAnswer("Yes, choice 2 is correct! Click it and press Check.", choice, ["I don't get it", "3 times x is 3x and 3 times 2 is 6 so 3x + 6"])).toBe(false);
@@ -122,6 +125,8 @@ describe("leak guard: allows real tutoring (no false positives)", () => {
     // Just typing the answer, even after a few messages, isn't showing understanding.
     expect(revealsAnswer("Yes, 36 is right!", area, ["I don't know", "help", "36"])).toBe(true);
     expect(revealsAnswer("That's right, x = 7!", solve, ["what do I do first", "7"])).toBe(true);
+    expect(revealsAnswer("Yes, 36 is right!", area, [{ role: "student", text: "help" }, { role: "tutor", text: "Area means how many squares fit inside. Can you picture it?" }, { role: "student", text: "36" }])).toBe(true);
+    expect(revealsAnswer("Yes, 36 is right!", area, [{ role: "student", text: "help" }, { role: "tutor", text: "What is 6 × 6?" }, { role: "student", text: "is it 24 or 36" }])).toBe(true);
     expect(revealsAnswer("You got it!", choice, ["idk", "3x + 6"])).toBe(true);
     expect(revealsAnswer("Yes, 36 is right!", area, ["is it 24 or 36"])).toBe(true);
     expect(revealsAnswer("Yes, 36 is right!", area, ["is it 24 or 36", "please just tell me"])).toBe(true);

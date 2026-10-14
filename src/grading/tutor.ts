@@ -12,7 +12,7 @@ export interface TutorTurn {
 }
 
 /** Most messages a student can send about one problem. */
-export const MAX_PER_PROBLEM = 6;
+export const MAX_PER_PROBLEM = 8;
 /** Chats kept in the saved state (oldest dropped first). */
 export const MAX_CHATS = 300;
 /** Shown instead of a reply that gave the answer away twice. */
@@ -35,7 +35,8 @@ Never give the answer away:
 - If they ask you straight out for the answer, kindly say that figuring it out is how brains grow, then offer a smaller step.
 
 When the student gets there:
-- Confirm only when it's clear the student understands: they say the correct answer AND have shown in their own messages how they got it (they explained their thinking, or wrote out their working, like "6 × 6" or "I took 5 away from both sides"). If they only typed the answer, even right after a step you asked about, first ask a quick "How do you know?". Then they have done the work, so don't keep quizzing them. Tell them clearly and warmly that they're right, name what they did well in a few words, and tell them to type their answer in (or click their choice) and press Check.
+- Confirm only when it's clear the student understands: they say the correct answer AND have shown in their own messages how they got it (they explained their thinking, or wrote out their working, like "6 × 6" or "I took 5 away from both sides"), or they correctly answered a single step you set up for them, like "What is 6 × 6?". If they only typed the answer out of nowhere, first ask a quick "How do you know?". Then they have done the work, so don't keep quizzing them. Tell them clearly and warmly that they're right, name what they did well in a few words, and tell them to type their answer in (or click their choice) and press Check.
+- When you ask for one small step (like "What is 6 × 6?" or "What is 12 − 5?") and they get it right, just accept it: say so briefly and help them see the next step. Don't ask them to justify a simple computation. If that step gives the final answer, tell them they've got it and to enter it.
 - If they explain a correct answer in a different but sensible way, that counts too.
 - Only confirm an answer the student has said themselves. If their answer is close but not quite right (a small slip, a missing unit, not in simplest form), say what's good and point to the one thing to fix.
 
@@ -270,6 +271,12 @@ export function showsThinking(text: string): boolean {
   return WHY.test(m) && words >= 6;
 }
 
+/** Whether a tutor message asks the student to do one computation ("What is 6 × 6?", "What do you get when you add {1/4} and {2/4}?"). */
+function asksForStep(text: string): boolean {
+  const m = normalize(text);
+  return m.includes("?") && /\d/.test(m) && OPERATION.test(m);
+}
+
 /** A guess with no thinking shown: "is it 36?", "maybe 36", "36 or 24?". */
 export function isBareGuess(text: string): boolean {
   const m = normalize(text);
@@ -279,23 +286,30 @@ export function isBareGuess(text: string): boolean {
 }
 
 /**
- * Whether the student has reached the correct answer themselves and shown they understand it: a message of
- * theirs states it, they have shown some working somewhere in the chat (not just typed an answer), and the
- * message isn't a bare guess unless a later message explains it. Then the tutor may say they're right.
+ * Whether the student has reached the correct answer themselves and shown they understand it. The latest
+ * student message that states the answer counts when it's a correct reply to a single step the tutor just set
+ * up ("What is 6 × 6?" → "36"), or when the student has shown working in the chat and it isn't a bare guess
+ * (or a later message explains it). Then the tutor may say they're right.
  */
-export function studentWorkedItOut(problem: Problem, studentMessages: string[]): boolean {
+export function studentWorkedItOut(problem: Problem, turns: TutorTurn[]): boolean {
   let last = -1;
-  studentMessages.forEach((t, i) => {
-    if (statesAnswer(t, problem)) last = i;
+  turns.forEach((t, i) => {
+    if (t.role === "student" && statesAnswer(t.text, problem)) last = i;
   });
   if (last < 0) return false;
+  const said = turns[last].text;
   // Typing an answer that has math in it ("3x + 6", "y = 5x + 20") isn't working shown.
   const a = problem.answer;
   const answer = a.kind === "choice" ? a.choices[a.correct] : a.kind === "multi" ? answerText(a) : "";
   const answerRe = answer && /[^\w\s]/.test(answer) ? new RegExp([...normalize(answer).replace(/\s/g, "")].map(esc).join("\\s*"), "g") : null;
   const thinking = (t: string) => showsThinking(answerRe ? normalize(t).replace(answerRe, " ") : t);
-  if (!studentMessages.some(thinking)) return false;
-  return !isBareGuess(studentMessages[last]) || studentMessages.slice(last + 1).some(thinking);
+  // The answer to a computation the tutor just asked for ("What is 12 − 5?"), as long as it isn't a list of guesses.
+  const prev = turns[last - 1];
+  if (prev?.role === "tutor" && asksForStep(prev.text) && !/\d\s+or\s+-?\$?\d/.test(normalize(said))) return true;
+  const student = turns.filter((t) => t.role === "student").map((t) => t.text);
+  if (!student.some(thinking)) return false;
+  const later = turns.slice(last + 1).filter((t) => t.role === "student").map((t) => t.text);
+  return !isBareGuess(said) || later.some(thinking);
 }
 
 /**
@@ -303,12 +317,15 @@ export function studentWorkedItOut(problem: Problem, studentMessages: string[]):
  * confirms it ("36 is right"), names the correct multiple-choice option as the answer, or says "yes"
  * to a bare correct guess in the student's last message. Numbers that already appear in the problem only
  * count when they're called the answer outright. Once the student has worked the answer out themselves
- * (see studentWorkedItOut), saying they're right isn't a give-away.
+ * (see studentWorkedItOut), saying they're right isn't a give-away. `chat` is the conversation so far (plain
+ * strings are taken as student messages).
  */
-export function revealsAnswer(reply: string, problem: Problem, student: string | string[] = []): boolean {
-  const studentMessages = (typeof student === "string" ? [student] : student).filter((t) => t.trim());
-  if (studentWorkedItOut(problem, studentMessages)) return false;
-  const lastStudentMessage = studentMessages[studentMessages.length - 1] ?? "";
+export function revealsAnswer(reply: string, problem: Problem, chat: string | (string | TutorTurn)[] = []): boolean {
+  const turns = (typeof chat === "string" ? [chat] : chat)
+    .map((t): TutorTurn => (typeof t === "string" ? { role: "student", text: t } : t))
+    .filter((t) => t.text.trim());
+  if (studentWorkedItOut(problem, turns)) return false;
+  const lastStudentMessage = [...turns].reverse().find((t) => t.role === "student")?.text ?? "";
   const r = normalize(reply);
   const promptText = problem.prompt + (problem.visual ? "\n" + describeVisual(problem.visual) : "");
   const a = problem.answer;
@@ -404,7 +421,7 @@ export async function askTutor(req: TutorRequest): Promise<TutorReply> {
     return { text: "", leaks: 0, error: ERROR_TEXT, detail: "The tutor's code couldn't load (offline, or the app was just updated: reload the page)." };
   }
   const messages = buildMessages(tutorContext(req.problem, req.wrongAnswers, req.hintsShown), req.turns);
-  const studentMessages = req.turns.filter((t) => t.role === "student").map((t) => t.text);
+
   let leaks = 0;
   for (let attempt = 0; attempt < 2; attempt++) {
     let text: string;
@@ -415,7 +432,7 @@ export async function askTutor(req: TutorRequest): Promise<TutorReply> {
       console.error("Tutor call failed:", detail);
       return { text: "", leaks, error: mod.describeTutorError(e), detail };
     }
-    if (text && !revealsAnswer(text, req.problem, studentMessages)) return { text, leaks };
+    if (text && !revealsAnswer(text, req.problem, req.turns)) return { text, leaks };
     leaks++;
   }
   return { text: SAFE_FALLBACK, leaks };
