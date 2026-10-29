@@ -13,6 +13,9 @@ export function Topic({ state, topicId, go }: { state: AppState; topicId: string
   if (lesson) return <LessonCard skill={SKILL_BY_ID[lesson]} recap readAloud={state.settings.readAloud} onDone={() => setLesson(null)} />;
   return (
     <div>
+      <div className="row back-row">
+        <button className="btn" onClick={() => go({ name: "home", tab: "map" })}>← Back to the map</button>
+      </div>
       <div className="card">
         <div className="row">
           <span style={{ fontSize: "2rem" }}>{topic.icon}</span>
@@ -51,7 +54,6 @@ export function Topic({ state, topicId, go }: { state: AppState; topicId: string
           </div>
         );
       })}
-      <button className="btn" onClick={() => go({ name: "home", tab: "map" })}>← Back to the map</button>
     </div>
   );
 }

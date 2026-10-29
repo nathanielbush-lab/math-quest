@@ -73,8 +73,8 @@ function Hub({ state, go, onExit }: { state: AppState; go: (k?: AssessKind) => v
 
   return (
     <div className="assess-hub">
-      <div className="row" style={{ marginBottom: 12 }}>
-        <button className="btn ghost" onClick={onExit}>← Home</button>
+      <div className="row back-row">
+        <button className="btn" onClick={onExit}>← Back home</button>
       </div>
       <div className="card">
         <h1><Icon name="clipboard" /> Test practice</h1>
@@ -661,6 +661,9 @@ function Results({ kind, done, timed, go, onExit, openTopic }: {
 
   return (
     <div className="assess-results">
+      <div className="row back-row">
+        <button className="btn" autoFocus onClick={onExit}>← Back home</button>
+      </div>
       {timeUp && <div className="feedback warn" role="status">⏰ Time's up! Questions you didn't get to count as skipped.</div>}
       <div className={`card assess-score ${kind === "checkpoint" ? "" : band.id}`}>
         <div className="row" style={{ alignItems: "flex-start" }}>
@@ -771,7 +774,7 @@ function Results({ kind, done, timed, go, onExit, openTopic }: {
       <div className="row">
         <button className="btn ghost" onClick={() => go()}><Icon name="clipboard" /> Test practice</button>
         <span className="grow" />
-        <button className="btn primary big" autoFocus onClick={onExit}>Back home</button>
+        <button className="btn primary big" onClick={onExit}>Back home</button>
       </div>
     </div>
   );

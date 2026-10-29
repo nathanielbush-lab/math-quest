@@ -20,6 +20,9 @@ function TopicChooser({ state, mutate, onPick, onExit }: { state: AppState; muta
   const next = TOPICS.find((t) => !state.placement[t.id]);
   return (
     <div>
+      <div className="row back-row">
+        <button className="btn" onClick={onExit}>← Back home</button>
+      </div>
       <div className="card">
         <h1>🧭 Find your starting point</h1>
         <p>Each check is about 4–8 questions. It starts in the middle of a topic and moves up or down depending on your answers, so you can skip what you already know.</p>
@@ -46,7 +49,6 @@ function TopicChooser({ state, mutate, onPick, onExit }: { state: AppState; muta
           })}
         </div>
       ))}
-      <button className="btn" onClick={onExit}>← Back home</button>
     </div>
   );
 }

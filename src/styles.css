@@ -249,6 +249,8 @@ p { margin: 0 0 0.75em; }
 .muted { color: var(--ink-2); }
 .small { font-size: 0.85rem; }
 .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+/* The "Back" button at the top of a page. */
+.back-row { margin-bottom: 12px; }
 .grow { flex: 1; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 /* Chunky buttons that press down (Playful) or stamp into their shadow (Storybook). */
